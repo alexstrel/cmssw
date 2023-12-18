@@ -52,7 +52,7 @@ namespace portablevertex {
 
 
                       // scalars: one value for the whole structure
-                      SOA_SCALAR(double, nV))
+                      SOA_SCALAR(uint32_t, nV))
 
   using VertexSoA = VertexSoALayout<>;
 
@@ -103,7 +103,7 @@ namespace portablevertex {
                       SOA_EIGEN_COLUMN(TrackToVertex, vert_exparg),
 
                       // scalars: one value for the whole structure
-                      SOA_SCALAR(double, nT),
+                      SOA_SCALAR(uint32_t, nT),
                       SOA_SCALAR(double, totweight))
 
   using TrackSoA = TrackSoALayout<>;

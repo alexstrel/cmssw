@@ -4,7 +4,7 @@
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 #include "FWCore/Utilities/interface/InputTag.h"
-#include "HeterogeneousCore/AlpakaCore/interface/alpaka/stream/EDProducer.h"
+#include "HeterogeneousCore/AlpakaCore/interface/alpaka/global/EDProducer.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/EDPutToken.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/ESGetToken.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
@@ -16,6 +16,7 @@
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "DataFormats/Math/interface/AlgebraicROOTObjects.h"
 
+#include "BlockAlgo.h"
 #include "ClusterizerAlgo.h"
 #include "FitterAlgo.h"
 
@@ -24,192 +25,112 @@
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
   /**
    * This class does vertexing by
-   * - consuming set of reco::Tracks
-   * - converting them to a Alpaka-friendly dataformat
+   * - consuming set of portablevertex::Track
    * - clusterizing them into track clusters
    * - fitting cluster properties to vertex coordinates
-   * - produces a device vertex EDProduct (that gets transferred to host automatically if needed)
+   * - produces a device vertex product (portablevertex::Vertex)
    */
-  class PrimaryVertexProducer_Alpaka : public stream::EDProducer<> {
+  class PrimaryVertexProducer_Alpaka : public global::EDProducer<> {
   public:
-    PrimaryVertexProducer_Alpaka(edm::ParameterSet const& config)
-        : tsize_{config.getParameter<edm::ParameterSet>("trackSize").getParameter<int32_t>(
-              EDM_STRINGIZE(ALPAKA_ACCELERATOR_NAMESPACE))}, 
-	  vsize_{config.getParameter<edm::ParameterSet>("vertexSize").getParameter<int32_t>(
-              EDM_STRINGIZE(ALPAKA_ACCELERATOR_NAMESPACE))} {
-      // clusterizer_.configure(config);
-      trackToken_ = consumes<reco::TrackCollection>(config.getParameter<edm::InputTag>("TrackLabel"));
-      beamSpotToken_ = consumes<reco::BeamSpot>(config.getParameter<edm::InputTag>("BeamSpotLabel"));
-      devicePutToken_ = produces(config.getParameter<std::string>("productInstanceName"));
+    PrimaryVertexProducer_Alpaka(edm::ParameterSet const& config){
+      trackToken_     = consumes(config.getParameter<edm::InputTag>("TrackLabel"));
+      beamSpotToken_  = consumes(config.getParameter<edm::InputTag>("BeamSpotLabel"));
+      devicePutToken_ = produces();
+      blockSize       = config.getParameter<int32_t>("blockSize"); 
+      blockOverlap    = config.getParameter<double>("blockOverlap");
+      fitterParams = {
+        .chi2cutoff            = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("chi2cutoff"),
+        .minNdof               = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("minNdof"), 
+        .useBeamSpotContraint  = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<bool>("useBeamSpotContraint"),
+        .maxDistanceToBeam     = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("maxDistanceToBeam")
+      };
+      clusterParams = {
+        .Tmin   = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("Tmin"),
+        .Tpurge = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("Tpurge"),
+        .Tstop  = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("Tstop"),
+        .vertexSize = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("vertexSize"),
+        .coolingFactor = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("coolingFactor"),
+        .d0CutOff = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("d0CutOff"),
+        .dzCutOff = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("dzCutOff"),
+        .uniquetrkweight = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("uniquetrkweight"),
+        .uniquetrkminp = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("uniquetrkminp"),
+        .zmerge = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("zmerge"),
+        .sel_zrange = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("zrange"),
+        .convergence_mode = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<int>("convergence_mode"),
+        .delta_lowT = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("delta_lowT"),
+        .delta_highT = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("delta_highT")
+      };
     }
 
-    void produce(device::Event& iEvent, device::EventSetup const& iSetup) override {
-      auto tracks   = iEvent.getHandle(trackToken_).product();
-      auto beamSpot = iEvent.getHandle(beamSpotToken_).product(); 
-
-      // Host collections
-      auto hostTracks   = std::make_unique<portablevertex::TrackHostCollection>(tsize_, iEvent.queue());
-      auto hostBeamSpot = std::make_unique<portablevertex::BeamSpotHostCollection>(iEvent.queue());
-      auto hostVertex   = std::make_unique<portablevertex::VertexHostCollection>(vsize_, iEvent.queue());
-
-      // Fill Host tracks
-      unsigned int nTrueTracks = 0; 
-      for (unsigned int idx = 0; idx < tracks->size() ; idx ++){
-        double significance     = tracks->at(idx).stateAtBeamLine().transverseImpactParameter().significance();
-        double dxy2		= tracks->at(idx).stateAtBeamLine().transverseImpactParameter().error()*tracks->at(idx).stateAtBeamLine().transverseImpactParameter().error();
-        double dz2		= std::pow(tracks->at(idx).track().dzError(),2);
-        double pAtIP		= tracks->at(idx).impactPointState().globalMomentum().transverse();
-        double pxAtPCA		= tracks->at(idx).stateAtBeamLine().trackStateAtPCA().momentum().x();
-        double pyAtPCA		= tracks->at(idx).stateAtBeamLine().trackStateAtPCA().momentum().y();
-        double pzAtPCA		= tracks->at(idx).stateAtBeamLine().trackStateAtPCA().momentum().z();
-        double pt2AtPCA         = tracks->at(idx).stateAtBeamLine().trackStateAtPCA().momentum().perp2();
-        double bx		= tracks->at(idx).stateAtBeamLine().beamSpot().BeamWidthX();
-        double by		= tracks->at(idx).stateAtBeamLine().beamSpot().BeamWidthY();
-        double x		= tracks->at(idx).stateAtBeamLine().trackStateAtPCA().position().x();
-        double y                = tracks->at(idx).stateAtBeamLine().trackStateAtPCA().position().y();
-        double z                = tracks->at(idx).stateAtBeamLine().trackStateAtPCA().position().z();
-        double etaAtIP		= std::fabs(tracks->at(idx).impactPointState().globalMomentum().eta());
-        double chi2		= tracks->at(idx).normalizedChi2();
-        int8_t nPixelHits	= tracks->at(idx).hitPattern().pixelLayersWithMeasurement();
-        int8_t nTrackerHits     = tracks->at(idx).hitPattern().trackerLayersWithMeasurement();
-
-        bool isGood = false;
-        double weight = 0;
-        //if ((significance < fParams.maxSignificance) && (dxy2 < fParams.maxdxyError*fParams.maxdxyError) && (dz2 < fParams.maxdzError*fParams.maxdzError) && (pAtIP > fParams.minpAtIP) && (std::fabs(etaAtIP) < fParams.maxetaAtIP) && (chi2 < fParams.maxchi2) && (nPixelHits >= fParams.minpixelHits) && (nTrackerHits >= fParams.mintrackerHits)){
-        isGood = true;
-        //}
-        // And now the stuff for the clusterizer
-        if (isGood){
-            weight = 1.;  
-            if (std::fabs(z) > 1000.){ 
-                isGood = false;
-                weight = 0;
-                continue;
-            }
-            else{ // Get dz2 for the track
-               // dz2 is zerror^2 + (bx*px + by*py)^2*pz^2/(pt^4) + vertex_size^2
-               double oneoverdz2 = dz2 
-	       + (std::pow(bx*pxAtPCA,2)+ std::pow(by*pyAtPCA,2))* std::pow(pzAtPCA,2)/(std::pow(pt2AtPCA,2)) 
-	       //+ std::pow(fParams.vertexSize,2); // TODO:: For sure ways to optimize this
-               oneoverdz2 = 1./oneoverdz2;
-               if (not(std::isfinite(oneoverdz2)) || oneoverdz2< std::numeric_limits<double>::min()){ // Bad track dz2 is taken out
-                   isGood = false;
-                   weight = 0;
-                   continue;
-               }
-               else{
-                   if (fParams.d0CutOff > 0){ // Track weights are activated only if there is a non-zero cutoff
-                       // weight is 1/(1 + e^{sig^2 - d0cutoff^2})
-                       weight = 1. ; /// (1+exp(significance*significance - fParams.d0CutOff*fParams.d0CutOff ));
-                       if (not(std::isfinite(weight)) || weight< std::numeric_limits<double>::epsilon()){ // Bad track weight is taken out
-                           isGood = false;
-                           weight = 0;
-                           continue;
-                       }
-                   }
-                   // If we are here, the track is to be passed to the clusterizer. So initialize the clusterizer stuff
-                   // really save track now!
-                   hostTracks->view().totweight() += weight;
-                   hostTracks->view()[nTrueTracks].x() = x;
-                   hostTracks->view()[nTrueTracks].y() = y;
-                   hostTracks->view()[nTrueTracks].z() = z;
-                   hostTracks->view()[nTrueTracks].xAtIP() = tracks->at(idx).impactPointState().globalPosition().x();
-                   hostTracks->view()[nTrueTracks].yAtIP() = tracks->at(idx).impactPointState().globalPosition().y();
-                   hostTracks->view()[nTrueTracks].px() = pxAtPCA;
-                   hostTracks->view()[nTrueTracks].py() = pyAtPCA;
-                   hostTracks->view()[nTrueTracks].pz() = pzAtPCA;
-                   hostTracks->view()[nTrueTracks].weight() = weight;
-                   hostTracks->view()[nTrueTracks].tt_index() = idx;
-                   hostTracks->view()[nTrueTracks].dz2() = dz2;
-                   hostTracks->view()[nTrueTracks].oneoverdz2() = oneoverdz2;
-                   hostTracks->view()[nTrueTracks].dxy2() = dxy2;
-                   hostTracks->view()[nTrueTracks].dxy2AtIP() = tracks->at(idx).track().dxyError()*tracks->at(idx).track().dxyError();
-                   hostTracks->view()[nTrueTracks].order() = nTrueTracks;
-                   hostTracks->view()[nTrueTracks].sum_Z() = 0;
-                   hostTracks->view()[nTrueTracks].kmin() = 0; // will loop from kmin to kmax-1. At the start only one vertex
-                   hostTracks->view()[nTrueTracks].kmax() = 1;
-                   hostTracks->view()[nTrueTracks].aux1() = 0;
-                   hostTracks->view()[nTrueTracks].aux2() = 0;
-                   hostTracks->view()[nTrueTracks].isGood() = true;
-                   hostTracks->view().nT() += weight;
-               }
-            }    
-        }
-      } 
-
-      // Initialize BeamSpot
-      hostBeamSpot->view().x() = beamSpot->position().x();
-      hostBeamSpot->view().y() = beamSpot->position().y();
-      hostBeamSpot->view().sx() = beamSpot->rotatedCovariance3D()(0,0);
-      hostBeamSpot->view().sy() = beamSpot->rotatedCovariance3D().(1,1);
-
-      // Now the device SoAs
-      auto deviceTracks   = std::make_unique<portablevertex::TrackDeviceCollection>(tsize_, iEvent.queue());
-      auto deviceVertex   = std::make_unique<portablevertex::VertexDeviceCollection>(vsize_, iEvent.queue());
-      auto deviceBeamSpot = std::make_unique<portablevertex::BeamSpotDeviceCollection>(1, iEvent.queue());
-
-      // Copy input to device, no need to copy vertex
-      alpaka::memcpy(iEvent.queue(), deviceTracks->buffer(), hostTracks->buffer());
-      alpaka::memcpy(iEvent.queue(), deviceBeamSpot->buffer(), hostBeamSpot->buffer());
+    void produce(device::Event& iEvent, device::EventSetup const& iSetup) {
+      const portablevertex::TrackDeviceCollection& inputtracks   = iEvent.get(trackToken_);
+      const portablevertex::BeamSpotDeviceCollection& beamSpot     = iEvent.get(beamSpotToken_);
+      int32_t nT = inputtracks.view().nT();
+      int32_t nBlocks = int32_t ((nT+blockSize)/(blockOverlap*blockSize)); // In a couple of edge cases we will end up with an empty block, but this cleans after itself in the clusterizer anyhow
+     
+      // Now the device collections we still need
+      portablevertex::TrackDeviceCollection tracksInBlocks{nBlocks*blockSize, iEvent.queue()}; // As high as needed
+      portablevertex::VertexDeviceCollection deviceVertex{512, iEvent.queue()}; // Hard capped to 512
 
       // run the algorithm, potentially asynchronously
-      //// First clusterize
-      clusterizer_.fill(iEvent.queue(), *deviceTracks, *deviceVertex);
+      //// First create the individual blocks
+      BlockAlgo blockKernel_{iEvent.queue(), inputtracks.view().nT(), blockSize, blockOverlap}; 
+      blockKernel_.createBlocks(iEvent.queue(), inputtracks, tracksInBlocks);
+      // Need to have the blocks created before launching the next step
+      alpaka::wait(iEvent.queue());
+      //// Then run the clusterizer per blocks
+      ClusterizerAlgo clusterizerKernel_{iEvent.queue(), tracksInBlocks.view().nT(), blockSize, clusterParams}; 
+      clusterizerKernel_.clusterize(iEvent.queue(), tracksInBlocks, deviceVertex);
+      // Need to have all vertex before arbitrating and deciding what we keep
+      alpaka::wait(iEvent.queue()); 
+      clusterizerKernel_.arbitrate(iEvent.queue(), tracksInBlocks, deviceVertex);
+      alpaka::wait(iEvent.queue());
       //// And then fit
-      fitter_.fill(iEvent.queue(), *deviceTracks, *deviceVertex, *deviceBeamSpot);
-
-      // Copy output back vertex to host
-      alpaka::memcpy(iEvent.queue(), hostVertex->buffer(), deviceVertex->buffer());
-
-      // Last, do the conversion back to reco::Vertex
-      auto result = std::make_unique<reco::VertexCollection>();
-      reco::VertexCollection& vColl = (*result);
-      for (unsigned int iV = 0; iV < hostVertex->view().nV() ; iV++){
-          if (not(hostVertex->view()[iV].isGood())) continue;
-          AlgebraicSymMatrix33 err;
-          err[0][0] = hostVertex->view()[iV].errx();
-          err[1][1] = hostVertex->view()[iV].erry();
-          err[2][2] = hostVertex->view()[iV].errz();
-          reco::Vertex newV(math::GlobalPoint(hostVertex->view()[iV].x(), hostVertex->view()[iV].y(), hostVertex->view()[iV].z()), err, hostVertex->view()[iV].chi2(), hostVertex->view()[iV].ndof(), hostVertex->view()[iV].ntracks());
-          for (unsigned int iT=0; iT <  hostVertex->view()[iV].ntracks(); iT++) {
-             unsigned int new_itrack = hostVertex->view()[iV].track_id()[iT];
-             newV.add(tracks->at(new_itrack), hostVertex->view()[iV].track_weight()[iT]);
-          }
-          vColl.push_back(newV);
-      }
-      // This would put it as a portable object!  
-      iEvent.put(devicePutToken_, std::move(deviceVertex));
-      // And finally put it in the event! It doesn't work :(
-      //iEvent.put(std::move(vColl));
+      FitterAlgo fitterKernel_{iEvent.queue(), deviceVertex.view().nV(), fitterParams};
+      fitterKernel_.fit(iEvent.queue(), tracksInBlocks, deviceVertex, beamSpot);
+      // This puts it in the event as a portable object!  
+      iEvent.emplace(devicePutToken_, std::move(deviceVertex));
     }
 
     static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
       edm::ParameterSetDescription desc;
       desc.add<edm::InputTag>("TrackLabel");
       desc.add<edm::InputTag>("BeamSpotLabel");
-
-      desc.add<std::string>("productInstanceName", "");
-
-      edm::ParameterSetDescription psetSize;
-      psetSize.add<int32_t>("alpaka_serial_sync");
-      psetSize.add<int32_t>("alpaka_cuda_async");
-      desc.add("tsize", psetSize);
-      desc.add("vsize", psetSize);
-
+      desc.add<double>("blockOverlap");
+      desc.add<int32_t>("blockSize");
+      edm::ParameterSetDescription parf0;
+      parf0.add<double>("chi2cutoff", 2.5);
+      parf0.add<double>("minNdof", 0.0);
+      parf0.add<bool>("useBeamSpotContraint", true);
+      parf0.add<double>("maxDistanceToBeam", 1.0);
+      desc.add<edm::ParameterSetDescription>("TkFitterParameters",parf0);
+      edm::ParameterSetDescription parc0;
+      parc0.add<double>("d0CutOff", 3.0);
+      parc0.add<double>("Tmin", 2.0);
+      parc0.add<double>("delta_lowT", 0.001);
+      parc0.add<double>("zmerge", 0.01);
+      parc0.add<double>("dzCutOff", 3.0);
+      parc0.add<double>("Tpurge", 2.0);
+      parc0.add<int32_t>("convergence_mode", 0);
+      parc0.add<double>("delta_highT", 0.01);
+      parc0.add<double>("Tstop", 0.5);
+      parc0.add<double>("coolingFactor", 0.6);
+      parc0.add<double>("vertexSize", 0.006);
+      parc0.add<double>("uniquetrkweight", 0.8);
+      parc0.add<double>("uniquetrkminp", 0.0);
+      parc0.add<double>("zrange", 4.0);
+      desc.add<edm::ParameterSetDescription>("TkClusParameters",parc0);
       descriptions.addWithDefaultLabel(desc);
     }
 
   private:
-    edm::EDGetTokenT<reco::TrackCollection> trackToken_;
-    edm::EDGetTokenT<reco::BeamSpot> beamSpotToken_;
+    edm::EDGetTokenT<portablevertex::TrackDeviceCollection> trackToken_;
+    edm::EDGetTokenT<portablevertex::BeamSpotDeviceCollection> beamSpotToken_;
     device::EDPutToken<portablevertex::VertexDeviceCollection> devicePutToken_;
-
-    // This is the maximum vertex size in the input/output
-    const int32_t tsize_;
-    const int32_t vsize_;
-    // implementation of the algorithm
-    ClusterizerAlgo clusterizer_;
-    FitterAlgo fitter_;
+    int32_t blockSize;
+    double blockOverlap;
+    fitterParameters fitterParams;
+    clusterParameters clusterParams;
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

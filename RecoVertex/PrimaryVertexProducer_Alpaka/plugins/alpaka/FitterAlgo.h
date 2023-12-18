@@ -6,25 +6,23 @@
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
+  struct fitterParameters {
+    double chi2cutoff;
+    double minNdof;
+    bool useBeamSpotContraint;
+    double maxDistanceToBeam;
+  };
+
   class FitterAlgo {
   public:
-    void fill(Queue& queue, portablevertex::TrackDeviceCollection& trackCollection, portablevertex::VertexDeviceCollection& vertexCollection, portablevertex::BeamSpotDeviceCollection& beamSpot) const;
-    //void configure(edm::ParameterSet const& config);
+    FitterAlgo(Queue& queue, const uint32_t nV, fitterParameters fPar); // Just configuration and making job divisions
+    void fit(Queue& queue, const portablevertex::TrackDeviceCollection& deviceTrack, portablevertex::VertexDeviceCollection& deviceVertex, const portablevertex::BeamSpotDeviceCollection& deviceBeamSpot); // The actual fitting
   private:
-    double Tmin;
-    double Tpurge;
-    double Tstop;
-    double vertexSize_;
-    double coolingFactor_;
-    double d0CutOff_;
-    double dzCutOff_;
-    double uniquetrkweight_;
-    double uniquetrkminp_;
-    double zmerge_;
-    double sel_zrange_;
-    double convergence_mode_;
-    double delta_lowT_;
-    double delta_highT_;
+    double chi2cutoff;
+    double minNdof;
+    bool useBeamSpotContraint;
+    double maxDistanceToBeam;
+    WorkDiv<Dim1D> workDiv;
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

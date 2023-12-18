@@ -6,25 +6,32 @@
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
+  struct clusterParameters {
+      double Tmin;
+      double Tpurge;
+      double Tstop;
+      double vertexSize;
+      double coolingFactor;
+      double d0CutOff;
+      double dzCutOff;
+      double uniquetrkweight;
+      double uniquetrkminp;
+      double zmerge;
+      double sel_zrange;
+      int32_t convergence_mode;
+     ;double delta_lowT;
+      double delta_highT;
+  };
+
   class ClusterizerAlgo {
   public:
-    void fill(Queue& queue, portablevertex::TrackDeviceCollection& trackCollection, portablevertex::VertexDeviceCollection& vertexCollection) const;
-    // void configure(edm::ParameterSet const& config);
+    ClusterizerAlgo(Queue& queue, const uint32_t nT, int32_t blockSize, clusterParameters cPar); // Just configuration and making job divisions
+    void clusterize(Queue& queue, const portablevertex::TrackDeviceCollection& inputTracks, portablevertex::VertexDeviceCollection& deviceVertex); // Clusterization
+    void arbitrate(Queue& queue, const portablevertex::TrackDeviceCollection& inputTracks, portablevertex::VertexDeviceCollection& deviceVertex); // Arbitration
   private:
-    double Tmin;
-    double Tpurge;
-    double Tstop;
-    double vertexSize_;
-    double coolingFactor_;
-    double d0CutOff_;
-    double dzCutOff_;
-    double uniquetrkweight_;
-    double uniquetrkminp_;
-    double zmerge_;
-    double sel_zrange_;
-    double convergence_mode_;
-    double delta_lowT_;
-    double delta_highT_;
+    WorkDiv<Dim1D> workDivCluster;
+    WorkDiv<Dim1D> workDivArbitrate;
+    clusterParameters cParams;    
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
