@@ -19,19 +19,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       double zmerge;
       double sel_zrange;
       int32_t convergence_mode;
-     ;double delta_lowT;
+      double delta_lowT;
       double delta_highT;
   };
 
   class ClusterizerAlgo {
   public:
-    ClusterizerAlgo(Queue& queue, const uint32_t nT, int32_t blockSize, clusterParameters cPar); // Just configuration and making job divisions
-    void clusterize(Queue& queue, const portablevertex::TrackDeviceCollection& inputTracks, portablevertex::VertexDeviceCollection& deviceVertex); // Clusterization
-    void arbitrate(Queue& queue, const portablevertex::TrackDeviceCollection& inputTracks, portablevertex::VertexDeviceCollection& deviceVertex); // Arbitration
+    ClusterizerAlgo(Queue& queue);
+    void clusterize(Queue& queue, portablevertex::TrackDeviceCollection& inputTracks, portablevertex::VertexDeviceCollection& deviceVertex, const std::shared_ptr<portablevertex::ClusterParamsHostCollection> cParams, int32_t nBlocks, int32_t blockSize); // Clusterization
+    void arbitrate(Queue& queue, portablevertex::TrackDeviceCollection& inputTracks, portablevertex::VertexDeviceCollection& deviceVertex, const std::shared_ptr<portablevertex::ClusterParamsHostCollection> cParams, int32_t nBlocks, int32_t blockSize); // Arbitration
   private:
-    WorkDiv<Dim1D> workDivCluster;
-    WorkDiv<Dim1D> workDivArbitrate;
-    clusterParameters cParams;    
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

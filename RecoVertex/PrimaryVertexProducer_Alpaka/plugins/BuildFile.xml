@@ -33,7 +33,6 @@
   <use name="HeterogeneousCore/CUDACore"/>
   <use name="HeterogeneousCore/AlpakaCore"/>
   <use name="HeterogeneousCore/AlpakaInterface"/>
-  <use name="DataFormats/Math/interface/AlgebraicROOTObjects.h"/>
   <flags ALPAKA_BACKENDS="1"/>
   <flags EDM_PLUGIN="1"/>
 </library>

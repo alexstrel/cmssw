@@ -10,6 +10,7 @@ namespace portablevertex {
   using VertexHostCollection = PortableHostCollection<VertexSoA>;
   using TrackHostCollection = PortableHostCollection<TrackSoA>;
   using BeamSpotHostCollection = PortableHostCollection<BeamSpotSoA>;
+  using ClusterParamsHostCollection = PortableHostCollection<ClusterParamsSoA>;
 }  // namespace portablevertex
 
 #endif  // DataFormats_PortableVertex_interface_VertexHostCollection_h

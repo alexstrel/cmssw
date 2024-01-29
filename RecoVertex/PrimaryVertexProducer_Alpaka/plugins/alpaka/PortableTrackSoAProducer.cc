@@ -55,8 +55,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
        .maxchi2        =config.getParameter<edm::ParameterSet>("TkFilterParameters").getParameter<double>("maxNormalizedChi2"),
        .minpixelHits   =config.getParameter<edm::ParameterSet>("TkFilterParameters").getParameter<int>("minPixelLayersWithHits"),
        .mintrackerHits =config.getParameter<edm::ParameterSet>("TkFilterParameters").getParameter<int>("minSiliconLayersWithHits"),
-       .vertexSize     =config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<edm::ParameterSet>("TkDAClusParameters").getParameter<double>("vertexSize"),
-       .d0CutOff       =config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<edm::ParameterSet>("TkDAClusParameters").getParameter<double>("d0CutOff")
+       .vertexSize     =config.getParameter<edm::ParameterSet>("TkFilterParameters").getParameter<double>("vertexSize"),
+       .d0CutOff       =config.getParameter<edm::ParameterSet>("TkFilterParameters").getParameter<double>("d0CutOff")
       };      
     }
 
@@ -107,6 +107,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       psd0.add<std::string>("trackQuality", "any");
       psd0.add<int>("minPixelLayersWithHits", 2);
       psd0.add<int>("minSiliconLayersWithHits", 5);      
+      psd0.add<double>("vertexSize", 0.006);
+      psd0.add<double>("d0CutOff", 0.10);
       desc.add<edm::ParameterSetDescription>("TkFilterParameters",psd0);
       descriptions.addWithDefaultLabel(desc);
     }

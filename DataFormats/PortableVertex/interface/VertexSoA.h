@@ -14,7 +14,7 @@
 namespace portablevertex {
 
   using VertexToTrack = Eigen::Vector<double, 1024>; // 512 is the max vertex allowed
-
+  using VertexToTrackInt = Eigen::Vector<unsigned int, 1024>;
   // SoA layout with x, y, z, id fields
   GENERATE_SOA_LAYOUT(VertexSoALayout,
                       // columns: one value per element
@@ -30,13 +30,13 @@ namespace portablevertex {
 
                       SOA_COLUMN(double, chi2),
                       SOA_COLUMN(double, ndof),
-                      SOA_COLUMN(double, ntracks),
+                      SOA_COLUMN(unsigned int, ntracks),
                       SOA_COLUMN(double, rho),
 
                       SOA_COLUMN(double, aux1),
                       SOA_COLUMN(double, aux2),
 
-                      SOA_EIGEN_COLUMN(VertexToTrack, track_id),
+                      SOA_EIGEN_COLUMN(VertexToTrackInt, track_id),
                       SOA_EIGEN_COLUMN(VertexToTrack, track_weight),
 
                       SOA_COLUMN(bool, isGood),
@@ -52,7 +52,7 @@ namespace portablevertex {
 
 
                       // scalars: one value for the whole structure
-                      SOA_SCALAR(uint32_t, nV))
+                      SOA_COLUMN(uint32_t, nV))
 
   using VertexSoA = VertexSoALayout<>;
 
@@ -115,6 +115,25 @@ namespace portablevertex {
 		      SOA_SCALAR(double, sy))
 
   using BeamSpotSoA = BeamSpotSoALayout<>;
+
+  GENERATE_SOA_LAYOUT(ClusterParams,
+		      SOA_SCALAR(double, d0CutOff),
+		      SOA_SCALAR(double, TMin),
+		      SOA_SCALAR(double, delta_lowT),
+		      SOA_SCALAR(double, zmerge),
+                      SOA_SCALAR(double, dzCutOff),
+                      SOA_SCALAR(double, Tpurge),
+                      SOA_SCALAR(int, convergence_mode),
+                      SOA_SCALAR(double, delta_highT),
+                      SOA_SCALAR(double, Tstop),
+                      SOA_SCALAR(double, coolingFactor),
+                      SOA_SCALAR(double, vertexSize),
+                      SOA_SCALAR(double, uniquetrkweight),
+                      SOA_SCALAR(double, uniquetrkminp),
+                      SOA_SCALAR(double, zrange))
+
+  using ClusterParamsSoA = ClusterParams<>;
+		      
 }  // namespace portablevertex
 
 #endif  // DataFormats_PortableVertex_interface_VertexSoA_h

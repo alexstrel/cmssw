@@ -7,10 +7,10 @@
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   struct fitterParameters {
-    double chi2cutoff;
-    double minNdof;
-    bool useBeamSpotContraint;
-    double maxDistanceToBeam;
+    double chi2cutoff; // Unused?
+    double minNdof;  // Unused?
+    bool useBeamSpotConstraint;
+    double maxDistanceToBeam; // Unused?
   };
 
   class FitterAlgo {
@@ -18,11 +18,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     FitterAlgo(Queue& queue, const uint32_t nV, fitterParameters fPar); // Just configuration and making job divisions
     void fit(Queue& queue, const portablevertex::TrackDeviceCollection& deviceTrack, portablevertex::VertexDeviceCollection& deviceVertex, const portablevertex::BeamSpotDeviceCollection& deviceBeamSpot); // The actual fitting
   private:
-    double chi2cutoff;
-    double minNdof;
-    bool useBeamSpotContraint;
-    double maxDistanceToBeam;
-    WorkDiv<Dim1D> workDiv;
+    cms::alpakatools::device_buffer<Device, bool> useBeamSpotConstraint;
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

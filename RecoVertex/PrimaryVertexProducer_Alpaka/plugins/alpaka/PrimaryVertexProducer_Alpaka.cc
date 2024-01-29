@@ -4,7 +4,7 @@
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 #include "FWCore/Utilities/interface/InputTag.h"
-#include "HeterogeneousCore/AlpakaCore/interface/alpaka/global/EDProducer.h"
+#include "HeterogeneousCore/AlpakaCore/interface/alpaka/stream/EDProducer.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/EDPutToken.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/ESGetToken.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
@@ -30,7 +30,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
    * - fitting cluster properties to vertex coordinates
    * - produces a device vertex product (portablevertex::Vertex)
    */
-  class PrimaryVertexProducer_Alpaka : public global::EDProducer<> {
+  class PrimaryVertexProducer_Alpaka : public stream::EDProducer<> {
   public:
     PrimaryVertexProducer_Alpaka(edm::ParameterSet const& config){
       trackToken_     = consumes(config.getParameter<edm::InputTag>("TrackLabel"));
@@ -39,10 +39,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       blockSize       = config.getParameter<int32_t>("blockSize"); 
       blockOverlap    = config.getParameter<double>("blockOverlap");
       fitterParams = {
-        .chi2cutoff            = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("chi2cutoff"),
-        .minNdof               = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("minNdof"), 
-        .useBeamSpotContraint  = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<bool>("useBeamSpotContraint"),
-        .maxDistanceToBeam     = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("maxDistanceToBeam")
+        .chi2cutoff            = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("chi2cutoff"), // not used?
+        .minNdof               = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("minNdof"),  // not used?
+        .useBeamSpotConstraint  = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<bool>("useBeamSpotConstraint"),
+        .maxDistanceToBeam     = config.getParameter<edm::ParameterSet>("TkFitterParameters").getParameter<double>("maxDistanceToBeam") //not used?
       };
       clusterParams = {
         .Tmin   = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("Tmin"),
@@ -60,6 +60,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         .delta_lowT = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("delta_lowT"),
         .delta_highT = config.getParameter<edm::ParameterSet>("TkClusParameters").getParameter<double>("delta_highT")
       };
+      cParams = std::make_shared<portablevertex::ClusterParamsHostCollection>(1, cms::alpakatools::host());
+      auto cpview = cParams->view();
+      cpview.TMin()   = clusterParams.Tmin;
+      cpview.Tpurge() = clusterParams.Tpurge;
+      cpview.Tstop()  = clusterParams.Tstop;
+      cpview.vertexSize() = clusterParams.vertexSize;
+      cpview.coolingFactor() = clusterParams.coolingFactor;
+      cpview.d0CutOff() = clusterParams.d0CutOff;
+      cpview.dzCutOff() = clusterParams.dzCutOff;
+      cpview.uniquetrkweight() = clusterParams.uniquetrkweight;
+      cpview.uniquetrkminp() = clusterParams.uniquetrkminp;
+      cpview.zmerge() = clusterParams.zmerge;
+      cpview.zrange() = clusterParams.sel_zrange;
+      cpview.convergence_mode() = clusterParams.convergence_mode;
+      cpview.delta_lowT() = clusterParams.delta_lowT;
+      cpview.delta_highT() = clusterParams.delta_highT;
     }
 
     void produce(device::Event& iEvent, device::EventSetup const& iSetup) {
@@ -67,7 +83,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       const portablevertex::BeamSpotDeviceCollection& beamSpot     = iEvent.get(beamSpotToken_);
       int32_t nT = inputtracks.view().nT();
       int32_t nBlocks = int32_t ((nT+blockSize)/(blockOverlap*blockSize)); // In a couple of edge cases we will end up with an empty block, but this cleans after itself in the clusterizer anyhow
-     
+      
       // Now the device collections we still need
       portablevertex::TrackDeviceCollection tracksInBlocks{nBlocks*blockSize, iEvent.queue()}; // As high as needed
       portablevertex::VertexDeviceCollection deviceVertex{512, iEvent.queue()}; // Hard capped to 512
@@ -75,18 +91,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       // run the algorithm, potentially asynchronously
       //// First create the individual blocks
       BlockAlgo blockKernel_{iEvent.queue(), inputtracks.view().nT(), blockSize, blockOverlap}; 
-      blockKernel_.createBlocks(iEvent.queue(), inputtracks, tracksInBlocks);
+      blockKernel_.createBlocks(iEvent.queue(), inputtracks, tracksInBlocks, blockSize, nBlocks);
       // Need to have the blocks created before launching the next step
       alpaka::wait(iEvent.queue());
       //// Then run the clusterizer per blocks
-      ClusterizerAlgo clusterizerKernel_{iEvent.queue(), tracksInBlocks.view().nT(), blockSize, clusterParams}; 
-      clusterizerKernel_.clusterize(iEvent.queue(), tracksInBlocks, deviceVertex);
+      ClusterizerAlgo clusterizerKernel_{iEvent.queue()}; 
+      clusterizerKernel_.clusterize(iEvent.queue(), tracksInBlocks, deviceVertex, cParams, nBlocks, blockSize);
       // Need to have all vertex before arbitrating and deciding what we keep
-      alpaka::wait(iEvent.queue()); 
-      clusterizerKernel_.arbitrate(iEvent.queue(), tracksInBlocks, deviceVertex);
+      alpaka::wait(iEvent.queue());
+      clusterizerKernel_.arbitrate(iEvent.queue(), tracksInBlocks, deviceVertex, cParams, nBlocks, blockSize);
       alpaka::wait(iEvent.queue());
       //// And then fit
-      FitterAlgo fitterKernel_{iEvent.queue(), deviceVertex.view().nV(), fitterParams};
+      FitterAlgo fitterKernel_{iEvent.queue(), deviceVertex.view()[0].nV(), fitterParams};
       fitterKernel_.fit(iEvent.queue(), tracksInBlocks, deviceVertex, beamSpot);
       // This puts it in the event as a portable object!  
       iEvent.emplace(devicePutToken_, std::move(deviceVertex));
@@ -101,7 +117,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       edm::ParameterSetDescription parf0;
       parf0.add<double>("chi2cutoff", 2.5);
       parf0.add<double>("minNdof", 0.0);
-      parf0.add<bool>("useBeamSpotContraint", true);
+      parf0.add<bool>("useBeamSpotConstraint", true);
       parf0.add<double>("maxDistanceToBeam", 1.0);
       desc.add<edm::ParameterSetDescription>("TkFitterParameters",parf0);
       edm::ParameterSetDescription parc0;
@@ -131,6 +147,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     double blockOverlap;
     fitterParameters fitterParams;
     clusterParameters clusterParams;
+    std::shared_ptr<portablevertex::ClusterParamsHostCollection> cParams;
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
