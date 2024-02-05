@@ -58,7 +58,7 @@ void SoAToRecoVertexProducer::produce(edm::Event& iEvent, const edm::EventSetup&
 
   // Do the conversion back to reco::Vertex
   reco::VertexCollection& vColl = (*result);
-  for (unsigned int iV = 0; iV < hostVertexView.nV() ; iV++){
+  for (unsigned int iV = 0; iV < hostVertexView[0].nV() ; iV++){
     if (not(hostVertexView[iV].isGood())) continue;
     // Convert the SoA errors to a diagonal 3x3 matrix
     AlgebraicSymMatrix33 err;
