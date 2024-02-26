@@ -21,7 +21,7 @@ process.load('HeterogeneousCore.AlpakaCore.ProcessAcceleratorAlpaka_cfi')
 
 # Input files
 process.source = cms.Source("PoolSource",
-    fileNames = cms.untracked.vstring('/store/relval/CMSSW_13_3_0_pre4/RelValTTbar_14TeV/GEN-SIM-RECO/PU_133X_mcRun4_realistic_v1_13_3_0_pre_4_RV217_D98-v1/2590000/03a3903f-b0d8-4a49-a0b8-c7a0742c2bb3.root'),
+    fileNames = cms.untracked.vstring('/store/relval/CMSSW_14_0_0/RelValTTbar_14TeV/GEN-SIM-RECO/140X_mcRun3_2023_realistic_v3_STD_PU_AlpakaVal_Alpaka_OnGPU-v2/2580000/113c897c-45a0-47e2-8be1-986e76db1e03.root'),
     secondaryFileNames = cms.untracked.vstring(),
 )
 
@@ -43,7 +43,7 @@ process.FEVToutput = cms.OutputModule("PoolOutputModule",
         dataTier = cms.untracked.string('GEN-SIM-DIGI-RECO'),
         filterName = cms.untracked.string('')
     ),
-    fileName = cms.untracked.string('test.root'), # output file name
+    fileName = cms.untracked.string('testAlpaka.root'), # output file name
     outputCommands = cms.untracked.vstring('drop *', 'keep *_tracksSoA_*_*', 'keep *_beamSpotSoA_*_*', 'keep *_vertexSoA_*_*', 'keep *_vertexAoS_*_*'),# I.e., just drop everything and keep things in this module
     splitLevel = cms.untracked.int32(0)
 )
@@ -60,23 +60,18 @@ import sys
 import argparse
 parser = argparse.ArgumentParser(prog=f"{sys.argv[0]} {sys.argv[1]} --", description='Test and validation of PrimaryVertexProducer_Alpaka')
 parser.add_argument('-b', '--backend', type=str, default='auto',
-                    help='Alpaka backend. Possible options: CPU, GPU, auto. Default: auto')
+                    help='Alpaka backend. Comma separated list. Possible options: cpu, gpu-nvidia, gpu-amd')
 args = parser.parse_args()
 
-alpaka_backends = {
-    "cpu": "alpaka_serial_sync::%s",  # Execute on CPU
-    "gpu": "alpaka_cuda_async::%s",   # Execute using CUDA / TODO: set up so it also checks ROCm
-    "cuda": "alpaka_cuda_async::%s",  # Execute using CUDA
-    "auto": "%s@alpaka"               # Let framework choose
-}
-alpaka_backend_str = "alpaka_serial_sync::%s" #alpaka_backends[args.backend]
+# Set the backend for all jobs
+process.options.accelerators = args.backend.split(",")
 
 ################################
 ## Now the plugins themselves ##
 ################################
 
 # Convert reco::Track to portable Track
-process.tracksSoA = cms.EDProducer(alpaka_backend_str % "PortableTrackSoAProducer",
+process.tracksSoA = cms.EDProducer("PortableTrackSoAProducer@alpaka",
     TrackLabel    = cms.InputTag("generalTracks"),
     BeamSpotLabel = cms.InputTag("offlineBeamSpot"),
     # For historical reasons, parameters are set up as in the legacy code of RecoVertex/PrimaryVertexProducer/python/OfflinePrimaryVertices_cfi.py
@@ -97,11 +92,11 @@ process.tracksSoA = cms.EDProducer(alpaka_backend_str % "PortableTrackSoAProduce
 )
 
 # Convert reco::BeamSpot to portable BeamSpot
-process.beamSpotSoA = cms.EDProducer(alpaka_backend_str % "PortableBeamSpotSoAProducer",
+process.beamSpotSoA = cms.EDProducer("PortableBeamSpotSoAProducer@alpaka",
     BeamSpotLabel = cms.InputTag("offlineBeamSpot")
 )
 
-process.vertexSoA = cms.EDProducer(alpaka_backend_str % "PrimaryVertexProducer_Alpaka",
+process.vertexSoA = cms.EDProducer("PrimaryVertexProducer_Alpaka@alpaka",
     TrackLabel = cms.InputTag("tracksSoA"),
     BeamSpotLabel = cms.InputTag("beamSpotSoA"),
     blockOverlap = cms.double(0.50),
@@ -134,10 +129,6 @@ process.vertexAoS = cms.EDProducer("SoAToRecoVertexProducer",
     soaVertex = cms.InputTag("vertexSoA"),
     srcTrack  = cms.InputTag("generalTracks")
 )
-
-## TODO: Vertex producer
-
-## TODO: Conversion back to reco::vertex
 
 
 ###################################

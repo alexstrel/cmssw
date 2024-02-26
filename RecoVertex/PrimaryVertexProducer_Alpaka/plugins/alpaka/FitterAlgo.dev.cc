@@ -13,7 +13,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
     ALPAKA_FN_ACC void operator()(const TAcc& acc,  const portablevertex::TrackDeviceCollection::ConstView tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::BeamSpotDeviceCollection::ConstView beamSpot, bool* useBeamSpotConstraint) const{
       // These are the kernel operations themselves
-      const unsigned int nTrueVertex = vertices[0].nV(); // Set max true vertex
+      const int nTrueVertex = vertices[0].nV(); // Set max true vertex
       // Magic numbers from https://github.com/cms-sw/cmssw/blob/master/RecoVertex/PrimaryVertexProducer/interface/WeightedMeanFitter.h#L12
       const float precision = 1e-24;
       float corr_x = 1.2;
@@ -42,8 +42,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         double errx = 0;
         double errz = 0;
 
-	for (unsigned int itrackInVertex = 0; itrackInVertex < vertices[i].ntracks(); itrackInVertex++){
-	  unsigned int itrack = vertices[i].track_id()[itrackInVertex];
+	for (int itrackInVertex = 0; itrackInVertex < vertices[i].ntracks(); itrackInVertex++){
+	  int itrack = vertices[i].track_id()[itrackInVertex];
 	  double wxy = tracks[itrack].dxy2();
 	  double wz  = tracks[itrack].dz2();
 	  x += tracks[itrack].x()*wxy;
@@ -63,7 +63,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         double s_wx, s_wz;
 	int ndof;
 	// Run iterative weighted mean fitter
-	unsigned int niter = 0;
+	int niter = 0;
 	while ((niter++) < maxIterations){
           double old_x = x;
 	  double old_y = y;
@@ -74,8 +74,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	  y = 0.;
 	  z = 0.;
 	  ndof = 0;
-	  for (unsigned int itrackInVertex = 0; itrackInVertex < vertices[i].ntracks(); itrackInVertex++){
-            unsigned int itrack = vertices[i].track_id()[itrackInVertex];
+	  for (int itrackInVertex = 0; itrackInVertex < vertices[i].ntracks(); itrackInVertex++){
+            int itrack = vertices[i].track_id()[itrackInVertex];
             // Position (ref point) of the track
 	    double tx = tracks[itrack].x();
 	    double ty = tracks[itrack].y();
@@ -137,8 +137,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         vertices[i].ndof() = ndof;
         // Last get the degrees of freedom of the final vertex fit 
         double chi2 = 0.;
-        for (unsigned int itrackInVertex = 0; itrackInVertex < vertices[i].ntracks(); itrackInVertex++){
-          unsigned int itrack = vertices[i].track_id()[itrackInVertex];
+        for (int itrackInVertex = 0; itrackInVertex < vertices[i].ntracks(); itrackInVertex++){
+          int itrack = vertices[i].track_id()[itrackInVertex];
           // Position (ref point) of the track
           double tx = tracks[itrack].x();
           double ty = tracks[itrack].y();
@@ -152,7 +152,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     } // operator()
   }; // class fitVertices
 
-  FitterAlgo::FitterAlgo(Queue& queue, const uint32_t nV, fitterParameters fPar) : useBeamSpotConstraint(cms::alpakatools::make_device_buffer<bool>(queue)) {
+  FitterAlgo::FitterAlgo(Queue& queue, const int32_t nV, fitterParameters fPar) : useBeamSpotConstraint(cms::alpakatools::make_device_buffer<bool>(queue)) {
     // Set fitter parameters
     alpaka::memset(queue,  useBeamSpotConstraint, fPar.useBeamSpotConstraint);
   } // FitterAlgo::FitterAlgo

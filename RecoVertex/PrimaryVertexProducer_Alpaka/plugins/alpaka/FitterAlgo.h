@@ -15,7 +15,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   class FitterAlgo {
   public:
-    FitterAlgo(Queue& queue, const uint32_t nV, fitterParameters fPar); // Just configuration and making job divisions
+    FitterAlgo(Queue& queue, const int32_t nV, fitterParameters fPar); // Just configuration and making job divisions
     void fit(Queue& queue, const portablevertex::TrackDeviceCollection& deviceTrack, portablevertex::VertexDeviceCollection& deviceVertex, const portablevertex::BeamSpotDeviceCollection& deviceBeamSpot); // The actual fitting
   private:
     cms::alpakatools::device_buffer<Device, bool> useBeamSpotConstraint;

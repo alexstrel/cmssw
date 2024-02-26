@@ -2,7 +2,7 @@
 
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
-//#include "HeterogeneousCore/AlpakaInterface/interface/radixSort.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/radixSort.h"
 
 #include "RecoVertex/PrimaryVertexProducer_Alpaka/plugins/alpaka/ClusterizerAlgo.h"
 
@@ -11,9 +11,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   ////////////////////// 
   // Device functions //
   //////////////////////
-  template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC inline constexpr bool once_per_block(TAcc const& acc) {
-    return alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc) == Vec<alpaka::Dim<TAcc>>::zeros();  
-  }
 
   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void set_vtx_range(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
     // These updates the range of vertices associated to each track through the kmin/kmax variables
@@ -52,12 +49,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         }
       }
       if (kmin <= kmax){ // i.e. we have vertex associated to the track
-        tracks[itrack].kmin() = (unsigned int) kmin;
-	tracks[itrack].kmax() = (unsigned int) kmax;
+        tracks[itrack].kmin() = (int) kmin;
+	tracks[itrack].kmax() = (int) kmax;
       }
       else { // Otherwise, track goes in the most extreme vertex
-        tracks[itrack].kmin() = (unsigned int) std::max(maxVerticesPerBlock * blockIdx, (int) std::min(kmin, kmax));
-        tracks[itrack].kmax() = (unsigned int) std::min((maxVerticesPerBlock * blockIdx) + (int) vertices[blockIdx].nV(), (int) std::max(kmin, kmax) + 1);
+        tracks[itrack].kmin() = (int) std::max(maxVerticesPerBlock * blockIdx, (int) std::min(kmin, kmax));
+        tracks[itrack].kmax() = (int) std::min((maxVerticesPerBlock * blockIdx) + (int) vertices[blockIdx].nV(), (int) std::max(kmin, kmax) + 1);
       }
     } //end for
     alpaka::syncBlockThreads(acc);
@@ -73,7 +70,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
       double botrack_dz2 = -(_beta) * tracks[itrack].oneoverdz2();
       tracks[itrack].sum_Z() = Zinit;
-      for (unsigned int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
+      for (int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
         int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
 	double mult_res = tracks[itrack].z() - vertices[ivertex].z();
 	tracks[itrack].vert_exparg()[ivertex] = botrack_dz2*mult_res*mult_res; // -beta*(z_t-z_v)/dz^2
@@ -83,7 +80,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       if(not(std::isfinite(tracks[itrack].sum_Z()))) tracks[itrack].sum_Z() = 0; // Just in case something diverges
       if(tracks[itrack].sum_Z()>1e-100){ // If non-zero then the track has a non-trivial assignment to a vertex
         double sumw = tracks[itrack].weight()/tracks[itrack].sum_Z();
-  	for (unsigned int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
+  	for (int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
           int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
           tracks[itrack].vert_se()[ivertex] = tracks[itrack].vert_exp()[ivertex] * sumw; // From partition of track to contribution of track to vertex partition
           double w = vertices[ivertex].rho() * tracks[itrack].vert_exp()[ivertex] * sumw * tracks[itrack].oneoverdz2(); 
@@ -100,7 +97,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     } //end track for
     alpaka::syncBlockThreads(acc);
     // After the track-vertex matrix assignment, we need to add up across vertices. This time, we use one thread per vertex
-    for (unsigned int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
+    for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
       vertices[ivertexO].se() = 0.;
       vertices[ivertexO].sw() = 0.;
       vertices[ivertexO].swz() = 0.;
@@ -108,7 +105,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       if (updateTc) vertices[ivertexO].swE() = 0.;
     } // end vertex for
     for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
-      for (unsigned int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
+      for (int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
 	// TODO: these atomics are going to be very slow. Can we optimize?
         int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
         alpaka::atomicAdd(acc, &vertices[ivertex].se(), tracks[itrack].vert_se()[ivertex], alpaka::hierarchy::Threads{});
@@ -119,7 +116,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
     alpaka::syncBlockThreads(acc);
     // Last, evalute vertex properties
-    for (unsigned int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
+    for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
       int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
       if (vertices[ivertex].sw() > 0){ // If any tracks were assigned, update
         double znew = vertices[ivertex].swz()/vertices[ivertex].sw();
@@ -136,23 +133,23 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
-    unsigned int maxVerticesPerBlock = (unsigned int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
-    unsigned int nprev = vertices[blockIdx].nV();
+    int maxVerticesPerBlock = (int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
+    int nprev = vertices[blockIdx].nV();
     if (nprev < 2) return;
-    for (unsigned int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
-      unsigned int ivertex = vertices[ivertexO].order();
-      unsigned int ivertexnext = vertices[ivertexO+1].order();
+    for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
+      int ivertex = vertices[ivertexO].order();
+      int ivertexnext = vertices[ivertexO+1].order();
       vertices[ivertex].aux1() = abs(vertices[ivertex].z() - vertices[ivertexnext].z());
     }
     alpaka::syncBlockThreads(acc);
     // Sorter things
     auto& critical_dist = alpaka::declareSharedVar<float[128], __COUNTER__>(acc);
     auto& critical_index = alpaka::declareSharedVar<float[128], __COUNTER__>(acc);
-    unsigned int& ncritical = alpaka::declareSharedVar<unsigned int, __COUNTER__>(acc);
+    int& ncritical = alpaka::declareSharedVar<int, __COUNTER__>(acc);
 
     if (once_per_block(acc)){
       ncritical = 0;
-      for (unsigned int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
+      for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
         int ivertex = vertices[ivertexO].order();
         if (vertices[ivertex].aux1() < cParams.zmerge()){ // i.e., if we are to split the vertex
           critical_dist[ncritical] = abs(vertices[ivertex].aux1());
@@ -164,20 +161,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     } // end once_per_block
     alpaka::syncBlockThreads(acc);
     if (ncritical == 0) return;
-    for (unsigned int sortO = 0; sortO < ncritical ; ++sortO){ // All threads are running the same code, to know where to exit, which is clunky
+    for (int sortO = 0; sortO < ncritical ; ++sortO){ // All threads are running the same code, to know where to exit, which is clunky
       if (ncritical == 0 || maxVerticesPerBlock == nprev) return;
-      unsigned int ikO = 0;
+      int ikO = 0;
       double minVal = 999999.;
-      for (unsigned int sort1 = 0; sort1 < ncritical; ++sort1){
+      for (int sort1 = 0; sort1 < ncritical; ++sort1){
         if (critical_dist[sort1] > minVal){
           minVal = critical_dist[sort1];
           ikO    = sort1;
         }
       }
       critical_dist[ikO] = 9999999.;
-      unsigned int ivertexO    = critical_index[ikO];
-      unsigned int ivertex     = vertices[ivertexO].order();  // This will be splitted
-      unsigned int ivertexnext = blockIdx * maxVerticesPerBlock + nprev -1;
+      int ivertexO    = critical_index[ikO];
+      int ivertex     = vertices[ivertexO].order();  // This will be splitted
+      int ivertexnext = blockIdx * maxVerticesPerBlock + nprev -1;
       // A little bit of safety here. First is needed to avoid reading the -1 entry of vertices->order. Second is not as far as we don't go over 511 vertices, but better keep it just in case
       if (ivertexO < blockIdx * maxVerticesPerBlock + nprev -1) ivertexnext = vertices[ivertexO+1].order();  // This will be used in a couple of computations
       alpaka::syncBlockThreads(acc);
@@ -192,13 +189,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         } 
         vertices[ivertexnext].rho()  = rho;
         vertices[ivertexnext].sw()  += vertices[ivertex].sw();
-        for (unsigned int ivertexOO = ivertexO ; ivertexOO < maxVerticesPerBlock * blockIdx + nprev -1 ; ++ivertexOO){
+        for (int ivertexOO = ivertexO ; ivertexOO < maxVerticesPerBlock * blockIdx + nprev -1 ; ++ivertexOO){
           vertices[ivertexOO].order() = vertices[ivertexOO+1].order();
         }
         vertices[blockIdx].nV() = vertices[blockIdx].nV()-1; // Also update nvertex
       } // end once_per_block
       alpaka::syncBlockThreads(acc); 
-      for (unsigned int resort = 0; resort < ncritical ; ++resort){
+      for (int resort = 0; resort < ncritical ; ++resort){
         if (critical_index[resort] > ivertexO) critical_index[resort]--; // critical_index refers to the original vertices->order, so it needs to be updated 
       }
       nprev = vertices[blockIdx].nV(); // And to the counter of previous vertices
@@ -219,13 +216,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
-    unsigned int maxVerticesPerBlock = (unsigned int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
+    int maxVerticesPerBlock = (int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
     update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Update positions after merge
     alpaka::syncBlockThreads(acc);
     double epsilon = 1e-3;
-    unsigned int nprev = vertices[blockIdx].nV();
+    int nprev = vertices[blockIdx].nV();
     // Set critical T for all vertices
-    for (unsigned int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
+    for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
       int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
       double Tc = 2 * vertices[ivertex].swE() / vertices[ivertex].sw();
       vertices[ivertex].aux1() = Tc;
@@ -234,7 +231,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     // Sorter things
     auto& critical_temp = alpaka::declareSharedVar<float[128], __COUNTER__>(acc);
     auto& critical_index = alpaka::declareSharedVar<float[128], __COUNTER__>(acc);
-    unsigned int& ncritical = alpaka::declareSharedVar<unsigned int, __COUNTER__>(acc);
+    int& ncritical = alpaka::declareSharedVar<int, __COUNTER__>(acc);
     // Information for the vertex splitting properties
     double& p1 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
     double& p2 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
@@ -245,7 +242,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     if (once_per_block(acc)){
       ncritical = 0;
-      for (unsigned int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
+      for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
         int ivertex = vertices[ivertexO].order();
         if (vertices[ivertex].aux1() * _beta > threshold){ // i.e., if we are to split the vertex
           critical_temp[ncritical] = abs(vertices[ivertex].aux1());
@@ -257,21 +254,21 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     } // end once_per_block
     alpaka::syncBlockThreads(acc);
     if (ncritical == 0 || maxVerticesPerBlock == nprev) return;
-    for (unsigned int sortO = 0; sortO < ncritical ; ++sortO){ // All threads are running the same code, to know where to exit, which is clunky
+    for (int sortO = 0; sortO < ncritical ; ++sortO){ // All threads are running the same code, to know where to exit, which is clunky
       if (ncritical == 0 || maxVerticesPerBlock == nprev) return;
-      unsigned int ikO = 0;
+      int ikO = 0;
       double maxVal = -1.;
-      for (unsigned int sort1 = 0; sort1 < ncritical; ++sort1){
+      for (int sort1 = 0; sort1 < ncritical; ++sort1){
         if (critical_temp[sort1] > maxVal){
           maxVal = critical_temp[sort1];
           ikO    = sort1;
         }
       }
       critical_temp[ikO] = -1.;
-      unsigned int ivertexO    = critical_index[ikO];
-      unsigned int ivertex     = vertices[ivertexO].order();  // This will be splitted
-      unsigned int ivertexprev = blockIdx * maxVerticesPerBlock;
-      unsigned int ivertexnext = blockIdx * maxVerticesPerBlock + nprev -1; 
+      int ivertexO    = critical_index[ikO];
+      int ivertex     = vertices[ivertexO].order();  // This will be splitted
+      int ivertexprev = blockIdx * maxVerticesPerBlock;
+      int ivertexnext = blockIdx * maxVerticesPerBlock + nprev -1; 
       // A little bit of safety here. First is needed to avoid reading the -1 entry of vertices->order. Second is not as far as we don't go over 511 vertices, but better keep it just in case
       if (ivertexO > blockIdx * maxVerticesPerBlock) ivertexprev = vertices[ivertexO-1].order();  // This will be used in a couple of computations
       if (ivertexO < blockIdx * maxVerticesPerBlock + nprev -1) ivertexnext = vertices[ivertexO+1].order();  // This will be used in a couple of computations
@@ -332,10 +329,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       } // end once_per_block
       // Now save the properties of the new stuff
       alpaka::syncBlockThreads(acc);
-      unsigned int nnew = 999999;
+      int nnew = 999999;
       if (abs(z2-z2) > epsilon){ 
         // Find the first empty index to save the vertex
-        for (unsigned int icheck = maxVerticesPerBlock * blockIdx ; icheck < maxVerticesPerBlock * (blockIdx + 1); icheck ++ ){
+        for (int icheck = maxVerticesPerBlock * blockIdx ; icheck < maxVerticesPerBlock * (blockIdx + 1); icheck ++ ){
           if (not(vertices[icheck].isGood())){
             nnew = icheck;
             break;
@@ -360,7 +357,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         vertices[nnew].swE()    = 0.;
         vertices[nnew].exp()    = 0.;
         vertices[nnew].exparg() = 0.;
-	for (unsigned int ivnew = maxVerticesPerBlock * blockIdx +  nprev ; ivnew > ivertexO ; ivnew--){ // As we add a vertex, we update from the back downwards
+	for (int ivnew = maxVerticesPerBlock * blockIdx +  nprev ; ivnew > ivertexO ; ivnew--){ // As we add a vertex, we update from the back downwards
           vertices[ivnew].order() = vertices[ivnew-1].order();
         }
 	vertices[ivertexO].order() = nnew;
@@ -375,7 +372,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       nprev = vertices[blockIdx].nV();
       if (once_per_block(acc)){
         // If we did a splitting or old sorted list of vertex index is scrambled, so we need to fix it
-        for (unsigned int resort = 0; resort < ncritical ; ++resort){
+        for (int resort = 0; resort < ncritical ; ++resort){
           if (critical_index[resort] > ivertexO) critical_index[resort]++; // critical_index refers to the original vertices->order, so it needs to be updated
         }
       }
@@ -394,10 +391,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     double eps = 1e-100;
     int nunique_min = 2;
     double rhoconst = rho0*exp(-_beta*(cParams.dzCutOff()*cParams.dzCutOff()));
-    unsigned int nprev = vertices[blockIdx].nV();
+    int nprev = vertices[blockIdx].nV();
     // Reassign
     set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
-    for (unsigned int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
+    for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
       int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
       vertices[ivertex].aux1() = 0; // sum of track-vertex probabilities
       vertices[ivertex].aux2() = 0; // number of uniquely assigned tracks
@@ -406,7 +403,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     // Get quality of vertex in terms of #Tracks and sum of track probabilities
     for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
       double track_aux1 = ((tracks[itrack].sum_Z() > eps) && (tracks[itrack].weight() > cParams.uniquetrkminp())) ? 1./tracks[itrack].sum_Z() : 0.;
-      for (unsigned int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
+      for (int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
         int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
 	double ppcut = cParams.uniquetrkweight() * vertices[ivertex].rho() / (vertices[ivertex].rho()+rhoconst);
 	double track_vertex_aux1 = exp(-(_beta)*tracks[itrack].oneoverdz2() * ( (tracks[itrack].z()-vertices[ivertex].z())*(tracks[itrack].z()-vertices[ivertex].z()) ));
@@ -419,7 +416,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
     alpaka::syncBlockThreads(acc);
     // Find worst vertex to purge
-    unsigned int& k0 = alpaka::declareSharedVar<unsigned int, __COUNTER__>(acc);
+    int& k0 = alpaka::declareSharedVar<int, __COUNTER__>(acc);
 
     if (once_per_block(acc)){
       double sumpmin = tracks.nT(); // So it is always bigger than aux for any vertex
@@ -432,17 +429,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	  k0 = ivertexO;
         }
       } // end vertex for
-      if (k0 != (unsigned int) (maxVerticesPerBlock * blockIdx + nprev)){
+      if (k0 != (int) (maxVerticesPerBlock * blockIdx + nprev)){
         for (int ivertexOO = k0; ivertexOO < maxVerticesPerBlock * blockIdx + (int) nprev - 1; ++ivertexOO){ // TODO:: Any tricks here to multithread? I don't think so
           vertices[ivertexOO].order() =vertices[ivertexOO+1].order(); // Update vertex order taking out the purged one
         }
         vertices[blockIdx].nV()--; // Also update nvertex
       }
     }// end once_per_block 
-    if (k0 != (unsigned int) (maxVerticesPerBlock * blockIdx + (int) nprev)){
+    if (k0 != (int) (maxVerticesPerBlock * blockIdx + (int) nprev)){
       for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
         if (tracks[itrack].kmax() > k0) tracks[itrack].kmax()--;
-	if ((tracks[itrack].kmin() > k0) || ((tracks[itrack].kmax() < (tracks[itrack].kmin() + 1)) && (tracks[itrack].kmin() > (unsigned int) (maxVerticesPerBlock * blockIdx)))) tracks[itrack].kmin()--;   
+	if ((tracks[itrack].kmin() > k0) || ((tracks[itrack].kmax() < (tracks[itrack].kmin() + 1)) && (tracks[itrack].kmin() > (int) (maxVerticesPerBlock * blockIdx)))) tracks[itrack].kmin()--;   
       }
     } // end if 
     alpaka::syncBlockThreads(acc);
@@ -561,8 +558,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::syncBlockThreads(acc);
       // One iteration of max variation
       double dmax = 0.;
-      for (unsigned int ivertexO = maxVerticesPerBlock*blockIdx ; ivertexO < maxVerticesPerBlock*blockIdx + vertices[blockIdx].nV(); ivertexO++){ // TODO::Currently we are doing this in all threads in parallel, might be optimized in other way to multithread max finding?
-        unsigned int ivertex = vertices[ivertexO].order();
+      for (int ivertexO = maxVerticesPerBlock*blockIdx ; ivertexO < maxVerticesPerBlock*blockIdx + vertices[blockIdx].nV(); ivertexO++){ // TODO::Currently we are doing this in all threads in parallel, might be optimized in other way to multithread max finding?
+        int ivertex = vertices[ivertexO].order();
         if (vertices[ivertex].aux1() >= dmax) dmax = vertices[ivertex].aux1();
       }
       delta_sum_range += dmax;
@@ -584,7 +581,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     double betafreeze = (1./cParams.TMin()) * sqrt(cParams.coolingFactor()); // Last temperature
     while (_beta < betafreeze){ // The cooling loop
       alpaka::syncBlockThreads(acc);
-      unsigned int nprev = vertices[blockIdx].nV();
+      int nprev = vertices[blockIdx].nV();
       alpaka::syncBlockThreads(acc);
       merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
       alpaka::syncBlockThreads(acc);
@@ -614,7 +611,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void reMergeTracks(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
     // After the cooling, we merge any closeby vertices
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
-    unsigned int nprev = vertices[blockIdx].nV();
+    int nprev = vertices[blockIdx].nV();
     merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
     while (nprev !=  vertices[blockIdx].nV() ) { // If we are here, we merged before, keep merging until stable
       set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta); // Reassign tracks to vertex
@@ -630,9 +627,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void reSplitTracks(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
     // Last splitting at the minimal temperature which is a bit more permissive
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
-    unsigned int ntry = 0; 
+    int ntry = 0; 
     double threshold = 1.0;
-    unsigned int nprev = vertices[blockIdx].nV();
+    int nprev = vertices[blockIdx].nV();
     split(acc, tracks, vertices, cParams, osumtkwt, _beta, threshold);
     while (nprev !=  vertices[blockIdx].nV() && (ntry++ < 10)) {
       thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_highT(), 0.0);
@@ -659,13 +656,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     double rho0 = 0.0; // Yes, here is where this thing is used
     if (cParams.dzCutOff() > 0){
       rho0 = vertices[blockIdx].nV() > 1 ? 1./vertices[blockIdx].nV() : 1.;
-      for (unsigned int rhoindex = 0; rhoindex < 5 ; rhoindex++){ //Can't be parallelized in any reasonable way
+      for (int rhoindex = 0; rhoindex < 5 ; rhoindex++){ //Can't be parallelized in any reasonable way
         update(acc, tracks, vertices, cParams, osumtkwt, _beta, rhoindex*rho0/5., false);
         alpaka::syncBlockThreads(acc);
       }
     } // end if
     thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_lowT(), rho0);
-    unsigned int nprev = vertices[blockIdx].nV();
+    int nprev = vertices[blockIdx].nV();
     alpaka::syncBlockThreads(acc);
     merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
     alpaka::syncBlockThreads(acc);
@@ -720,12 +717,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     auto& rho= alpaka::declareSharedVar<float[128], __COUNTER__>(acc);
     alpaka::syncBlockThreads(acc);
     if (once_per_block(acc)){ 
-      unsigned int nTrueVertex = 0;
+      int nTrueVertex = 0;
       int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
-      unsigned int maxVerticesPerBlock = (unsigned int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
+      int maxVerticesPerBlock = (int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
       for (int32_t blockid = 0; blockid < griddim ; blockid++){
-        for(unsigned int ivtx = blockid * maxVerticesPerBlock; ivtx < blockid * maxVerticesPerBlock + vertices[blockid].nV(); ivtx++){
-          unsigned int ivertex = vertices[ivtx].order();
+        for(int ivtx = blockid * maxVerticesPerBlock; ivtx < blockid * maxVerticesPerBlock + vertices[blockid].nV(); ivtx++){
+          int ivertex = vertices[ivtx].order();
           if ((vertices[ivertex].rho()< 10000) && (abs(vertices[ivertex].z())<30)) {
             z[nTrueVertex] = vertices[ivertex].z();
             rho[nTrueVertex] = vertices[ivertex].rho();
@@ -738,28 +735,29 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
     alpaka::syncBlockThreads(acc);
 
-    /*auto& orderedIndices = alpaka::declareSharedVar<uint16_t[1024], __COUNTER__>(acc);
+    auto& orderedIndices = alpaka::declareSharedVar<uint16_t[1024], __COUNTER__>(acc);
     auto& sws            = alpaka::declareSharedVar<uint16_t[1024], __COUNTER__>(acc);
     
-    unsigned int const& nvFinal = vertices[0].nV();
+    int const& nvFinal = vertices[0].nV();
 
     cms::alpakatools::radixSort<Acc1D, float, 2>(acc, z, orderedIndices, sws, nvFinal);
     alpaka::syncBlockThreads(acc);
- 
-    // copy sorted vertices back to the SoA
-    for (unsigned int ivtx=threadIdx; ivtx< vertices[0].nV(); ivtx+=blockSize){
-      vertices[ivtx].z() = z[ivtx];
-      vertices[ivtx].rho() = rho[ivtx];
-      vertices[ivtx].order() = orderedIndices[ivtx];
-    } */
+    if (once_per_block(acc)){ 
+      // copy sorted vertices back to the SoA
+      for (int ivtx=threadIdx; ivtx< vertices[0].nV(); ivtx+=blockSize){
+        vertices[ivtx].z() = z[ivtx];
+        vertices[ivtx].rho() = rho[ivtx];
+        vertices[ivtx].order() = orderedIndices[ivtx];
+      }
+    }  
     alpaka::syncBlockThreads(acc);
     double zrange_min_ = 0.1;
      
-    for (unsigned int itrack = threadIdx; itrack < tracks.nT() ; itrack += blockSize){
+    for (int itrack = threadIdx; itrack < tracks.nT() ; itrack += blockSize){
       if (not(tracks[itrack].isGood())) continue;
       double zrange     = std::max(cParams.zrange()/ sqrt((beta) * tracks[itrack].oneoverdz2()), zrange_min_);
       double zmin       = tracks[itrack].z() - zrange;
-      unsigned int kmin = vertices[0].nV()-1;
+      int kmin = vertices[0].nV()-1;
       if (vertices[vertices[kmin].order()].z() > zmin){ // vertex properties always accessed through vertices->order
         while ((kmin > 0) && (vertices[vertices[kmin-1].order()].z() > zmin)) { // i.e., while we find another vertex within range that is before the previous initial step
           kmin--;
@@ -772,7 +770,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       }
       // Now the same for the upper bound
       double zmax       = tracks[itrack].z() + zrange;
-      unsigned int kmax = 0;
+      int kmax = 0;
       if (vertices[vertices[kmax].order()].z()< zmax) {
         while (( kmax < vertices[0].nV()  - 1) && ( vertices[vertices[kmax+1].order()].z()< zmax )) { // As long as we have more vertex above kmax but within z range, we can add them to the collection, keep going
           kmax++;
@@ -788,7 +786,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         tracks[itrack].kmax() = kmax + 1; //always looping to tracks->kmax(i) - 1
       }
       else { // If it is here, the whole vertex are under
-        tracks[itrack].kmin() = std::max(0U, std::min(kmin, kmax));
+        tracks[itrack].kmin() = std::max(0, std::min(kmin, kmax));
         tracks[itrack].kmax() = std::min(vertices[0].nV(), std::max(kmin, kmax) + 1);
       }
     }
@@ -797,11 +795,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     double mintrkweight_ = 0.5;
     double rho0 = vertices[0].nV() > 1 ? 1./vertices[0].nV() : 1.;
     double z_sum_init = rho0*exp(-(beta)*cParams.dzCutOff()*cParams.dzCutOff());
-    for (unsigned int itrack = threadIdx; itrack < tracks.nT() ; itrack += blockSize){
-      unsigned int kmin = tracks[itrack].kmin();
-      unsigned int kmax = tracks[itrack].kmax();
+    for (int itrack = threadIdx; itrack < tracks.nT() ; itrack += blockSize){
+      int kmin = tracks[itrack].kmin();
+      int kmax = tracks[itrack].kmax();
       double p_max = -1; 
-      unsigned int iMax = 10000; 
+      int iMax = 10000; 
       double sum_Z = z_sum_init;
       for (auto k = kmin; k < kmax; k++) {
         double v_exp = exp(-(beta) * std::pow( tracks[itrack].z() - vertices[vertices[k].order()].z(), 2) * tracks[itrack].oneoverdz2());
@@ -828,15 +826,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
     // From here it used to be vertices
 
-    for (unsigned int k = threadIdx; k < vertices[0].nV(); k+= blockSize) {
-      unsigned int ivertex = vertices[k].order();
+    for (int k = threadIdx; k < vertices[0].nV(); k+= blockSize) {
+      int ivertex = vertices[k].order();
       vertices[ivertex].ntracks() = 0;
-      for (unsigned int itrack = 0; itrack < tracks.nT(); itrack+= 1){ 
+      for (int itrack = 0; itrack < tracks.nT(); itrack+= 1){ 
         if (not(tracks[itrack].isGood())) continue; // Remove duplicates
-        unsigned int ivtxFromTk = tracks[itrack].kmin();
+        int ivtxFromTk = tracks[itrack].kmin();
         if (ivtxFromTk == k){
 	  bool isNew = true;
-	  for (unsigned int ivtrack = 0; ivtrack < vertices[ivertex].ntracks(); ivtrack++){
+	  for (int ivtrack = 0; ivtrack < vertices[ivertex].ntracks(); ivtrack++){
 	    if (tracks[itrack].tt_index() == vertices[ivertex].track_id()[ivtrack]) isNew = false;
           }
 	  if (!isNew) continue;
@@ -855,9 +853,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     alpaka::syncBlockThreads(acc);
     if (once_per_block(acc)){
       // So we now check whether each vertex is further enough from the previous one
-      for (unsigned int k = 0; k < vertices[0].nV(); k++) {
+      for (int k = 0; k < vertices[0].nV(); k++) {
         int prevVertex = ((int) k)-1;
-        unsigned int thisVertex = (int) vertices[k].order();
+        int thisVertex = (int) vertices[k].order();
         if (not(vertices[thisVertex].isGood())){
           continue;
         }
@@ -876,14 +874,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         }
       }
       // This is new, basically we have to deal with the order being broken by the invalidation of vertexes and set back again the vertex multiplicity, unfortunately can't be parallelized without competing conditions
-      unsigned int k = 0;
+      int k = 0;
       while (k != vertices[0].nV()){
-        unsigned int thisVertex = vertices[k].order();
+        int thisVertex = vertices[k].order();
         if (vertices[thisVertex].isGood()){ // If is good just continue
           k++;
         }
         else{
-          for (unsigned int l = k ; l < vertices[0].nV() ; l++){ //If it is bad, move one position all indexes
+          for (int l = k ; l < vertices[0].nV() ; l++){ //If it is bad, move one position all indexes
   	    vertices[l].order() = vertices[l+1].order();
   	  }
           vertices[0].nV()--; // And reduce vertex number by 1

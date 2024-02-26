@@ -45,7 +45,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     } // createBlocksKernel::operator()
   }; // class createBlocksKernel
 
-  BlockAlgo::BlockAlgo(Queue& queue, const uint32_t nT, int32_t bSize, double bOverlap) : nT(nT),blockSize(cms::alpakatools::make_device_buffer<int32_t>(queue)),blockOverlap(cms::alpakatools::make_device_buffer<double>(queue))  {
+  BlockAlgo::BlockAlgo(Queue& queue, const int32_t nT, int32_t bSize, double bOverlap) : nT(nT),blockSize(cms::alpakatools::make_device_buffer<int32_t>(queue)),blockOverlap(cms::alpakatools::make_device_buffer<double>(queue))  {
     alpaka::memset(queue,  blockSize, bSize);
     alpaka::memset(queue,  blockOverlap, bOverlap);
   } // BlockAlgo::BlockAlgo

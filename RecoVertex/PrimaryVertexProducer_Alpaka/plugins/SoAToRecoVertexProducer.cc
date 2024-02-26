@@ -58,7 +58,7 @@ void SoAToRecoVertexProducer::produce(edm::Event& iEvent, const edm::EventSetup&
 
   // Do the conversion back to reco::Vertex
   reco::VertexCollection& vColl = (*result);
-  for (unsigned int iV = 0; iV < hostVertexView[0].nV() ; iV++){
+  for (int iV = 0; iV < hostVertexView[0].nV() ; iV++){
     if (not(hostVertexView[iV].isGood())) continue;
     // Convert the SoA errors to a diagonal 3x3 matrix
     AlgebraicSymMatrix33 err;
@@ -68,8 +68,8 @@ void SoAToRecoVertexProducer::produce(edm::Event& iEvent, const edm::EventSetup&
     // Then we can actually create the vertex
     reco::Vertex newV(reco::Vertex::Point(hostVertexView[iV].x(), hostVertexView[iV].y(), hostVertexView[iV].z()), err, hostVertexView[iV].chi2(), hostVertexView[iV].ndof(), hostVertexView[iV].ntracks());
     // Finally, add references to the reco::Track used for building it
-    for (unsigned int iT=0; iT <  hostVertexView[iV].ntracks(); iT++) {
-       unsigned int new_itrack = hostVertexView[iV].track_id()[iT];
+    for (int iT=0; iT <  hostVertexView[iV].ntracks(); iT++) {
+       int new_itrack = hostVertexView[iV].track_id()[iT];
        reco::TrackRef ref(tracks, new_itrack);
        newV.add(ref, hostVertexView[iV].track_weight()[iT]);
     }

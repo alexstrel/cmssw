@@ -14,7 +14,7 @@
 namespace portablevertex {
 
   using VertexToTrack = Eigen::Vector<double, 1024>; // 512 is the max vertex allowed
-  using VertexToTrackInt = Eigen::Vector<unsigned int, 1024>;
+  using VertexToTrackInt = Eigen::Vector<int, 1024>;
   // SoA layout with x, y, z, id fields
   GENERATE_SOA_LAYOUT(VertexSoALayout,
                       // columns: one value per element
@@ -30,7 +30,7 @@ namespace portablevertex {
 
                       SOA_COLUMN(double, chi2),
                       SOA_COLUMN(double, ndof),
-                      SOA_COLUMN(unsigned int, ntracks),
+                      SOA_COLUMN(int, ntracks),
                       SOA_COLUMN(double, rho),
 
                       SOA_COLUMN(double, aux1),
@@ -40,7 +40,7 @@ namespace portablevertex {
                       SOA_EIGEN_COLUMN(VertexToTrack, track_weight),
 
                       SOA_COLUMN(bool, isGood),
-                      SOA_COLUMN(unsigned int, order),
+                      SOA_COLUMN(int, order),
 
 
                       SOA_COLUMN(double, sw),
@@ -52,7 +52,7 @@ namespace portablevertex {
 
 
                       // scalars: one value for the whole structure
-                      SOA_COLUMN(uint32_t, nV))
+                      SOA_COLUMN(int32_t, nV))
 
   using VertexSoA = VertexSoALayout<>;
 
@@ -66,11 +66,11 @@ namespace portablevertex {
                       SOA_COLUMN(double, oneoverdz2),
                       SOA_COLUMN(double, weight),
                       SOA_COLUMN(double, sum_Z),
-                      SOA_COLUMN(unsigned int, kmin),
-                      SOA_COLUMN(unsigned int, kmax),
+                      SOA_COLUMN(int, kmin),
+                      SOA_COLUMN(int, kmax),
                       SOA_COLUMN(bool, isGood),
-                      SOA_COLUMN(unsigned int, order),
-                      SOA_COLUMN(unsigned int, tt_index),
+                      SOA_COLUMN(int, order),
+                      SOA_COLUMN(int, tt_index),
 
                       SOA_COLUMN(double, x),
                       SOA_COLUMN(double, y),
@@ -103,7 +103,7 @@ namespace portablevertex {
                       SOA_EIGEN_COLUMN(TrackToVertex, vert_exparg),
 
                       // scalars: one value for the whole structure
-                      SOA_SCALAR(uint32_t, nT),
+                      SOA_SCALAR(int32_t, nT),
                       SOA_SCALAR(double, totweight))
 
   using TrackSoA = TrackSoALayout<>;
