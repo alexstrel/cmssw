@@ -8,13 +8,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   class BlockAlgo {
   public:
-    BlockAlgo(Queue& queue, const int32_t nT, int32_t blockSize, double blockOverlap); // Just configuration and making job divisions
-    void createBlocks(Queue& queue, const portablevertex::TrackDeviceCollection& inputTrack, portablevertex::TrackDeviceCollection& trackInBlocks, int32_t blockSize, int32_t nBlocks); // The actual block creation
+    BlockAlgo(Queue& queue); // Just configuration and making job divisions
+    void createBlocks(Queue& queue, const portablevertex::TrackDeviceCollection& inputTrack, portablevertex::TrackDeviceCollection& trackInBlocks, int32_t blockSize, double blockOverlap); // The actual block creation
 
   private:
-    int32_t nT;
-    cms::alpakatools::device_buffer<Device, int32_t> blockSize;
-    cms::alpakatools::device_buffer<Device, double> blockOverlap;
   };
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

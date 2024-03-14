@@ -82,7 +82,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       const portablevertex::TrackDeviceCollection& inputtracks   = iEvent.get(trackToken_);
       const portablevertex::BeamSpotDeviceCollection& beamSpot     = iEvent.get(beamSpotToken_);
       int32_t nT = inputtracks.view().nT();
-      int32_t nBlocks = int32_t ((nT+blockSize)/(blockOverlap*blockSize)); // In a couple of edge cases we will end up with an empty block, but this cleans after itself in the clusterizer anyhow
+      int32_t nBlocks = nT > blockSize ? int32_t ((nT-1)/(blockOverlap*blockSize)) : 1; // In a couple of edge cases we will end up with an empty block, but this cleans after itself in the clusterizer anyhow
       
       // Now the device collections we still need
       portablevertex::TrackDeviceCollection tracksInBlocks{nBlocks*blockSize, iEvent.queue()}; // As high as needed
@@ -90,8 +90,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
       // run the algorithm, potentially asynchronously
       //// First create the individual blocks
-      BlockAlgo blockKernel_{iEvent.queue(), inputtracks.view().nT(), blockSize, blockOverlap}; 
-      blockKernel_.createBlocks(iEvent.queue(), inputtracks, tracksInBlocks, blockSize, nBlocks);
+      BlockAlgo blockKernel_{iEvent.queue()}; 
+      blockKernel_.createBlocks(iEvent.queue(), inputtracks, tracksInBlocks, blockSize, blockOverlap);
       // Need to have the blocks created before launching the next step
       alpaka::wait(iEvent.queue());
       //// Then run the clusterizer per blocks
