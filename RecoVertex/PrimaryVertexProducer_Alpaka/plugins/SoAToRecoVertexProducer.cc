@@ -17,15 +17,10 @@
 #include "DataFormats/Math/interface/AlgebraicROOTObjects.h"
 
 
-
-
 /**
    * This plugin takes the SoA portableVertex and converts them to reco::Vertex, for usage within other workflows
-   * - consuming set of reco::Tracks
-   * - converting them to a Alpaka-friendly dataformat
-   * - clusterizing them into track clusters
-   * - fitting cluster properties to vertex coordinates
-   * - produces a device vertex EDProduct (that gets transferred to host automatically if needed)
+   * - consuming set of reco::Tracks and portablevertex SoA
+   * - produces a host reco::vertexCollection
  */
 class SoAToRecoVertexProducer : public edm::stream::EDProducer<> {
   public:

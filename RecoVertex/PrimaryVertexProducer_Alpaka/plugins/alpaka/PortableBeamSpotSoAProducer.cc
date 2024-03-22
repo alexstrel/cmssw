@@ -64,6 +64,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   void PortableBeamSpotSoAProducer::convertBeamSpot(portablevertex::BeamSpotHostCollection::View::element out, const reco::BeamSpot in){
     out.x() = in.position().x();
     out.y() = in.position().y();
+    printf("[PortableBeamSpotSoAProducer::convertBeamSpot()], x:%1.5f, y:%1.5f\n", in.position().x(), in.position().y());
     out.sx() = in.rotatedCovariance3D()(0,0);
     out.sy() = in.rotatedCovariance3D()(1,1);
   }

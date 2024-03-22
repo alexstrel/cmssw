@@ -82,18 +82,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       const portablevertex::TrackDeviceCollection& inputtracks   = iEvent.get(trackToken_);
       const portablevertex::BeamSpotDeviceCollection& beamSpot     = iEvent.get(beamSpotToken_);
       int32_t nT = inputtracks.view().nT();
-      int32_t nBlocks = nT > blockSize ? int32_t ((nT-1)/(blockOverlap*blockSize)) : 1; // In a couple of edge cases we will end up with an empty block, but this cleans after itself in the clusterizer anyhow
+      int32_t nBlocks = nT > blockSize ? int32_t ((nT-1)/(blockOverlap*blockSize)) : 1; // If the block size is big enough we process everything at once
       
       // Now the device collections we still need
       portablevertex::TrackDeviceCollection tracksInBlocks{nBlocks*blockSize, iEvent.queue()}; // As high as needed
-      portablevertex::VertexDeviceCollection deviceVertex{512, iEvent.queue()}; // Hard capped to 512
+      portablevertex::VertexDeviceCollection deviceVertex{512, iEvent.queue()}; // Hard capped to 512, though we might want to restrict it for low PU cases
 
-      // run the algorithm, potentially asynchronously
+      // run the algorithm
       //// First create the individual blocks
-      BlockAlgo blockKernel_{iEvent.queue()}; 
+      BlockAlgo blockKernel_{}; 
       blockKernel_.createBlocks(iEvent.queue(), inputtracks, tracksInBlocks, blockSize, blockOverlap);
       // Need to have the blocks created before launching the next step
       alpaka::wait(iEvent.queue());
+
       //// Then run the clusterizer per blocks
       ClusterizerAlgo clusterizerKernel_{iEvent.queue()}; 
       clusterizerKernel_.clusterize(iEvent.queue(), tracksInBlocks, deviceVertex, cParams, nBlocks, blockSize);
@@ -101,10 +102,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::wait(iEvent.queue());
       clusterizerKernel_.arbitrate(iEvent.queue(), tracksInBlocks, deviceVertex, cParams, nBlocks, blockSize);
       alpaka::wait(iEvent.queue());
+
       //// And then fit
       FitterAlgo fitterKernel_{iEvent.queue(), deviceVertex.view()[0].nV(), fitterParams};
       fitterKernel_.fit(iEvent.queue(), tracksInBlocks, deviceVertex, beamSpot);
-      // This puts it in the event as a portable object!  
+
+      // Put the vertices in the event as a portable collection
       iEvent.emplace(devicePutToken_, std::move(deviceVertex));
     }
 

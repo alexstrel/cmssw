@@ -11,11 +11,13 @@ process.load('FWCore.MessageService.MessageLogger_cfi')
 process.load('Configuration.EventContent.EventContent_cff')
 process.load('SimGeneral.MixingModule.mixNoPU_cfi')
 process.load("TrackingTools/TransientTrack/TransientTrackBuilder_cfi")
+
 process.load('Configuration.StandardSequences.GeometryRecoDB_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
 process.load('HLTrigger.Configuration.HLT_GRun_cff')
 process.load('Configuration.StandardSequences.EndOfProcess_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
+
 process.load('Configuration.StandardSequences.Accelerators_cff')
 process.load('HeterogeneousCore.AlpakaCore.ProcessAcceleratorAlpaka_cfi')
 from Configuration.AlCa.GlobalTag import GlobalTag
@@ -24,7 +26,7 @@ process.GlobalTag = GlobalTag(process.GlobalTag, '140X_mcRun3_2023_realistic_v3'
 
 # Input files
 process.source = cms.Source("PoolSource",
-    fileNames = cms.untracked.vstring('/store/relval/CMSSW_14_0_0/RelValTTbar_14TeV/GEN-SIM-RECO/140X_mcRun3_2023_realistic_v3_STD_PU_AlpakaVal_Alpaka_OnGPU-v2/2580000/113c897c-45a0-47e2-8be1-986e76db1e03.root'),
+    fileNames = cms.untracked.vstring('/store/relval/CMSSW_14_0_0/RelValTTbarToDilepton_14TeV/GEN-SIM-RECO/PU_140X_mcRun4_realistic_v1_STD_2026D98_PU-v1/2580000/2af100a0-34ce-4b20-8e3e-399fc84d79ea.root'),
     secondaryFileNames = cms.untracked.vstring(),
 )
 
@@ -46,8 +48,8 @@ process.FEVToutput = cms.OutputModule("PoolOutputModule",
         dataTier = cms.untracked.string('GEN-SIM-DIGI-RECO'),
         filterName = cms.untracked.string('')
     ),
-    fileName = cms.untracked.string('testAlpaka.root'), # output file name
-    outputCommands = cms.untracked.vstring('drop *', 'keep *_vertexAoS_*_*'),# I.e., just drop everything and keep things in this module
+    fileName = cms.untracked.string('testAlpaka_PU200.root'), # output file name
+    outputCommands = cms.untracked.vstring('drop *', 'keep *_tracksSoA_*_*', 'keep *_beamSpotSoA_*_*', 'keep *_vertexSoA_*_*', 'keep *_vertexAoS_*_*'),# I.e., just drop everything and keep things in this module
     splitLevel = cms.untracked.int32(0)
 )
 

@@ -13,28 +13,28 @@
 
 namespace portablevertex {
 
-  using VertexToTrack = Eigen::Vector<double, 1024>; // 512 is the max vertex allowed
+  using VertexToTrack = Eigen::Vector<float, 1024>; // 512 is the max vertex allowed
   using VertexToTrackInt = Eigen::Vector<int, 1024>;
   // SoA layout with x, y, z, id fields
   GENERATE_SOA_LAYOUT(VertexSoALayout,
                       // columns: one value per element
-                      SOA_COLUMN(double, x),
-                      SOA_COLUMN(double, y),
-                      SOA_COLUMN(double, z),
-                      SOA_COLUMN(double, t),
+                      SOA_COLUMN(float, x),
+                      SOA_COLUMN(float, y),
+                      SOA_COLUMN(float, z),
+                      SOA_COLUMN(float, t),
 
-                      SOA_COLUMN(double, errx),
-                      SOA_COLUMN(double, erry),
-                      SOA_COLUMN(double, errz),
-                      SOA_COLUMN(double, errt),
+                      SOA_COLUMN(float, errx),
+                      SOA_COLUMN(float, erry),
+                      SOA_COLUMN(float, errz),
+                      SOA_COLUMN(float, errt),
 
-                      SOA_COLUMN(double, chi2),
-                      SOA_COLUMN(double, ndof),
+                      SOA_COLUMN(float, chi2),
+                      SOA_COLUMN(float, ndof),
                       SOA_COLUMN(int, ntracks),
-                      SOA_COLUMN(double, rho),
+                      SOA_COLUMN(float, rho),
 
-                      SOA_COLUMN(double, aux1),
-                      SOA_COLUMN(double, aux2),
+                      SOA_COLUMN(float, aux1),
+                      SOA_COLUMN(float, aux2),
 
                       SOA_EIGEN_COLUMN(VertexToTrackInt, track_id),
                       SOA_EIGEN_COLUMN(VertexToTrack, track_weight),
@@ -43,12 +43,12 @@ namespace portablevertex {
                       SOA_COLUMN(int, order),
 
 
-                      SOA_COLUMN(double, sw),
-                      SOA_COLUMN(double, se),
-                      SOA_COLUMN(double, swz),
-                      SOA_COLUMN(double, swE),
-                      SOA_COLUMN(double, exp),
-                      SOA_COLUMN(double, exparg),
+                      SOA_COLUMN(float, sw),
+                      SOA_COLUMN(float, se),
+                      SOA_COLUMN(float, swz),
+                      SOA_COLUMN(float, swE),
+                      SOA_COLUMN(float, exp),
+                      SOA_COLUMN(float, exparg),
 
 
                       // scalars: one value for the whole structure
@@ -57,42 +57,42 @@ namespace portablevertex {
   using VertexSoA = VertexSoALayout<>;
 
 
-  using TrackToVertex = Eigen::Vector<double, 512>; // 512 is the max vertex allowed
+  using TrackToVertex = Eigen::Vector<float, 512>; // 512 is the max vertex allowed
   GENERATE_SOA_LAYOUT(TrackSoALayout,
                       // columns: one value per element
-                      SOA_COLUMN(double, dxy2),
-                      SOA_COLUMN(double, dxy2AtIP),
-                      SOA_COLUMN(double, dz2),
-                      SOA_COLUMN(double, oneoverdz2),
-                      SOA_COLUMN(double, weight),
-                      SOA_COLUMN(double, sum_Z),
+                      SOA_COLUMN(float, dxy2),
+                      SOA_COLUMN(float, dxy2AtIP),
+                      SOA_COLUMN(float, dz2),
+                      SOA_COLUMN(float, oneoverdz2),
+                      SOA_COLUMN(float, weight),
+                      SOA_COLUMN(float, sum_Z),
                       SOA_COLUMN(int, kmin),
                       SOA_COLUMN(int, kmax),
                       SOA_COLUMN(bool, isGood),
                       SOA_COLUMN(int, order),
                       SOA_COLUMN(int, tt_index),
 
-                      SOA_COLUMN(double, x),
-                      SOA_COLUMN(double, y),
-                      SOA_COLUMN(double, z),
+                      SOA_COLUMN(float, x),
+                      SOA_COLUMN(float, y),
+                      SOA_COLUMN(float, z),
 
-                      SOA_COLUMN(double, xAtIP),
-                      SOA_COLUMN(double, yAtIP),
+                      SOA_COLUMN(float, xAtIP),
+                      SOA_COLUMN(float, yAtIP),
 
-                      SOA_COLUMN(double, dx),
-                      SOA_COLUMN(double, dy),
-                      SOA_COLUMN(double, dz),
+                      SOA_COLUMN(float, dx),
+                      SOA_COLUMN(float, dy),
+                      SOA_COLUMN(float, dz),
 
-                      SOA_COLUMN(double, dxError),
-                      SOA_COLUMN(double, dyError),
-                      SOA_COLUMN(double, dzError),
+                      SOA_COLUMN(float, dxError),
+                      SOA_COLUMN(float, dyError),
+                      SOA_COLUMN(float, dzError),
 
-                      SOA_COLUMN(double, px),
-                      SOA_COLUMN(double, py),
-                      SOA_COLUMN(double, pz),
+                      SOA_COLUMN(float, px),
+                      SOA_COLUMN(float, py),
+                      SOA_COLUMN(float, pz),
 
-                      SOA_COLUMN(double, aux1),
-                      SOA_COLUMN(double, aux2),
+                      SOA_COLUMN(float, aux1),
+                      SOA_COLUMN(float, aux2),
 
                       // Track-vertex association
                       SOA_EIGEN_COLUMN(TrackToVertex, vert_sw),
@@ -104,33 +104,33 @@ namespace portablevertex {
 
                       // scalars: one value for the whole structure
                       SOA_SCALAR(int32_t, nT),
-                      SOA_SCALAR(double, totweight))
+                      SOA_SCALAR(float, totweight))
 
   using TrackSoA = TrackSoALayout<>;
 
   GENERATE_SOA_LAYOUT(BeamSpotSoALayout,
-		      SOA_SCALAR(double, x),
-		      SOA_SCALAR(double, y),
-		      SOA_SCALAR(double, sx),
-		      SOA_SCALAR(double, sy))
+		      SOA_SCALAR(float, x),
+		      SOA_SCALAR(float, y),
+		      SOA_SCALAR(float, sx),
+		      SOA_SCALAR(float, sy))
 
   using BeamSpotSoA = BeamSpotSoALayout<>;
 
   GENERATE_SOA_LAYOUT(ClusterParams,
-		      SOA_SCALAR(double, d0CutOff),
-		      SOA_SCALAR(double, TMin),
-		      SOA_SCALAR(double, delta_lowT),
-		      SOA_SCALAR(double, zmerge),
-                      SOA_SCALAR(double, dzCutOff),
-                      SOA_SCALAR(double, Tpurge),
+		      SOA_SCALAR(float, d0CutOff),
+		      SOA_SCALAR(float, TMin),
+		      SOA_SCALAR(float, delta_lowT),
+		      SOA_SCALAR(float, zmerge),
+                      SOA_SCALAR(float, dzCutOff),
+                      SOA_SCALAR(float, Tpurge),
                       SOA_SCALAR(int, convergence_mode),
-                      SOA_SCALAR(double, delta_highT),
-                      SOA_SCALAR(double, Tstop),
-                      SOA_SCALAR(double, coolingFactor),
-                      SOA_SCALAR(double, vertexSize),
-                      SOA_SCALAR(double, uniquetrkweight),
-                      SOA_SCALAR(double, uniquetrkminp),
-                      SOA_SCALAR(double, zrange))
+                      SOA_SCALAR(float, delta_highT),
+                      SOA_SCALAR(float, Tstop),
+                      SOA_SCALAR(float, coolingFactor),
+                      SOA_SCALAR(float, vertexSize),
+                      SOA_SCALAR(float, uniquetrkweight),
+                      SOA_SCALAR(float, uniquetrkminp),
+                      SOA_SCALAR(float, zrange))
 
   using ClusterParamsSoA = ClusterParams<>;
 		      

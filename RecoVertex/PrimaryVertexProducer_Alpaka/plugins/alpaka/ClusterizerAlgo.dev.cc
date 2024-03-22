@@ -12,7 +12,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   // Device functions //
   //////////////////////
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void set_vtx_range(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
+  /* template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void set_vtx_range(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
     // These updates the range of vertices associated to each track through the kmin/kmax variables
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
@@ -446,7 +446,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     if (nprev != vertices[blockIdx].nV()){
       set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
     }
-  }
+  }*/
 
   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void initialize(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams){
     // Initialize all vertices as empty, a single vertex in each block will be initialized with all tracks associated to it
@@ -455,7 +455,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
     int maxVerticesPerBlock = (int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
     vertices[blockIdx].nV() = 1; // We start with one vertex per block
-    for (int ivertex = threadIdx+maxVerticesPerBlock*blockIdx; ivertex < maxVerticesPerBlock*(blockIdx+1); ivertex+=blockSize){ // Initialize vertices in parallel in the block
+    /*for (int ivertex = threadIdx+maxVerticesPerBlock*blockIdx; ivertex < maxVerticesPerBlock*(blockIdx+1); ivertex+=blockSize){ // Initialize vertices in parallel in the block
       vertices[ivertex].sw() = 0.;
       vertices[ivertex].se() = 0.;
       vertices[ivertex].swz() = 0.;
@@ -478,10 +478,36 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){ // Technically not a loop as each thread will have one track in the per block approach, but in the more general case this can be extended to BlockSize in Alpaka != BlockSize in algorithm
       tracks.kmin(itrack) = maxVerticesPerBlock*blockIdx; // Tracks are associated to vertex in list kmin, kmin+1,... kmax-1, so this just assign all tracks to the vertex we just created!
       tracks.kmax(itrack) = maxVerticesPerBlock*blockIdx + 1;
+    }*/
+    printf("[ClusterizerAlgo::initialize()] maxVerticesPerBlock %i, blockIdx %i\n",maxVerticesPerBlock, blockIdx);
+    if (once_per_block(acc)){
+      for (int ivertex =0 ; ivertex < maxVerticesPerBlock*(blockIdx+1); ivertex += 1){
+	printf("[ClusterizerAlgo::initialize()] Starting vertex %i\n",ivertex);
+        vertices[ivertex].sw() = 0.;
+        vertices[ivertex].se() = 0.;
+        vertices[ivertex].swz() = 0.;
+        vertices[ivertex].swE() = 0.;
+        vertices[ivertex].exp() = 0.;
+        vertices[ivertex].exparg() = 0.;
+        vertices[ivertex].z() = 0.;
+        vertices[ivertex].rho() = 0.;
+        vertices[ivertex].isGood() = false;
+        vertices[ivertex].order() = 9999;
+        if (ivertex == maxVerticesPerBlock*blockIdx){ // Now set up the initial single vertex containing everything
+          // TODO:: Probably there is a cleaner way of doing this in Alpaka
+          vertices[ivertex].rho() = 1.;
+          vertices[ivertex].order() = maxVerticesPerBlock*blockIdx;
+          vertices[ivertex].isGood() = true;
+        } 
+      }
+      for (int itrack = 0 ; itrack < (blockIdx+1)*blockSize ; itrack += blockSize){
+        tracks.kmin(itrack) = maxVerticesPerBlock*blockIdx;
+	tracks.kmax(itrack) = maxVerticesPerBlock*blockIdx + 1;
+      }
     }
     alpaka::syncBlockThreads(acc);
   }
-  
+  /*
   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void getBeta0(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& _beta){
     // Computes first critical temperature
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
@@ -819,28 +845,36 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       tracks[itrack].kmax() = iMax+1; 
     }
     alpaka::syncBlockThreads(acc);
-  }
+  }*/
 
   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void finalizeVertices(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams){
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
     // From here it used to be vertices
-
-    for (int k = threadIdx; k < vertices[0].nV(); k+= blockSize) {
+    if (once_per_block(acc)){
+    printf("[ClusterizerAlgo::arbitrate()] start\n");
+    for (int k = 0; k < vertices[0].nV(); k+= 1) { //TODO: ithread, blockSize
       int ivertex = vertices[k].order();
       vertices[ivertex].ntracks() = 0;
-      for (int itrack = 0; itrack < tracks.nT(); itrack+= 1){ 
+      printf("[ClusterizerAlgo::arbitrate()] ivertex %i, nT: %i\n", ivertex, tracks.nT());
+      for (int itrack = 0; itrack < tracks.nT(); itrack+= 1){
+	printf("[ClusterizerAlgo::arbitrate()] itrack %i\n", itrack);
         if (not(tracks[itrack].isGood())) continue; // Remove duplicates
+	if ((itrack == 1) || (itrack == 2) || (itrack == 95) || (itrack == 99) || (itrack == 102)) continue; //TODO: this is for the shortcut checks on the fitter
+	printf("------------------------------ isGood\n");
         int ivtxFromTk = tracks[itrack].kmin();
         if (ivtxFromTk == k){
+	  printf("------------------------------ isMatched\n");
 	  bool isNew = true;
 	  for (int ivtrack = 0; ivtrack < vertices[ivertex].ntracks(); ivtrack++){
-	    if (tracks[itrack].tt_index() == vertices[ivertex].track_id()[ivtrack]) isNew = false;
+	    if (tracks[itrack].tt_index() == tracks[vertices[ivertex].track_id()[ivtrack]].tt_index()) isNew = false;
           }
 	  if (!isNew) continue;
-	  vertices[ivertex].track_id()[vertices[ivertex].ntracks()] = tracks[itrack].tt_index();
+	  printf("------------------------------ isNew\n");
+	  vertices[ivertex].track_id()[vertices[ivertex].ntracks()] = itrack; //tracks[itrack].tt_index();
 	  vertices[ivertex].track_weight()[vertices[ivertex].ntracks()] = 1.;
   	  vertices[ivertex].ntracks()++;
+	  printf("------------------------------ Moves ntracks to %i\n", vertices[ivertex].ntracks());
         }
       }
       if (vertices[ivertex].ntracks() < 2){
@@ -849,6 +883,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       }
       vertices[ivertex].x() = 0;
       vertices[ivertex].y() = 0;
+    }
     }
     alpaka::syncBlockThreads(acc);
     if (once_per_block(acc)){
@@ -897,7 +932,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     ALPAKA_FN_ACC void operator()(const TAcc& acc,  portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams) const{ 
       // This has the core of the clusterization algorithm
       // First, declare beta=1/T
-      int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
+      initialize(acc, tracks, vertices, cParams);
+      /* int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
       int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
       int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
 
@@ -927,7 +963,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::syncBlockThreads(acc);
       // After splitting we might get some candidates that are very low quality/have very far away tracks
       rejectOutliers(acc,tracks, vertices,cParams, osumtkwt, _beta);
-      alpaka::syncBlockThreads(acc);
+      alpaka::syncBlockThreads(acc);*/
     }
   }; // class kernel
 
@@ -937,8 +973,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
     ALPAKA_FN_ACC void operator()(const TAcc& acc,  portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, int32_t nBlocks) const{
       // This has the core of the clusterization algorithm
-      resortVerticesAndAssign(acc, tracks, vertices,cParams, nBlocks);
-      alpaka::syncBlockThreads(acc);
+      // resortVerticesAndAssign(acc, tracks, vertices,cParams, nBlocks);
+      // alpaka::syncBlockThreads(acc);
       finalizeVertices(acc, tracks, vertices, cParams); // In CUDA it used to be verticesAndClusterize
       alpaka::syncBlockThreads(acc);
     }       
@@ -955,7 +991,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			clusterizeKernel{},
 			deviceTrack.view(), // TODO:: Maybe we can optimize the compiler by not making this const? Tracks would not be modified
 			deviceVertex.view(),
-			cParams->view()); 
+			cParams->view());
   } // ClusterizerAlgo::clusterize
 
   void ClusterizerAlgo::arbitrate(Queue& queue, portablevertex::TrackDeviceCollection& deviceTrack, portablevertex::VertexDeviceCollection& deviceVertex, const std::shared_ptr<portablevertex::ClusterParamsHostCollection> cParams, int32_t nBlocks, int32_t blockSize){

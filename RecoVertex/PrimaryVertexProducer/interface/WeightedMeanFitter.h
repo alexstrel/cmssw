@@ -33,7 +33,7 @@ namespace WeightedMeanFitter {
 
     double vnorm2 = (vx * vx + vy * vy + vz * vz);
     double t = (vx * opx + vy * opy + vz * opz) / (vnorm2);
-
+    printf("[FitterAlgo::fitVertices()] Track x: %1.9f, y: %1.9f, z:%1.9f, px: %1.9f, py: %1.9f, pz: %1.9f, t:%1.9f\n", ox, oy, oz, vx, vy, vz, t);
     GlobalPoint p(ox + t * vx, oy + t * vy, oz + t * vz);
     return std::pair<GlobalPoint, double>(
         p,
@@ -118,7 +118,7 @@ namespace WeightedMeanFitter {
         x += wx * p.first.x();
         y += wx * p.first.y();
         z += wz * p.first.z();
-
+        printf("[FitterAlgo::fitVertices()] Track adds x: %1.9f, y: %1.9f z: %1.9f\n", wx * p.first.x(),  wx * p.first.y(), wz * p.first.z());
         s_wx += wx;
         s_wz += wz;
 
@@ -185,8 +185,12 @@ namespace WeightedMeanFitter {
 
     GlobalError bse(beamSpot.rotatedCovariance3D());
     GlobalPoint bsp(Basic3DVector<float>(beamSpot.position()));
+    printf("[FitterAlgo::fitVertices()] In Vertex 0, %i tracks\n", (int) points.size());
+
+    printf("[FitterAlgo::fitVertices()] Set-up, beamspot constrains: %1.9f, %1.9f, %1.9f, %1.9f\n", bse.cxx(), bse.cyy(), bsp.x(), bsp.y());
 
     for (const auto& p : points) {
+      printf("[FitterAlgo::fitVertices()] Tracks: %1.9f, %1.9f, %1.9f, %1.9f, %1.9f\n", p.first.x(),p.first.y(),p.first.z(),  std::pow(p.second.x(), 2), std::pow(p.second.z(), 2));
       wx = p.second.x() <= precision ? 1. / std::pow(precision, 2) : 1. / std::pow(p.second.x(), 2);
       wy = p.second.y() <= precision ? 1. / std::pow(precision, 2) : 1. / std::pow(p.second.y(), 2);
 
@@ -205,6 +209,8 @@ namespace WeightedMeanFitter {
       edm::LogWarning("WeightedMeanFitter") << "Vertex fitting failed at beginning\n";
       return TransientVertex(GlobalPoint(0, 0, 0), err, iclus, 0, 0);
     }
+    printf("[FitterAlgo::fitVertices()] After first iteration, before dividing, %1.9f %1.9f %1.9f %1.9f %1.9f \n", x, y, z, s_wx, s_wz);
+
     // use the square of covariance element to increase it's weight: it will be the most important
     wx = bse.cxx() <= precision ? 1. / std::pow(precision, 2) : 1. / std::pow(bse.cxx(), 2);
     wy = bse.cyy() <= precision ? 1. / std::pow(precision, 2) : 1. / std::pow(bse.cyy(), 2);
@@ -216,6 +222,7 @@ namespace WeightedMeanFitter {
     y /= (s_wy + wy);
     z /= s_wz;
 
+    printf("[FitterAlgo::fitVertices()] After first iteration, after dividing, %1.9f %1.9f %1.9f %1.9f %1.9f \n", x, y, z, s_wx, s_wz);
     float old_x, old_y, old_z;
 
     float xpull;
@@ -228,6 +235,7 @@ namespace WeightedMeanFitter {
     err_z = 1. / s_wz;
 
     while ((niter++) < 2) {
+      printf("[FitterAlgo::fitVertices()] At iteration %i, errs are %1.15f %1.15f %1.15f\n", niter, err_x, err_y, err_z);
       old_x = x;
       old_y = y;
       old_z = z;
@@ -246,13 +254,16 @@ namespace WeightedMeanFitter {
 
       for (unsigned int i = 0; i < (unsigned int)points.size(); i++) {
         std::pair<GlobalPoint, double> p = nearestPoint(GlobalPoint(old_x, old_y, old_z), (iclus)[i].track());
-
         wx = points[i].second.x() <= precision ? std::pow(precision, 2) : std::pow(points[i].second.x(), 2);
         wy = points[i].second.y() <= precision ? std::pow(precision, 2) : std::pow(points[i].second.y(), 2);
 
         wz = points[i].second.z() <= precision ? std::pow(precision, 2) : std::pow(points[i].second.z(), 2);
+        printf("[FitterAlgo::fitVertices()] Track wx: %1.9f, wz: %1.9f\n", wx, wy);
 
         xpull = 0.;
+	printf("[FitterAlgo::fitVertices()] Track sigmas: %1.3f %1.3f %1.3f\n", std::pow(p.first.x() - old_x, 2) / (wx + err_x), std::pow(p.first.y() - old_y, 2) / (wy + err_y), std::pow(p.first.z() - old_z, 2) / (wz + err_z));
+	printf("[FitterAlgo::fitVertices()] Track bools: %i %i %i\n",std::pow(p.first.x() - old_x, 2) / (wx + err_x) < muSquare, std::pow(p.first.y() - old_y, 2) / (wy + err_y) < muSquare, std::pow(p.first.z() - old_z, 2) / (wz + err_z) < muSquare);
+
         if (std::pow(p.first.x() - old_x, 2) / (wx + err_x) < muSquare &&
             std::pow(p.first.y() - old_y, 2) / (wy + err_y) < muSquare &&
             std::pow(p.first.z() - old_z, 2) / (wz + err_z) < muSquare)
@@ -267,6 +278,7 @@ namespace WeightedMeanFitter {
         x += wx * p.first.x();
         y += wy * p.first.y();
         z += wz * p.first.z();
+        printf("[FitterAlgo::fitVertices()] Track adds x: %1.9f, y: %1.9f z: %1.9f\n", wx * p.first.x(),  wx * p.first.y(), wz * p.first.z());
 
         s_wx += wx;
         s_wy += wy;
@@ -284,7 +296,8 @@ namespace WeightedMeanFitter {
       }
       wx = bse.cxx() <= std::pow(precision, 2) ? 1. / std::pow(precision, 2) : 1. / bse.cxx();
       wy = bse.cyy() <= std::pow(precision, 2) ? 1. / std::pow(precision, 2) : 1. / bse.cyy();
-
+      printf("[FitterAlgo::fitVertices()] Before adding BS in %i iteration %1.9f %1.9f %1.9f %1.9f %1.9f %1.9f \n", niter, x, y, z, s_wx, s_wy, s_wz);
+      printf("[FitterAlgo::fitVertices()] BS adds x: %1.9f, y: %1.9f\n", bsp.x() * wx,  bsp.y() * wy);
       x += bsp.x() * wx;
       y += bsp.y() * wy;
       s_wx += wx;
@@ -292,6 +305,7 @@ namespace WeightedMeanFitter {
       s_wy += wy;
       s2_wy += wy;
 
+      printf("[FitterAlgo::fitVertices()] Before dividing %i iteration %1.9f %1.9f %1.9f %1.9f %1.9f %1.9f \n", niter, x, y, z, s_wx, s_wy, s_wz);
       x /= s_wx;
       y /= s_wy;
       z /= s_wz;
@@ -299,7 +313,8 @@ namespace WeightedMeanFitter {
       err_x = (s2_wx / std::pow(s_wx, 2));
       err_y = (s2_wy / std::pow(s_wy, 2));
       err_z = (s2_wz / std::pow(s_wz, 2));
-
+      printf("[FitterAlgo::fitVertices()] After dividing %i iteration %1.9f %1.9f %1.9f %1.9f %1.9f \n", niter, x, y, z, s_wx, s_wz);
+      printf("[FitterAlgo::fitVertices()] Compare old and new: %1.9f %1.9f, %1.9f %1.9f, %1.9f %1.9f \n", old_x, x, old_y, y, old_z, z);
       if (std::abs(x - old_x) < (precision) && std::abs(y - old_y) < (precision) && std::abs(z - old_z) < (precision)) {
         break;
       }
@@ -321,6 +336,7 @@ namespace WeightedMeanFitter {
       dist += std::pow(p.first.z() - z, 2) / (std::pow(wz, 2) + err(2, 2));
       chi2 += dist;
     }
+    printf("[FitterAlgo::fitVertices()] Vertex 0, x: %1.9f, y:%1.9f, z:%1.9f, errx:%1.9f, errz:%1.9f, chi2:%1.9f, ndof:%1.9f\n", x, y, z, err_x* corr_x_bs * corr_x_bs,  err_z * corr_z * corr_z, chi2, ndof_x);
     TransientVertex v(GlobalPoint(x, y, z), err, iclus, chi2, (int)ndof_x);
     return v;
   }
@@ -480,6 +496,7 @@ public:
         std::vector<std::pair<GlobalPoint, GlobalPoint>> points;
         if (useBeamConstraint && (tracklist.size() > 1)) {
           for (const auto& itrack : tracklist) {
+	    printf("Selected track in cluster: %1.9f, %1.9f, %1.9f, %1.9f, %1.9f\n", itrack.stateAtBeamLine().trackStateAtPCA().position().x(), itrack.stateAtBeamLine().trackStateAtPCA().position().y(),itrack.stateAtBeamLine().trackStateAtPCA().position().z(), itrack.stateAtBeamLine().transverseImpactParameter().error(), itrack.track().dzError());
             GlobalPoint p = itrack.stateAtBeamLine().trackStateAtPCA().position();
             GlobalPoint err(itrack.stateAtBeamLine().transverseImpactParameter().error(),
                             itrack.stateAtBeamLine().transverseImpactParameter().error(),

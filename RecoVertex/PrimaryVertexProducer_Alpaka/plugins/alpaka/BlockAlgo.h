@@ -8,7 +8,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   class BlockAlgo {
   public:
-    BlockAlgo(Queue& queue); // Just configuration and making job divisions
+    BlockAlgo();
     void createBlocks(Queue& queue, const portablevertex::TrackDeviceCollection& inputTrack, portablevertex::TrackDeviceCollection& trackInBlocks, int32_t blockSize, double blockOverlap); // The actual block creation
 
   private:

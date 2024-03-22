@@ -22,12 +22,13 @@
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
   /**
-   * This class
-   * - consumes set of reco::Tracks
-   * - converts them to a Alpaka-friendly dataformat
+   * This:
+   * - consumes set of reco::Tracks and reco::BeamSpot
+   * - converts the reco::Tracks to a Alpaka-friendly dataformat portablevertex::TrackHostCollection
    * - puts the Alpaka dataformat in the device for later consumption
    */
   struct filterParameters {
+      // Configurable filter parameters for the tracks
       double maxSignificance;
       double maxdxyError;
       double maxdzError;
@@ -77,7 +78,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       portablevertex::TrackHostCollection hostTracks{tsize_, iEvent.queue()};
       auto& tview = hostTracks.view();
 
-      // Fill Host collections with input
+      // Fill Host collections with input, first initialize globals
       tview.totweight() = 0;
       tview.nT() = 0;
 
@@ -87,7 +88,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       t_tks = (*theB).build(tracks, beamSpot);
 
 
-      // This is to keep track of the original reco::Track index to later redo the conversion back to reco::Vertex
+      // We want to keep track of the original reco::Track index to later redo the conversion back to reco::Vertex
       std::vector<std::pair<int32_t, reco::TransientTrack>> sortedTracksPair;
       for (int32_t idx = 0; idx < tsize_; idx++){
         sortedTracksPair.push_back(std::pair<int32_t, reco::TransientTrack>(idx, t_tks[idx]));
@@ -97,6 +98,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
       int32_t nTrueTracks = 0; // This will keep track of how many we actually copy to device, only those that pass filter
       for (int32_t idx = 0; idx < tsize_; idx ++){
+	// Fill up the the Track SoA, weight doubles up as an isGood flag, as we compute it only for good tracks
         double weight = convertTrack(tview[nTrueTracks], sortedTracksPair[idx].second, beamSpot, fParams, sortedTracksPair[idx].first, nTrueTracks);
         if (weight > 0){
           nTrueTracks       += 1;
@@ -149,15 +151,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     bool isGood = false;
     double weight = -1;
     printf("Track %i\n", idx);
+    // First check if it passes filters
     if ((in.stateAtBeamLine().transverseImpactParameter().significance() < fParams.maxSignificance) && (in.stateAtBeamLine().transverseImpactParameter().error() < fParams.maxdxyError) && (in.track().dzError() < fParams.maxdzError) && (in.impactPointState().globalMomentum().transverse() > fParams.minpAtIP) && (std::fabs(in.impactPointState().globalMomentum().eta()) < fParams.maxetaAtIP) && (in.normalizedChi2() <fParams.maxchi2) && (in.hitPattern().pixelLayersWithMeasurement() >=fParams.minpixelHits) && (in.hitPattern().trackerLayersWithMeasurement() >= fParams.mintrackerHits) && (in.track().quality(fParams.trackQuality) || (fParams.trackQuality == reco::TrackBase::undefQuality))) isGood = true;
-    if (isGood){ // Then define vertex-related stuff like weights
+    if (isGood){ 
+      // Then define vertex-related stuff like weights
       weight = 1.;
       if (fParams.d0CutOff > 0){
-        // significance in transverse plane
+        // significance is measured in the transverse plane
 	double significance = in.stateAtBeamLine().transverseImpactParameter().significance();
-        // weight is based on transversal displacement of the track	
+        // weight is based on transverse displacement of the track	
         weight = 1 + exp(significance*significance + fParams.d0CutOff * fParams.d0CutOff);
       }
+      // Just fill up variables
       out.x() = in.stateAtBeamLine().trackStateAtPCA().position().x();;
       out.y() = in.stateAtBeamLine().trackStateAtPCA().position().y();;
       out.z() = in.stateAtBeamLine().trackStateAtPCA().position().z();;
