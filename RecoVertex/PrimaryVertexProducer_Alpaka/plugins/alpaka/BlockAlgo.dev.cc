@@ -5,6 +5,8 @@
 
 #include "RecoVertex/PrimaryVertexProducer_Alpaka/plugins/alpaka/BlockAlgo.h"
 
+#define DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO 1
+
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
   using namespace cms::alpakatools; 
 
@@ -12,21 +14,33 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   public:
     template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
     ALPAKA_FN_ACC void operator()(const TAcc& acc,  const portablevertex::TrackDeviceCollection::ConstView inputTracks,  portablevertex::TrackDeviceCollection::View trackInBlocks, double blockOverlap, int32_t blockSize) const{
-      //P// printf("[BlockAlgo::operator()] Start\n");
-      //P// printf("[BlockAlgo::operator()] blockOverlap: %1.3f, blockSize %i\n",blockOverlap, blockSize);
+      #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO
+        printf("[BlockAlgo::operator()] Start\n");
+        printf("[BlockAlgo::operator()] blockOverlap: %1.3f, blockSize %i\n",blockOverlap, blockSize);
+      #endif
       int32_t nTOld = inputTracks.nT();
-      //P// printf("[BlockAlgo::operator()] blockSize: %i, blockOverlap %1.3f, nTOld %i\n", blockSize, blockOverlap, nTOld);
+      #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO
+        printf("[BlockAlgo::operator()] blockSize: %i, blockOverlap %1.3f, nTOld %i\n", blockSize, blockOverlap, nTOld);
+      #endif
       int32_t nBlocks = nTOld > blockSize ? int32_t ((nTOld-1)/(blockOverlap*blockSize)) : 1; // If all fit within a block, no need to split
-      //P// printf("[BlockAlgo::operator()] nBlocks: %i\n", nBlocks);
+      #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO
+        printf("[BlockAlgo::operator()] nBlocks: %i\n", nBlocks);
+      #endif
       int32_t overlapStart = blockOverlap*blockSize; // First block starts at 0, second block starts at overlapStart, third at 2*overlapStart and so on
-      //P// printf("[BlockAlgo::operator()] blockSize: %i\n", blockSize);
+      #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO
+        printf("[BlockAlgo::operator()] blockSize: %i\n", blockSize);
+      #endif
       for (auto iNewTrack : elements_with_stride(acc, blockSize) ) { // The accelerator has as much threads as blockSize, so each thread will enter once on each block
-	//P// printf("[BlockAlgo::operator()] iNewTrack %i, nBlocks %i\n", iNewTrack, nBlocks);
+	#ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO
+	  printf("[BlockAlgo::operator()] iNewTrack %i, nBlocks %i\n", iNewTrack, nBlocks);
+	#endif 
         for (int32_t iblock = 0; iblock < nBlocks; iblock++){
       	  int32_t oldIndex = (iblock*overlapStart) + iNewTrack; // I.e. first track in the block in which we are + thread in which we are
 	  if (oldIndex >= nTOld) break; // I.e. we reached the end of the input block
           int32_t newIndex = iNewTrack+iblock*blockSize;
-	  //P// printf("[BlockAlgo::operator()] iblock %i, oldIndex %i => newIndex %i, x: %1.5f, y: %1.5f, z:%1.5f\n", iblock, oldIndex, newIndex, inputTracks[oldIndex].x(),inputTracks[oldIndex].y(), inputTracks[oldIndex].z());
+	  #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO
+	    printf("[BlockAlgo::operator()] iblock %i, oldIndex %i => newIndex %i, x: %1.5f, y: %1.5f, z:%1.5f\n", iblock, oldIndex, newIndex, inputTracks[oldIndex].x(),inputTracks[oldIndex].y(), inputTracks[oldIndex].z());
+	  #endif
 	  // And just copy in new places
 	  trackInBlocks[newIndex].x()          = inputTracks[oldIndex].x();
           trackInBlocks[newIndex].y()          = inputTracks[oldIndex].y();
@@ -51,7 +65,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       if (once_per_block(acc)){
         trackInBlocks.nT() = (nBlocks-1)*blockSize + nTOld-blockSize*std::floor(nTOld/(blockOverlap*blockSize));
       }
-      //P// printf("[BlockAlgo::operator()] End\n");
+      #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_BLOCKALGO
+        printf("[BlockAlgo::operator()] End\n");
+      #endif
     } // createBlocksKernel::operator()
   }; // class createBlocksKernel
 

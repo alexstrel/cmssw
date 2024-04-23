@@ -24,7 +24,7 @@
  */
 class SoAToRecoVertexProducer : public edm::stream::EDProducer<> {
   public:
-    SoAToRecoVertexProducer(edm::ParameterSet const& config) : portableVertexToken_(consumes(config.getParameter<edm::InputTag>("soaVertex"))), recoTrackToken_(consumes(config.getParameter<edm::InputTag>("srcTrack"))), recoVertexToken_(produces()){
+    SoAToRecoVertexProducer(edm::ParameterSet const& config) : portableVertexToken_(consumes(config.getParameter<edm::InputTag>("soaVertex"))), recoTrackToken_(consumes(config.getParameter<edm::InputTag>("srcTrack"))), recoVertexToken_(produces<reco::VertexCollection>()){
     }
 
     static void fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
@@ -63,7 +63,7 @@ void SoAToRecoVertexProducer::produce(edm::Event& iEvent, const edm::EventSetup&
     // Then we can actually create the vertex
     reco::Vertex newV(reco::Vertex::Point(hostVertexView[iV].x(), hostVertexView[iV].y(), hostVertexView[iV].z()), err, hostVertexView[iV].chi2(), hostVertexView[iV].ndof(), hostVertexView[iV].ntracks());
     // Finally, add references to the reco::Track used for building it
-    for (int iT=0; iT <  hostVertexView[iV].ntracks(); iT++) {
+    for (int iT=0; iT < hostVertexView[iV].ntracks(); iT++) {
        int new_itrack = hostVertexView[iV].track_id()[iT];
        reco::TrackRef ref(tracks, new_itrack);
        newV.add(ref, hostVertexView[iV].track_weight()[iT]);

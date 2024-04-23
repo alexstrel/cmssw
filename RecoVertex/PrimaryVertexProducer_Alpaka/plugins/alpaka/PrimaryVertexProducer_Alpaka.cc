@@ -81,9 +81,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     void produce(device::Event& iEvent, device::EventSetup const& iSetup) {
       const portablevertex::TrackDeviceCollection& inputtracks   = iEvent.get(trackToken_);
       const portablevertex::BeamSpotDeviceCollection& beamSpot     = iEvent.get(beamSpotToken_);
-      int32_t nT = inputtracks.view().nT();
+      int32_t nT = inputtracks.view().metadata().size();
       int32_t nBlocks = nT > blockSize ? int32_t ((nT-1)/(blockOverlap*blockSize)) : 1; // If the block size is big enough we process everything at once
-      
       // Now the device collections we still need
       portablevertex::TrackDeviceCollection tracksInBlocks{nBlocks*blockSize, iEvent.queue()}; // As high as needed
       portablevertex::VertexDeviceCollection deviceVertex{512, iEvent.queue()}; // Hard capped to 512, though we might want to restrict it for low PU cases
@@ -102,9 +101,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::wait(iEvent.queue());
       clusterizerKernel_.arbitrate(iEvent.queue(), tracksInBlocks, deviceVertex, cParams, nBlocks, blockSize);
       alpaka::wait(iEvent.queue());
-
       //// And then fit
-      FitterAlgo fitterKernel_{iEvent.queue(), deviceVertex.view()[0].nV(), fitterParams};
+      FitterAlgo fitterKernel_{iEvent.queue(), deviceVertex.view().metadata().size(), fitterParams};
       fitterKernel_.fit(iEvent.queue(), tracksInBlocks, deviceVertex, beamSpot);
 
       // Put the vertices in the event as a portable collection
@@ -143,8 +141,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
 
   private:
-    edm::EDGetTokenT<portablevertex::TrackDeviceCollection> trackToken_;
-    edm::EDGetTokenT<portablevertex::BeamSpotDeviceCollection> beamSpotToken_;
+    device::EDGetToken<portablevertex::TrackDeviceCollection> trackToken_;
+    device::EDGetToken<portablevertex::BeamSpotDeviceCollection> beamSpotToken_;
     device::EDPutToken<portablevertex::VertexDeviceCollection> devicePutToken_;
     int32_t blockSize;
     double blockOverlap;

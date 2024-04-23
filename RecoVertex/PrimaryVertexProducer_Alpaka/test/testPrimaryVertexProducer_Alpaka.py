@@ -47,7 +47,7 @@ process.FEVToutput = cms.OutputModule("PoolOutputModule",
         filterName = cms.untracked.string('')
     ),
     fileName = cms.untracked.string('testAlpaka.root'), # output file name
-    outputCommands = cms.untracked.vstring('drop *', 'keep *_vertexAoS_*_*'),# I.e., just drop everything and keep things in this module
+    outputCommands = cms.untracked.vstring('drop *'),# I.e., just drop everything and keep things in this module
     splitLevel = cms.untracked.int32(0)
 )
 

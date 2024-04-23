@@ -12,6 +12,7 @@
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "DataFormats/Math/interface/AlgebraicROOTObjects.h"
 
+#define DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_PORTABLEBEAMSPOTSOAPRODUCER 1
 
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
@@ -64,7 +65,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   void PortableBeamSpotSoAProducer::convertBeamSpot(portablevertex::BeamSpotHostCollection::View::element out, const reco::BeamSpot in){
     out.x() = in.position().x();
     out.y() = in.position().y();
-    printf("[PortableBeamSpotSoAProducer::convertBeamSpot()], x:%1.5f, y:%1.5f\n", in.position().x(), in.position().y());
+    #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_PORTABLEBEAMSPOTSOAPRODUCER
+      printf("[PortableBeamSpotSoAProducer::convertBeamSpot()], x:%1.5f, y:%1.5f\n", in.position().x(), in.position().y());
+    #endif
     out.sx() = in.rotatedCovariance3D()(0,0);
     out.sy() = in.rotatedCovariance3D()(1,1);
   }

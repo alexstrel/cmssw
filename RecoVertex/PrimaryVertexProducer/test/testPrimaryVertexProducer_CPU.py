@@ -17,7 +17,7 @@ process.load('HLTrigger.Configuration.HLT_GRun_cff')
 process.load('Configuration.StandardSequences.EndOfProcess_cff')
 process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_cff')
 from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_mc', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '140X_mcRun3_2023_realistic_v3')
 
 # Input files
 process.source = cms.Source("PoolSource",
@@ -44,7 +44,7 @@ process.FEVToutput = cms.OutputModule("PoolOutputModule",
         filterName = cms.untracked.string('')
     ),
     fileName = cms.untracked.string('testCPU.root'), # output file name
-    outputCommands = cms.untracked.vstring('drop *','keep recoVertex_*_*_*'),# I.e., just drop everything and keep things in this module
+    outputCommands = cms.untracked.vstring('drop *','keep *_*_*_PV'),# I.e., just drop everything and keep things in this module
     splitLevel = cms.untracked.int32(0)
 )
 

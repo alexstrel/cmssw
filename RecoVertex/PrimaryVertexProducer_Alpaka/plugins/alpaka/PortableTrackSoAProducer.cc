@@ -18,7 +18,7 @@
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "DataFormats/Math/interface/AlgebraicROOTObjects.h"
 
-
+#define DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_PORTABLETRACKSOAPRODUCER 1
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
   /**
@@ -106,7 +106,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	  tview.totweight() += weight;
 	}
       }
-      printf("[PortableTrackSoAProducer::produce()] From %i tracks, %i pass filters\n", (int32_t) tracks->size(), nTrueTracks);
+      #ifdef DEBUG_RECOVERTEX_PRIMARYVERTEXPRODUCER_ALPAKA_PORTABLETRACKSOAPRODUCER
+        printf("[PortableTrackSoAProducer::produce()] From %i tracks, %i pass filters\n", (int32_t) tracks->size(), nTrueTracks);
+      #endif
       // Create device collections and copy into device
       portablevertex::TrackDeviceCollection deviceTracks{tsize_, iEvent.queue()};
       
@@ -150,7 +152,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   double PortableTrackSoAProducer::convertTrack(portablevertex::TrackHostCollection::View::element out, const reco::TransientTrack in, const reco::BeamSpot bs, filterParameters fParams, int32_t idx, int32_t order){
     bool isGood = false;
     double weight = -1;
-    printf("Track %i\n", idx);
     // First check if it passes filters
     if ((in.stateAtBeamLine().transverseImpactParameter().significance() < fParams.maxSignificance) && (in.stateAtBeamLine().transverseImpactParameter().error() < fParams.maxdxyError) && (in.track().dzError() < fParams.maxdzError) && (in.impactPointState().globalMomentum().transverse() > fParams.minpAtIP) && (std::fabs(in.impactPointState().globalMomentum().eta()) < fParams.maxetaAtIP) && (in.normalizedChi2() <fParams.maxchi2) && (in.hitPattern().pixelLayersWithMeasurement() >=fParams.minpixelHits) && (in.hitPattern().trackerLayersWithMeasurement() >= fParams.mintrackerHits) && (in.track().quality(fParams.trackQuality) || (fParams.trackQuality == reco::TrackBase::undefQuality))) isGood = true;
     if (isGood){ 
