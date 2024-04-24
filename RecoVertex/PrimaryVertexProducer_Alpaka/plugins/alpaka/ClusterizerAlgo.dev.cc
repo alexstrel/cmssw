@@ -407,10 +407,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
 	double ppcut = cParams.uniquetrkweight() * vertices[ivertex].rho() / (vertices[ivertex].rho()+rhoconst);
 	double track_vertex_aux1 = exp(-(_beta)*tracks[itrack].oneoverdz2() * ( (tracks[itrack].z()-vertices[ivertex].z())*(tracks[itrack].z()-vertices[ivertex].z()) ));
-        double p = vertices[ivertex].rho()*track_vertex_aux1*track_aux1; // The whole track-vertex P_ij = rho_j*p_ij*p_i
+        float p = vertices[ivertex].rho()*track_vertex_aux1*track_aux1; // The whole track-vertex P_ij = rho_j*p_ij*p_i
         alpaka::atomicAdd(acc, &vertices[ivertex].aux1(), p, alpaka::hierarchy::Threads{});
         if (p>ppcut) {
-          alpaka::atomicAdd(acc, &vertices[ivertex].aux2(), 1., alpaka::hierarchy::Threads{});
+          alpaka::atomicAdd(acc, &vertices[ivertex].aux2(), 1.f, alpaka::hierarchy::Threads{});
         }
       }
     }
@@ -518,8 +518,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
     // Initial vertex position
     alpaka::syncBlockThreads(acc);
-    double& wnew = alpaka::declareSharedVar<double, __COUNTER__>(acc);
-    double& znew = alpaka::declareSharedVar<double, __COUNTER__>(acc);
+    float& wnew = alpaka::declareSharedVar<float, __COUNTER__>(acc);
+    float& znew = alpaka::declareSharedVar<float, __COUNTER__>(acc);
     if (once_per_block(acc)){
       wnew = 0.;
       znew = 0.;
@@ -930,9 +930,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       double& _beta = alpaka::declareSharedVar<double, __COUNTER__>(acc);
       double& osumtkwt = alpaka::declareSharedVar<double, __COUNTER__>(acc);
       for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){ // TODO:Saving and reading in the tracks dataformat might be a bit too much?
-        alpaka::atomicAdd(acc, &osumtkwt, tracks[itrack].weight(), alpaka::hierarchy::Threads{});
+	double temp_weight = static_cast<double>(tracks[itrack].weight());      
+        //alpaka::atomicAdd(acc, &osumtkwt, static_cast<double&>(tracks[itrack].weight()), alpaka::hierarchy::Threads{});
+	alpaka::atomicAdd(acc, &osumtkwt, temp_weight, alpaka::hierarchy::Threads{});
       }
-      alpaka::syncBlockThreads(acc);
+      alpaka::syncBlockThreads(acc);     
       // In each block, initialize to a single vertex with all tracks
       initialize(acc, tracks, vertices, cParams);
       alpaka::syncBlockThreads(acc);
