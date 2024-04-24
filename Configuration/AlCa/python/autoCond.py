@@ -92,9 +92,9 @@ autoCond = {
     # GlobalTag for MC production with perfectly aligned and calibrated detector for Phase1 2024
     'phase1_2024_design'           :    '140X_mcRun3_2024_design_v7',
     # GlobalTag for MC production with realistic conditions for Phase1 2024
-    'phase1_2024_realistic'        :    '140X_mcRun3_2024_realistic_v8',
+    'phase1_2024_realistic'        :    '140X_mcRun3_2024_realistic_v3',
     # GlobalTag for MC production (cosmics) with realistic conditions for Phase1 2024, Strip tracker in DECO mode
-    'phase1_2024_cosmics'          :    '140X_mcRun3_2024cosmics_realistic_deco_v8',
+    'phase1_2024_cosmics'          :    '140X_mcRun3_2024cosmics_realistic_deco_v3',
     # GlobalTag for MC production (cosmics) with perfectly aligned and calibrated detector for Phase1 2024, Strip tracker in DECO mode
     'phase1_2024_cosmics_design'   :    '140X_mcRun3_2024cosmics_design_deco_v6',
     # GlobalTag for MC production with realistic conditions for Phase1 2024 detector for Heavy Ion

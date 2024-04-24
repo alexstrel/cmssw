@@ -1,6 +1,10 @@
 # hltGetConfiguration /dev/CMSSW_14_0_0/Special --cff --data --type Special
 
+<<<<<<< HEAD
 # /dev/CMSSW_14_0_0/Special/V105 (CMSSW_14_0_5)
+=======
+# /dev/CMSSW_14_0_0/Special/V7 (CMSSW_14_0_0_pre3)
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 
 import FWCore.ParameterSet.Config as cms
 
@@ -11,7 +15,11 @@ fragment = cms.ProcessFragment( "HLT" )
 fragment.load("Configuration.StandardSequences.Accelerators_cff")
 
 fragment.HLTConfigVersion = cms.PSet(
+<<<<<<< HEAD
   tableName = cms.string("/dev/CMSSW_14_0_0/Special/V105")
+=======
+  tableName = cms.string('/dev/CMSSW_14_0_0/Special/V7')
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 )
 
 fragment.HLTIter4PSetTrajectoryBuilderIT = cms.PSet( 
@@ -5379,8 +5387,27 @@ fragment.hltTrimmedPixelVerticesSerialSync = cms.EDProducer( "PixelVertexCollect
     minSumPt2 = cms.double( 0.0 ),
     PVcomparer = cms.PSet(  refToPSet_ = cms.string( "HLTPSetPvClusterComparerForIT" ) )
 )
+<<<<<<< HEAD
 fragment.hltPixelRecHitsSoAMonitorCPU = cms.EDProducer( "SiPixelPhase1MonitorRecHitsSoAAlpaka",
     pixelHitsSrc = cms.InputTag( "hltSiPixelRecHitsSoASerialSync" ),
+=======
+fragment.hltPixelConsumerCPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltSiPixelDigisLegacy' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+)
+fragment.hltPixelConsumerGPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltSiPixelDigis@cuda' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+)
+fragment.hltSiPixelRecHitsSoAMonitorCPU = cms.EDProducer( "SiPixelPhase1MonitorRecHitsSoA",
+    pixelHitsSrc = cms.InputTag( "hltSiPixelRecHitsFromLegacyCPUOnly" ),
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
     TopFolderName = cms.string( "SiPixelHeterogeneous/PixelRecHitsCPU" )
 )
 fragment.hltPixelRecHitsSoAMonitorGPU = cms.EDProducer( "SiPixelPhase1MonitorRecHitsSoAAlpaka",
@@ -5447,6 +5474,7 @@ fragment.hltPreDQMEcalReconstruction = cms.EDFilter( "HLTPrescaler",
     offset = cms.uint32( 0 ),
     L1GtReadoutRecordTag = cms.InputTag( "hltGtStage2Digis" )
 )
+<<<<<<< HEAD
 fragment.hltEcalDigisSoASerialSync = cms.EDProducer( "alpaka_serial_sync::EcalRawToDigiPortable",
     InputLabel = cms.InputTag( "rawDataCollector" ),
     FEDs = cms.vint32( 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649, 650, 651, 652, 653, 654 ),
@@ -5563,6 +5591,23 @@ fragment.hltEcalRecHitSerialSync = cms.EDProducer( "EcalRecHitProducer",
     timeCalibTag = cms.ESInputTag( "","" ),
     timeOffsetTag = cms.ESInputTag( "","" ),
     skipTimeCalib = cms.bool( False )
+=======
+fragment.hltEcalConsumerCPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltEcalDigis@cpu',
+      'hltEcalUncalibRecHit@cpu' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+)
+fragment.hltEcalConsumerGPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltEcalDigis@cuda',
+      'hltEcalUncalibRecHit@cuda' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 )
 fragment.hltL1sDQMHcalReconstruction = cms.EDFilter( "HLTL1TSeed",
     saveTags = cms.bool( True ),

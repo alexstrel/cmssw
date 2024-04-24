@@ -241,14 +241,22 @@ def customiseForOffline(process):
         process.GlobalTag.ReconnectEachRun = cms.untracked.bool(False)
         process.GlobalTag.RefreshEachRun = cms.untracked.bool(False)
 
+<<<<<<< HEAD
         if hasattr(process.GlobalTag, 'toGet'):
             # Filter out PSet objects containing only 'record' and 'refreshTime'
             process.GlobalTag.toGet = [
                 pset for pset in process.GlobalTag.toGet
                 if set(pset.parameterNames_()) != {'record', 'refreshTime'}
             ]
+=======
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 
+def customizeHLTfor43885(process):
+    for producer in producers_by_type(process, "EgammaHLTClusterShapeProducer"):
+        if hasattr(producer, 'isIeta'):
+            delattr(producer, 'isIeta')
     return process
+<<<<<<< HEAD
 
 def checkHLTfor43774(process):
     filt_types = ["HLTEgammaGenericFilter","HLTEgammaGenericQuadraticEtaFilter","HLTEgammaGenericQuadraticFilter","HLTElectronGenericFilter"]
@@ -260,6 +268,8 @@ def checkHLTfor43774(process):
                     print('# TSG WARNING: check value of parameter "useAbs" in',filt,'(expect True but is False)!')
 
     return process
+=======
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
     
 # CMSSW version specific customizations
 def customizeHLTforCMSSW(process, menuType="GRun"):
@@ -269,6 +279,10 @@ def customizeHLTforCMSSW(process, menuType="GRun"):
     # add call to action function in proper order: newest last!
     # process = customiseFor12718(process)
 
+<<<<<<< HEAD
     process = checkHLTfor43774(process)
+=======
+    process = customizeHLTfor43885(process)
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 
     return process

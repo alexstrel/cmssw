@@ -1,6 +1,10 @@
 # hltGetConfiguration /dev/CMSSW_14_0_0/PRef --full --data --type PRef --unprescale --process HLTPRef --globaltag auto:run3_hlt_PRef --input file:RelVal_Raw_PRef_DATA.root
 
+<<<<<<< HEAD
 # /dev/CMSSW_14_0_0/PRef/V105 (CMSSW_14_0_5)
+=======
+# /dev/CMSSW_14_0_0/PRef/V7 (CMSSW_14_0_0_pre3)
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 
 import FWCore.ParameterSet.Config as cms
 
@@ -11,7 +15,11 @@ process = cms.Process( "HLTPRef" )
 process.load("Configuration.StandardSequences.Accelerators_cff")
 
 process.HLTConfigVersion = cms.PSet(
+<<<<<<< HEAD
   tableName = cms.string("/dev/CMSSW_14_0_0/PRef/V105")
+=======
+  tableName = cms.string('/dev/CMSSW_14_0_0/PRef/V7')
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 )
 
 process.HLTIter4PSetTrajectoryBuilderIT = cms.PSet( 
@@ -5501,8 +5509,27 @@ process.hltTrimmedPixelVerticesSerialSync = cms.EDProducer( "PixelVertexCollecti
     minSumPt2 = cms.double( 0.0 ),
     PVcomparer = cms.PSet(  refToPSet_ = cms.string( "HLTPSetPvClusterComparerForIT" ) )
 )
+<<<<<<< HEAD
 process.hltPixelRecHitsSoAMonitorCPU = cms.EDProducer( "SiPixelPhase1MonitorRecHitsSoAAlpaka",
     pixelHitsSrc = cms.InputTag( "hltSiPixelRecHitsSoASerialSync" ),
+=======
+process.hltPixelConsumerCPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltSiPixelDigisLegacy' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+)
+process.hltPixelConsumerGPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltSiPixelDigis@cuda' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+)
+process.hltSiPixelRecHitsSoAMonitorCPU = cms.EDProducer( "SiPixelPhase1MonitorRecHitsSoA",
+    pixelHitsSrc = cms.InputTag( "hltSiPixelRecHitsFromLegacyCPUOnly" ),
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
     TopFolderName = cms.string( "SiPixelHeterogeneous/PixelRecHitsCPU" )
 )
 process.hltPixelRecHitsSoAMonitorGPU = cms.EDProducer( "SiPixelPhase1MonitorRecHitsSoAAlpaka",
@@ -5569,6 +5596,7 @@ process.hltPreDQMEcalReconstruction = cms.EDFilter( "HLTPrescaler",
     offset = cms.uint32( 0 ),
     L1GtReadoutRecordTag = cms.InputTag( "hltGtStage2Digis" )
 )
+<<<<<<< HEAD
 process.hltEcalDigisSoASerialSync = cms.EDProducer( "alpaka_serial_sync::EcalRawToDigiPortable",
     InputLabel = cms.InputTag( "rawDataCollector" ),
     FEDs = cms.vint32( 601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619, 620, 621, 622, 623, 624, 625, 626, 627, 628, 629, 630, 631, 632, 633, 634, 635, 636, 637, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649, 650, 651, 652, 653, 654 ),
@@ -5685,6 +5713,23 @@ process.hltEcalRecHitSerialSync = cms.EDProducer( "EcalRecHitProducer",
     timeCalibTag = cms.ESInputTag( "","" ),
     timeOffsetTag = cms.ESInputTag( "","" ),
     skipTimeCalib = cms.bool( False )
+=======
+process.hltEcalConsumerCPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltEcalDigis@cpu',
+      'hltEcalUncalibRecHit@cpu' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+)
+process.hltEcalConsumerGPU = cms.EDAnalyzer( "GenericConsumer",
+    eventProducts = cms.untracked.vstring( 'hltEcalDigis@cuda',
+      'hltEcalUncalibRecHit@cuda' ),
+    lumiProducts = cms.untracked.vstring(  ),
+    runProducts = cms.untracked.vstring(  ),
+    processProducts = cms.untracked.vstring(  ),
+    verbose = cms.untracked.bool( False )
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 )
 process.hltL1sDQMHcalReconstruction = cms.EDFilter( "HLTL1TSeed",
     saveTags = cms.bool( True ),
@@ -5981,6 +6026,7 @@ process.hltHcalConsumerGPU = cms.EDAnalyzer( "GenericConsumer",
     runProducts = cms.untracked.vstring(  ),
     processProducts = cms.untracked.vstring(  ),
     verbose = cms.untracked.bool( False )
+<<<<<<< HEAD
 )
 process.hltHbheRecHitSoA = cms.EDProducer( "HCALRecHitSoAProducer@alpaka",
     src = cms.InputTag( "hltHbhereco" ),
@@ -6246,6 +6292,8 @@ process.hltParticleFlowClusterHCALSerialSync = cms.EDProducer( "PFMultiDepthClus
     ),
     positionReCalc = cms.PSet(  ),
     energyCorrector = cms.PSet(  )
+=======
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 )
 process.hltPreDSTPhysics = cms.EDFilter( "HLTPrescaler",
     offset = cms.uint32( 0 ),
@@ -9982,6 +10030,40 @@ process.hltParticleFlowRecHitECALUnseeded = cms.EDProducer( "PFRecHitProducer",
       )
     )
 )
+<<<<<<< HEAD
+=======
+process.hltParticleFlowRecHitHBHE = cms.EDProducer( "PFRecHitProducer",
+    navigator = cms.PSet( 
+      hcalEnums = cms.vint32( 1, 2 ),
+      name = cms.string( "PFRecHitHCALDenseIdNavigator" )
+    ),
+    producers = cms.VPSet( 
+      cms.PSet(  src = cms.InputTag( "hltHbhereco" ),
+        name = cms.string( "PFHBHERecHitCreator" ),
+        qualityTests = cms.VPSet( 
+          cms.PSet(  name = cms.string( "PFRecHitQTestHCALThresholdVsDepth" ),
+            cuts = cms.VPSet( 
+              cms.PSet(  threshold = cms.vdouble( 0.4, 0.3, 0.3, 0.3 ),
+                depth = cms.vint32( 1, 2, 3, 4 ),
+                detectorEnum = cms.int32( 1 )
+              ),
+              cms.PSet(  threshold = cms.vdouble( 0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ),
+                depth = cms.vint32( 1, 2, 3, 4, 5, 6, 7 ),
+                detectorEnum = cms.int32( 2 )
+              )
+            ),
+            usePFThresholdsFromDB = cms.bool( True )
+          ),
+          cms.PSet(  flags = cms.vstring( 'Standard' ),
+            cleaningThresholds = cms.vdouble( 0.0 ),
+            name = cms.string( "PFRecHitQTestHCALChannel" ),
+            maxSeverities = cms.vint32( 11 )
+          )
+        )
+      )
+    )
+)
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 process.hltParticleFlowRecHitHF = cms.EDProducer( "PFRecHitProducer",
     navigator = cms.PSet( 
       hcalEnums = cms.vint32( 4 ),
@@ -10012,7 +10094,8 @@ process.hltParticleFlowRecHitHF = cms.EDProducer( "PFRecHitProducer",
                 depth = cms.vint32( 1, 2 ),
                 detectorEnum = cms.int32( 4 )
               )
-            )
+            ),
+            usePFThresholdsFromDB = cms.bool( False )
           )
         ),
         ShortFibre_Cut = cms.double( 60.0 )
@@ -10234,6 +10317,153 @@ process.hltParticleFlowClusterECALUnseeded = cms.EDProducer( "CorrectedECALPFClu
     ),
     inputECAL = cms.InputTag( "hltParticleFlowClusterECALUncorrectedUnseeded" )
 )
+<<<<<<< HEAD
+=======
+process.hltParticleFlowClusterHBHE = cms.EDProducer( "PFClusterProducer",
+    recHitsSource = cms.InputTag( "hltParticleFlowRecHitHBHE" ),
+    usePFThresholdsFromDB = cms.bool( True ),
+    recHitCleaners = cms.VPSet( 
+    ),
+    seedCleaners = cms.VPSet( 
+    ),
+    seedFinder = cms.PSet( 
+      thresholdsByDetector = cms.VPSet( 
+        cms.PSet(  seedingThresholdPt = cms.vdouble( 0.0, 0.0, 0.0, 0.0 ),
+          seedingThreshold = cms.vdouble( 0.6, 0.5, 0.5, 0.5 ),
+          depths = cms.vint32( 1, 2, 3, 4 ),
+          detector = cms.string( "HCAL_BARREL1" )
+        ),
+        cms.PSet(  seedingThresholdPt = cms.vdouble( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ),
+          seedingThreshold = cms.vdouble( 0.1375, 0.275, 0.275, 0.275, 0.275, 0.275, 0.275 ),
+          depths = cms.vint32( 1, 2, 3, 4, 5, 6, 7 ),
+          detector = cms.string( "HCAL_ENDCAP" )
+        )
+      ),
+      algoName = cms.string( "LocalMaximumSeedFinder" ),
+      nNeighbours = cms.int32( 4 )
+    ),
+    initialClusteringStep = cms.PSet( 
+      thresholdsByDetector = cms.VPSet( 
+        cms.PSet(  gatheringThreshold = cms.vdouble( 0.4, 0.3, 0.3, 0.3 ),
+          gatheringThresholdPt = cms.vdouble( 0.0, 0.0, 0.0, 0.0 ),
+          depths = cms.vint32( 1, 2, 3, 4 ),
+          detector = cms.string( "HCAL_BARREL1" )
+        ),
+        cms.PSet(  gatheringThreshold = cms.vdouble( 0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ),
+          gatheringThresholdPt = cms.vdouble( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ),
+          depths = cms.vint32( 1, 2, 3, 4, 5, 6, 7 ),
+          detector = cms.string( "HCAL_ENDCAP" )
+        )
+      ),
+      algoName = cms.string( "Basic2DGenericTopoClusterizer" ),
+      useCornerCells = cms.bool( True )
+    ),
+    pfClusterBuilder = cms.PSet( 
+      minFracTot = cms.double( 1.0E-20 ),
+      stoppingTolerance = cms.double( 1.0E-8 ),
+      positionCalc = cms.PSet( 
+        minAllowedNormalization = cms.double( 1.0E-9 ),
+        posCalcNCrystals = cms.int32( 5 ),
+        algoName = cms.string( "Basic2DGenericPFlowPositionCalc" ),
+        logWeightDenominatorByDetector = cms.VPSet( 
+          cms.PSet(  logWeightDenominator = cms.vdouble( 0.4, 0.3, 0.3, 0.3 ),
+            depths = cms.vint32( 1, 2, 3, 4 ),
+            detector = cms.string( "HCAL_BARREL1" )
+          ),
+          cms.PSet(  logWeightDenominator = cms.vdouble( 0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ),
+            depths = cms.vint32( 1, 2, 3, 4, 5, 6, 7 ),
+            detector = cms.string( "HCAL_ENDCAP" )
+          )
+        ),
+        minFractionInCalc = cms.double( 1.0E-9 )
+      ),
+      maxIterations = cms.uint32( 5 ),
+      minChi2Prob = cms.double( 0.0 ),
+      allCellsPositionCalc = cms.PSet( 
+        minAllowedNormalization = cms.double( 1.0E-9 ),
+        posCalcNCrystals = cms.int32( -1 ),
+        algoName = cms.string( "Basic2DGenericPFlowPositionCalc" ),
+        logWeightDenominatorByDetector = cms.VPSet( 
+          cms.PSet(  logWeightDenominator = cms.vdouble( 0.4, 0.3, 0.3, 0.3 ),
+            depths = cms.vint32( 1, 2, 3, 4 ),
+            detector = cms.string( "HCAL_BARREL1" )
+          ),
+          cms.PSet(  logWeightDenominator = cms.vdouble( 0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ),
+            depths = cms.vint32( 1, 2, 3, 4, 5, 6, 7 ),
+            detector = cms.string( "HCAL_ENDCAP" )
+          )
+        ),
+        minFractionInCalc = cms.double( 1.0E-9 )
+      ),
+      algoName = cms.string( "Basic2DGenericPFlowClusterizer" ),
+      recHitEnergyNorms = cms.VPSet( 
+        cms.PSet(  recHitEnergyNorm = cms.vdouble( 0.4, 0.3, 0.3, 0.3 ),
+          depths = cms.vint32( 1, 2, 3, 4 ),
+          detector = cms.string( "HCAL_BARREL1" )
+        ),
+        cms.PSet(  recHitEnergyNorm = cms.vdouble( 0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ),
+          depths = cms.vint32( 1, 2, 3, 4, 5, 6, 7 ),
+          detector = cms.string( "HCAL_ENDCAP" )
+        )
+      ),
+      maxNSigmaTime = cms.double( 10.0 ),
+      showerSigma = cms.double( 10.0 ),
+      timeSigmaEE = cms.double( 10.0 ),
+      clusterTimeResFromSeed = cms.bool( False ),
+      minFractionToKeep = cms.double( 1.0E-7 ),
+      excludeOtherSeeds = cms.bool( True ),
+      timeResolutionCalcBarrel = cms.PSet( 
+        corrTermLowE = cms.double( 0.0 ),
+        threshLowE = cms.double( 6.0 ),
+        noiseTerm = cms.double( 21.86 ),
+        constantTermLowE = cms.double( 4.24 ),
+        noiseTermLowE = cms.double( 8.0 ),
+        threshHighE = cms.double( 15.0 ),
+        constantTerm = cms.double( 2.82 )
+      ),
+      timeResolutionCalcEndcap = cms.PSet( 
+        corrTermLowE = cms.double( 0.0 ),
+        threshLowE = cms.double( 6.0 ),
+        noiseTerm = cms.double( 21.86 ),
+        constantTermLowE = cms.double( 4.24 ),
+        noiseTermLowE = cms.double( 8.0 ),
+        threshHighE = cms.double( 15.0 ),
+        constantTerm = cms.double( 2.82 )
+      ),
+      timeSigmaEB = cms.double( 10.0 )
+    ),
+    positionReCalc = cms.PSet(  ),
+    energyCorrector = cms.PSet(  )
+)
+process.hltParticleFlowClusterHCAL = cms.EDProducer( "PFMultiDepthClusterProducer",
+    clustersSource = cms.InputTag( "hltParticleFlowClusterHBHE" ),
+    usePFThresholdsFromDB = cms.bool( True ),
+    pfClusterBuilder = cms.PSet( 
+      allCellsPositionCalc = cms.PSet( 
+        minAllowedNormalization = cms.double( 1.0E-9 ),
+        posCalcNCrystals = cms.int32( -1 ),
+        algoName = cms.string( "Basic2DGenericPFlowPositionCalc" ),
+        logWeightDenominatorByDetector = cms.VPSet( 
+          cms.PSet(  logWeightDenominator = cms.vdouble( 0.4, 0.3, 0.3, 0.3 ),
+            depths = cms.vint32( 1, 2, 3, 4 ),
+            detector = cms.string( "HCAL_BARREL1" )
+          ),
+          cms.PSet(  logWeightDenominator = cms.vdouble( 0.1, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ),
+            depths = cms.vint32( 1, 2, 3, 4, 5, 6, 7 ),
+            detector = cms.string( "HCAL_ENDCAP" )
+          )
+        ),
+        minFractionInCalc = cms.double( 1.0E-9 )
+      ),
+      algoName = cms.string( "PFMultiDepthClusterizer" ),
+      nSigmaPhi = cms.double( 2.0 ),
+      minFractionToKeep = cms.double( 1.0E-7 ),
+      nSigmaEta = cms.double( 2.0 )
+    ),
+    positionReCalc = cms.PSet(  ),
+    energyCorrector = cms.PSet(  )
+)
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 process.hltParticleFlowClusterHF = cms.EDProducer( "PFClusterProducer",
     recHitsSource = cms.InputTag( "hltParticleFlowRecHitHF" ),
     usePFThresholdsFromDB = cms.bool( True ),
@@ -14742,6 +14972,3036 @@ process.hltCscClusterTightPPRef = cms.EDFilter( "HLTMuonRecHitClusterFilter",
     MaxEta = cms.double( -1.0 ),
     MaxTimeSpread = cms.double( -1.0 )
 )
+<<<<<<< HEAD
+=======
+process.hltL1sSingleJet24 = cms.EDFilter( "HLTL1TSeed",
+    saveTags = cms.bool( True ),
+    L1SeedsLogicalExpression = cms.string( "L1_SingleJet24" ),
+    L1ObjectMapInputTag = cms.InputTag( "hltGtStage2ObjectMap" ),
+    L1GlobalInputTag = cms.InputTag( "hltGtStage2Digis" ),
+    L1MuonInputTag = cms.InputTag( 'hltGtStage2Digis','Muon' ),
+    L1MuonShowerInputTag = cms.InputTag( 'hltGtStage2Digis','MuonShower' ),
+    L1EGammaInputTag = cms.InputTag( 'hltGtStage2Digis','EGamma' ),
+    L1JetInputTag = cms.InputTag( 'hltGtStage2Digis','Jet' ),
+    L1TauInputTag = cms.InputTag( 'hltGtStage2Digis','Tau' ),
+    L1EtSumInputTag = cms.InputTag( 'hltGtStage2Digis','EtSum' ),
+    L1EtSumZdcInputTag = cms.InputTag( 'hltGtStage2Digis','EtSumZDC' )
+)
+process.hltPrePPRefDmesonTrackingGlobalDpt25 = cms.EDFilter( "HLTPrescaler",
+    offset = cms.uint32( 0 ),
+    L1GtReadoutRecordTag = cms.InputTag( "hltGtStage2Digis" )
+)
+process.hltPuAK4CaloJets = cms.EDProducer( "FastjetJetProducer",
+    useMassDropTagger = cms.bool( False ),
+    useFiltering = cms.bool( False ),
+    useDynamicFiltering = cms.bool( False ),
+    useTrimming = cms.bool( False ),
+    usePruning = cms.bool( False ),
+    useCMSBoostedTauSeedingAlgorithm = cms.bool( False ),
+    useKtPruning = cms.bool( False ),
+    useConstituentSubtraction = cms.bool( False ),
+    useSoftDrop = cms.bool( False ),
+    correctShape = cms.bool( False ),
+    UseOnlyVertexTracks = cms.bool( False ),
+    UseOnlyOnePV = cms.bool( False ),
+    muCut = cms.double( -1.0 ),
+    yCut = cms.double( -1.0 ),
+    rFilt = cms.double( -1.0 ),
+    rFiltFactor = cms.double( -1.0 ),
+    trimPtFracMin = cms.double( -1.0 ),
+    zcut = cms.double( -1.0 ),
+    rcut_factor = cms.double( -1.0 ),
+    csRho_EtaMax = cms.double( -1.0 ),
+    csRParam = cms.double( -1.0 ),
+    beta = cms.double( -1.0 ),
+    R0 = cms.double( -1.0 ),
+    gridMaxRapidity = cms.double( -1.0 ),
+    gridSpacing = cms.double( -1.0 ),
+    DzTrVtxMax = cms.double( 0.0 ),
+    DxyTrVtxMax = cms.double( 0.0 ),
+    MaxVtxZ = cms.double( 15.0 ),
+    subjetPtMin = cms.double( -1.0 ),
+    muMin = cms.double( -1.0 ),
+    muMax = cms.double( -1.0 ),
+    yMin = cms.double( -1.0 ),
+    yMax = cms.double( -1.0 ),
+    dRMin = cms.double( -1.0 ),
+    dRMax = cms.double( -1.0 ),
+    maxDepth = cms.int32( -1 ),
+    nFilt = cms.int32( -1 ),
+    MinVtxNdof = cms.int32( 5 ),
+    src = cms.InputTag( "hltTowerMakerForAll" ),
+    srcPVs = cms.InputTag( "NotUsed" ),
+    jetType = cms.string( "CaloJet" ),
+    jetAlgorithm = cms.string( "AntiKt" ),
+    rParam = cms.double( 0.4 ),
+    inputEtMin = cms.double( 0.3 ),
+    inputEMin = cms.double( 0.0 ),
+    jetPtMin = cms.double( 10.0 ),
+    doPVCorrection = cms.bool( False ),
+    doAreaFastjet = cms.bool( True ),
+    doRhoFastjet = cms.bool( False ),
+    doPUOffsetCorr = cms.bool( True ),
+    puPtMin = cms.double( 10.0 ),
+    nSigmaPU = cms.double( 1.0 ),
+    radiusPU = cms.double( 0.5 ),
+    subtractorName = cms.string( "MultipleAlgoIterator" ),
+    useExplicitGhosts = cms.bool( False ),
+    doAreaDiskApprox = cms.bool( False ),
+    voronoiRfact = cms.double( -0.9 ),
+    Rho_EtaMax = cms.double( 4.4 ),
+    Ghost_EtaMax = cms.double( 6.5 ),
+    Active_Area_Repeats = cms.int32( 1 ),
+    GhostArea = cms.double( 0.01 ),
+    restrictInputs = cms.bool( False ),
+    maxInputs = cms.uint32( 1 ),
+    writeCompound = cms.bool( False ),
+    writeJetsWithConst = cms.bool( False ),
+    doFastJetNonUniform = cms.bool( False ),
+    useDeterministicSeed = cms.bool( True ),
+    minSeed = cms.uint32( 14327 ),
+    verbosity = cms.int32( 0 ),
+    puWidth = cms.double( 0.0 ),
+    nExclude = cms.uint32( 0 ),
+    maxBadEcalCells = cms.uint32( 9999999 ),
+    maxBadHcalCells = cms.uint32( 9999999 ),
+    maxProblematicEcalCells = cms.uint32( 9999999 ),
+    maxProblematicHcalCells = cms.uint32( 9999999 ),
+    maxRecoveredEcalCells = cms.uint32( 9999999 ),
+    maxRecoveredHcalCells = cms.uint32( 9999999 ),
+    puCenters = cms.vdouble(  ),
+    applyWeight = cms.bool( False ),
+    srcWeights = cms.InputTag( "" ),
+    minimumTowersFraction = cms.double( 0.0 ),
+    jetCollInstanceName = cms.string( "" ),
+    sumRecHits = cms.bool( False )
+)
+process.hltPuAK4CaloJetsIDPassed = cms.EDProducer( "HLTCaloJetIDProducer",
+    min_N90 = cms.int32( -2 ),
+    min_N90hits = cms.int32( 2 ),
+    min_EMF = cms.double( 1.0E-6 ),
+    max_EMF = cms.double( 999.0 ),
+    jetsInput = cms.InputTag( "hltPuAK4CaloJets" ),
+    JetIDParams = cms.PSet( 
+      useRecHits = cms.bool( True ),
+      hbheRecHitsColl = cms.InputTag( "hltHbhereco" ),
+      hoRecHitsColl = cms.InputTag( "hltHoreco" ),
+      hfRecHitsColl = cms.InputTag( "hltHfreco" ),
+      ebRecHitsColl = cms.InputTag( 'hltEcalRecHit','EcalRecHitsEB' ),
+      eeRecHitsColl = cms.InputTag( 'hltEcalRecHit','EcalRecHitsEE' )
+    )
+)
+process.hltPuAK4CaloCorrector = cms.EDProducer( "ChainedJetCorrectorProducer",
+    correctors = cms.VInputTag( 'hltAK4CaloRelativeCorrector','hltAK4CaloAbsoluteCorrector' )
+)
+process.hltPuAK4CaloJetsCorrected = cms.EDProducer( "CorrectedCaloJetProducer",
+    src = cms.InputTag( "hltPuAK4CaloJets" ),
+    correctors = cms.VInputTag( 'hltPuAK4CaloCorrector' )
+)
+process.hltPuAK4CaloJetsCorrectedIDPassed = cms.EDProducer( "CorrectedCaloJetProducer",
+    src = cms.InputTag( "hltPuAK4CaloJetsIDPassed" ),
+    correctors = cms.VInputTag( 'hltPuAK4CaloCorrector' )
+)
+process.hltJetsForCoreTracking = cms.EDFilter( "CandPtrSelector",
+    src = cms.InputTag( "hltPuAK4CaloJetsCorrectedIDPassed" ),
+    cut = cms.string( "pt > 100 && abs(eta) < 2.5" )
+)
+process.hltFullIter0PixelQuadrupletsPreSplittingPPRefForDmeson = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3+BPix4',
+      'BPix1+BPix2+BPix3+FPix1_pos',
+      'BPix1+BPix2+BPix3+FPix1_neg',
+      'BPix1+BPix2+FPix1_pos+FPix2_pos',
+      'BPix1+BPix2+FPix1_neg+FPix2_neg',
+      'BPix1+FPix1_pos+FPix2_pos+FPix3_pos',
+      'BPix1+FPix1_neg+FPix2_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHits" ),
+      hitErrorRZ = cms.double( 0.006 )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHits" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter0PixelTrackingRegionsPreSplittingPPRefForDmeson = cms.EDProducer( "GlobalTrackingRegionFromBeamSpotEDProducer",
+    RegionPSet = cms.PSet( 
+      nSigmaZ = cms.double( 4.0 ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      ptMin = cms.double( 0.5 ),
+      originHalfLength = cms.double( 0.0 ),
+      originRadius = cms.double( 0.02 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False )
+    )
+)
+process.hltFullIter0PixelClusterCheckPreSplittingPPRefForDmeson = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltHITrackingSiStripRawToClustersFacilityZeroSuppression" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClusters" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter0PixelHitDoubletsPreSplittingPPRefForDmeson = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter0PixelQuadrupletsPreSplittingPPRefForDmeson" ),
+    trackingRegions = cms.InputTag( "hltFullIter0PixelTrackingRegionsPreSplittingPPRefForDmeson" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter0PixelClusterCheckPreSplittingPPRefForDmeson" ),
+    produceSeedingHitSets = cms.bool( False ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0, 1, 2 )
+)
+process.hltFullIter0PixelHitQuadrupletsPreSplittingPPRefForDmeson = cms.EDProducer( "CAHitQuadrupletEDProducer",
+    doublets = cms.InputTag( "hltFullIter0PixelHitDoubletsPreSplittingPPRefForDmeson" ),
+    extraHitRPhitolerance = cms.double( 0.032 ),
+    fitFastCircle = cms.bool( True ),
+    fitFastCircleChi2Cut = cms.bool( True ),
+    useBendingCorrection = cms.bool( True ),
+    CAThetaCut = cms.double( 0.0012 ),
+    CAPhiCut = cms.double( 0.2 ),
+    CAThetaCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAPhiCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAHardPtCut = cms.double( 0.0 ),
+    maxChi2 = cms.PSet( 
+      value2 = cms.double( 50.0 ),
+      value1 = cms.double( 200.0 ),
+      pt1 = cms.double( 0.7 ),
+      enabled = cms.bool( True ),
+      pt2 = cms.double( 2.0 )
+    ),
+    SeedComparitorPSet = cms.PSet( 
+      clusterShapeHitFilter = cms.string( "ClusterShapeHitFilter" ),
+      ComponentName = cms.string( "LowPtClusterShapeSeedComparitor" ),
+      clusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCache" )
+    )
+)
+process.hltFullIter0PixelSeedsPreSplittingPPRefForDmeson = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsTripletOnlyEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter0PixelHitQuadrupletsPreSplittingPPRefForDmeson" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      FilterStripHits = cms.bool( False ),
+      FilterPixelHits = cms.bool( True ),
+      ClusterShapeHitFilterName = cms.string( "ClusterShapeHitFilter" ),
+      FilterAtHelixStage = cms.bool( False ),
+      ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+      ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCache" )
+    )
+)
+process.hltFullIter0CkfTrackCandidatesPreSplittingPPRefForDmeson = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltMeasurementTrackerEvent" ),
+    src = cms.InputTag( "hltFullIter0PixelSeedsPreSplittingPPRefForDmeson" ),
+    clustersToSkip = cms.InputTag( "" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetInitialStepTrajectoryBuilderPreSplittingForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter0CtfWithMaterialTracksPreSplittingPPRefForDmeson = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter0CkfTrackCandidatesPreSplittingPPRefForDmeson" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "initialStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "" )
+)
+process.hltFullIter0PrimaryVerticesPreSplittingPPRefForDmeson = cms.EDProducer( "PrimaryVertexProducer",
+    vertexCollections = cms.VPSet( 
+      cms.PSet(  chi2cutoff = cms.double( 2.5 ),
+        label = cms.string( "" ),
+        useBeamConstraint = cms.bool( False ),
+        minNdof = cms.double( 0.0 ),
+        maxDistanceToBeam = cms.double( 1.0 ),
+        algorithm = cms.string( "AdaptiveVertexFitter" )
+      )
+    ),
+    verbose = cms.untracked.bool( False ),
+    TkFilterParameters = cms.PSet( 
+      maxEta = cms.double( 2.4 ),
+      minPt = cms.double( 0.0 ),
+      minSiliconLayersWithHits = cms.int32( 5 ),
+      minPixelLayersWithHits = cms.int32( 2 ),
+      maxNormalizedChi2 = cms.double( 20.0 ),
+      trackQuality = cms.string( "any" ),
+      algorithm = cms.string( "filter" ),
+      maxD0Significance = cms.double( 5.0 )
+    ),
+    beamSpotLabel = cms.InputTag( "hltOnlineBeamSpot" ),
+    TrackLabel = cms.InputTag( "hltFullIter0CtfWithMaterialTracksPreSplittingPPRefForDmeson" ),
+    TrackTimeResosLabel = cms.InputTag( "dummy_default" ),
+    TrackTimesLabel = cms.InputTag( "dummy_default" ),
+    trackMTDTimeQualityVMapTag = cms.InputTag( "dummy_default" ),
+    TkClusParameters = cms.PSet( 
+      algorithm = cms.string( "gap" ),
+      TkGapClusParameters = cms.PSet(  zSeparation = cms.double( 1.0 ) )
+    ),
+    isRecoveryIteration = cms.bool( False ),
+    recoveryVtxCollection = cms.InputTag( "" ),
+    useMVACut = cms.bool( False ),
+    minTrackTimeQuality = cms.double( 0.8 )
+)
+process.hltSiPixelClustersAfterSplittingPPRefForDmeson = cms.EDProducer( "JetCoreClusterSplitter",
+    pixelClusters = cms.InputTag( "hltSiPixelClusters" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPreSplittingPPRefForDmeson" ),
+    pixelCPE = cms.string( "hltESPPixelCPEGeneric" ),
+    verbose = cms.bool( False ),
+    ptMin = cms.double( 200.0 ),
+    cores = cms.InputTag( "hltJetsForCoreTracking" ),
+    chargeFractionMin = cms.double( 2.0 ),
+    deltaRmax = cms.double( 0.05 ),
+    forceXError = cms.double( 100.0 ),
+    forceYError = cms.double( 150.0 ),
+    fractionalWidth = cms.double( 0.4 ),
+    chargePerUnit = cms.double( 2000.0 ),
+    centralMIPCharge = cms.double( 26000.0 )
+)
+process.hltSiPixelClustersCacheAfterSplittingPPRefForDmeson = cms.EDProducer( "SiPixelClusterShapeCacheProducer",
+    src = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    onDemand = cms.bool( False )
+)
+process.hltSiPixelRecHitsAfterSplittingPPRefForDmeson = cms.EDProducer( "SiPixelRecHitConverter",
+    src = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    CPE = cms.string( "hltESPPixelCPEGeneric" ),
+    VerboseLevel = cms.untracked.int32( 0 )
+)
+process.hltAfterSplittingMeasureTrackerEventForDmeson = cms.EDProducer( "MeasurementTrackerEventProducer",
+    measurementTracker = cms.string( "hltESPMeasurementTracker" ),
+    skipClusters = cms.InputTag( "" ),
+    pixelClusterProducer = cms.string( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusterProducer = cms.string( "hltSiStripRawToClustersFacility" ),
+    Phase2TrackerCluster1DProducer = cms.string( "" ),
+    vectorHits = cms.InputTag( "" ),
+    vectorHitsRej = cms.InputTag( "" ),
+    inactivePixelDetectorLabels = cms.VInputTag(  ),
+    badPixelFEDChannelCollectionLabels = cms.VInputTag(  ),
+    pixelCablingMapLabel = cms.string( "" ),
+    inactiveStripDetectorLabels = cms.VInputTag( 'hltSiStripExcludedFEDListProducer' ),
+    switchOffPixelsIfEmpty = cms.bool( True )
+)
+process.hltSiStripMatchedRecHitsFullPPRef = cms.EDProducer( "SiStripRecHitConverter",
+    ClusterProducer = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    rphiRecHits = cms.string( "rphiRecHit" ),
+    stereoRecHits = cms.string( "stereoRecHit" ),
+    matchedRecHits = cms.string( "matchedRecHit" ),
+    useSiStripQuality = cms.bool( False ),
+    MaskBadAPVFibers = cms.bool( False ),
+    doMatching = cms.bool( True ),
+    StripCPE = cms.ESInputTag( "hltESPStripCPEfromTrackAngle","hltESPStripCPEfromTrackAngle" ),
+    Matcher = cms.ESInputTag( "SiStripRecHitMatcherESProducer","StandardMatcher" ),
+    siStripQualityLabel = cms.ESInputTag( "","" )
+)
+process.hltFullIter0PixelQuadrupletsPPRefForDmeson = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3+BPix4',
+      'BPix1+BPix2+BPix3+FPix1_pos',
+      'BPix1+BPix2+BPix3+FPix1_neg',
+      'BPix1+BPix2+FPix1_pos+FPix2_pos',
+      'BPix1+BPix2+FPix1_neg+FPix2_neg',
+      'BPix1+FPix1_pos+FPix2_pos+FPix3_pos',
+      'BPix1+FPix1_neg+FPix2_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter0PixelTrackingRegionsPPRefForDmeson = cms.EDProducer( "GlobalTrackingRegionFromBeamSpotEDProducer",
+    RegionPSet = cms.PSet( 
+      nSigmaZ = cms.double( 4.0 ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      ptMin = cms.double( 0.5 ),
+      originHalfLength = cms.double( 0.0 ),
+      originRadius = cms.double( 0.02 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False )
+    )
+)
+process.hltFullIter0PixelClusterCheckPPRefForDmeson = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter0PixelHitDoubletsPPRefForDmeson = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter0PixelQuadrupletsPPRefForDmeson" ),
+    trackingRegions = cms.InputTag( "hltFullIter0PixelTrackingRegionsPPRefForDmeson" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter0PixelClusterCheckPPRefForDmeson" ),
+    produceSeedingHitSets = cms.bool( False ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0, 1, 2 )
+)
+process.hltFullIter0PixelHitQuadrupletsPPRefForDmeson = cms.EDProducer( "CAHitQuadrupletEDProducer",
+    doublets = cms.InputTag( "hltFullIter0PixelHitDoubletsPPRefForDmeson" ),
+    extraHitRPhitolerance = cms.double( 0.032 ),
+    fitFastCircle = cms.bool( True ),
+    fitFastCircleChi2Cut = cms.bool( True ),
+    useBendingCorrection = cms.bool( True ),
+    CAThetaCut = cms.double( 0.0012 ),
+    CAPhiCut = cms.double( 0.2 ),
+    CAThetaCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAPhiCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAHardPtCut = cms.double( 0.0 ),
+    maxChi2 = cms.PSet( 
+      value2 = cms.double( 50.0 ),
+      value1 = cms.double( 200.0 ),
+      pt1 = cms.double( 0.7 ),
+      enabled = cms.bool( True ),
+      pt2 = cms.double( 2.0 )
+    ),
+    SeedComparitorPSet = cms.PSet( 
+      clusterShapeHitFilter = cms.string( "ClusterShapeHitFilter" ),
+      ComponentName = cms.string( "LowPtClusterShapeSeedComparitor" ),
+      clusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter0PixelSeedsPPRefForDmeson = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsTripletOnlyEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter0PixelHitQuadrupletsPPRefForDmeson" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      FilterStripHits = cms.bool( False ),
+      FilterPixelHits = cms.bool( True ),
+      ClusterShapeHitFilterName = cms.string( "ClusterShapeHitFilter" ),
+      FilterAtHelixStage = cms.bool( False ),
+      ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+      ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter0CkfTrackCandidatesPPRefForDmeson = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    src = cms.InputTag( "hltFullIter0PixelSeedsPPRefForDmeson" ),
+    clustersToSkip = cms.InputTag( "" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetInitialStepTrajectoryBuilderForDmesonPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 500000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter0CtfWithMaterialTracksPPRefForDmeson = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter0CkfTrackCandidatesPPRefForDmeson" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "initialStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "" )
+)
+process.hltFullIter0PrimaryVerticesPPRefForDmeson = cms.EDProducer( "PrimaryVertexProducer",
+    vertexCollections = cms.VPSet( 
+      cms.PSet(  chi2cutoff = cms.double( 2.5 ),
+        label = cms.string( "" ),
+        useBeamConstraint = cms.bool( False ),
+        minNdof = cms.double( 0.0 ),
+        maxDistanceToBeam = cms.double( 1.0 ),
+        algorithm = cms.string( "AdaptiveVertexFitter" )
+      )
+    ),
+    verbose = cms.untracked.bool( False ),
+    TkFilterParameters = cms.PSet( 
+      maxEta = cms.double( 2.4 ),
+      minPt = cms.double( 0.0 ),
+      minSiliconLayersWithHits = cms.int32( 5 ),
+      minPixelLayersWithHits = cms.int32( 2 ),
+      maxNormalizedChi2 = cms.double( 20.0 ),
+      trackQuality = cms.string( "any" ),
+      algorithm = cms.string( "filter" ),
+      maxD0Significance = cms.double( 5.0 )
+    ),
+    beamSpotLabel = cms.InputTag( "hltOnlineBeamSpot" ),
+    TrackLabel = cms.InputTag( "hltFullIter0CtfWithMaterialTracksPPRefForDmeson" ),
+    TrackTimeResosLabel = cms.InputTag( "dummy_default" ),
+    TrackTimesLabel = cms.InputTag( "dummy_default" ),
+    trackMTDTimeQualityVMapTag = cms.InputTag( "dummy_default" ),
+    TkClusParameters = cms.PSet( 
+      algorithm = cms.string( "gap" ),
+      TkGapClusParameters = cms.PSet(  zSeparation = cms.double( 1.0 ) )
+    ),
+    isRecoveryIteration = cms.bool( False ),
+    recoveryVtxCollection = cms.InputTag( "" ),
+    useMVACut = cms.bool( False ),
+    minTrackTimeQuality = cms.double( 0.8 )
+)
+process.hltFullIter0TrackDNNClassifierPPRefForDmeson = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter0CtfWithMaterialTracksPPRefForDmeson" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.35, 0.1, 0.28 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter0HighPurityTracksPPRefForDmeson = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter0CtfWithMaterialTracksPPRefForDmeson" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter0TrackDNNClassifierPPRefForDmeson','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter0TrackDNNClassifierPPRefForDmeson','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter1ClustersRefRemovalPPRefForDmeson = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter0HighPurityTracksPPRefForDmeson" ),
+    trackClassifier = cms.InputTag( 'hltFullIter0TrackDNNClassifierPPRefForDmeson','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter1MaskedMeasurementTrackerEventPPRefForDmeson = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter1ClustersRefRemovalPPRefForDmeson" )
+)
+process.hltFullIter1PixelQuadrupletsPPRefForDmeson = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3+BPix4',
+      'BPix1+BPix2+BPix3+FPix1_pos',
+      'BPix1+BPix2+BPix3+FPix1_neg',
+      'BPix1+BPix2+FPix1_pos+FPix2_pos',
+      'BPix1+BPix2+FPix1_neg+FPix2_neg',
+      'BPix1+FPix1_pos+FPix2_pos+FPix3_pos',
+      'BPix1+FPix1_neg+FPix2_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter1ClustersRefRemovalPPRefForDmeson" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter1ClustersRefRemovalPPRefForDmeson" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter1PixelTrackingRegionsPPRefForDmeson = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 4.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 0.5 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.15 ),
+      originRadius = cms.double( 0.02 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False )
+    )
+)
+process.hltFullIter1PixelClusterCheckPPRefForDmeson = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter1PixelHitDoubletsPPRefForDmeson = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter1PixelQuadrupletsPPRefForDmeson" ),
+    trackingRegions = cms.InputTag( "hltFullIter1PixelTrackingRegionsPPRefForDmeson" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter1PixelClusterCheckPPRefForDmeson" ),
+    produceSeedingHitSets = cms.bool( False ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0, 1, 2 )
+)
+process.hltFullIter1PixelHitQuadrupletsPPRefForDmeson = cms.EDProducer( "CAHitQuadrupletEDProducer",
+    doublets = cms.InputTag( "hltFullIter1PixelHitDoubletsPPRefForDmeson" ),
+    extraHitRPhitolerance = cms.double( 0.032 ),
+    fitFastCircle = cms.bool( True ),
+    fitFastCircleChi2Cut = cms.bool( True ),
+    useBendingCorrection = cms.bool( True ),
+    CAThetaCut = cms.double( 0.0017 ),
+    CAPhiCut = cms.double( 0.3 ),
+    CAThetaCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAPhiCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAHardPtCut = cms.double( 0.0 ),
+    maxChi2 = cms.PSet( 
+      value2 = cms.double( 150.0 ),
+      value1 = cms.double( 1000.0 ),
+      pt1 = cms.double( 0.7 ),
+      enabled = cms.bool( True ),
+      pt2 = cms.double( 2.0 )
+    ),
+    SeedComparitorPSet = cms.PSet( 
+      clusterShapeHitFilter = cms.string( "ClusterShapeHitFilter" ),
+      ComponentName = cms.string( "LowPtClusterShapeSeedComparitor" ),
+      clusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter1PixelSeedsPPRefForDmeson = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter1PixelHitQuadrupletsPPRefForDmeson" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet(  ComponentName = cms.string( "none" ) )
+)
+process.hltFullIter1CkfTrackCandidatesPPRefForDmeson = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter1MaskedMeasurementTrackerEventPPRefForDmeson" ),
+    src = cms.InputTag( "hltFullIter1PixelSeedsPPRefForDmeson" ),
+    clustersToSkip = cms.InputTag( "hltFullIter1ClustersRefRemovalPPRefForDmeson" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetLowPtQuadStepTrajectoryBuilderForDmesonPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPLowPtQuadStepTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter1CtfWithMaterialTracksPPRefForDmeson = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter1CkfTrackCandidatesPPRefForDmeson" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "lowPtQuadStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter1MaskedMeasurementTrackerEventPPRefForDmeson" )
+)
+process.hltFullIter1TrackDNNClassifierPPRefForDmeson = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter1CtfWithMaterialTracksPPRefForDmeson" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.33, 0.13, 0.35 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter1HighPurityTracksPPRefForDmeson = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter1CtfWithMaterialTracksPPRefForDmeson" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter1TrackDNNClassifierPPRefForDmeson','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter1TrackDNNClassifierPPRefForDmeson','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter2ClustersRefRemovalPPRefForDmeson = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter1HighPurityTracksPPRefForDmeson" ),
+    trackClassifier = cms.InputTag( 'hltFullIter1TrackDNNClassifierPPRefForDmeson','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter1ClustersRefRemovalPPRefForDmeson" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter2MaskedMeasurementTrackerEventPPRefForDmeson = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter2ClustersRefRemovalPPRefForDmeson" )
+)
+process.hltFullIter2PixelTripletsPPRefForDmeson = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3',
+      'BPix2+BPix3+BPix4',
+      'BPix1+BPix3+BPix4',
+      'BPix1+BPix2+BPix4',
+      'BPix2+BPix3+FPix1_pos',
+      'BPix2+BPix3+FPix1_neg',
+      'BPix1+BPix2+FPix1_pos',
+      'BPix1+BPix2+FPix1_neg',
+      'BPix1+BPix3+FPix1_pos',
+      'BPix1+BPix3+FPix1_neg',
+      'BPix2+FPix1_pos+FPix2_pos',
+      'BPix2+FPix1_neg+FPix2_neg',
+      'BPix1+FPix1_pos+FPix2_pos',
+      'BPix1+FPix1_neg+FPix2_neg',
+      'BPix1+BPix2+FPix2_pos',
+      'BPix1+BPix2+FPix2_neg',
+      'FPix1_pos+FPix2_pos+FPix3_pos',
+      'FPix1_neg+FPix2_neg+FPix3_neg',
+      'BPix1+FPix2_pos+FPix3_pos',
+      'BPix1+FPix2_neg+FPix3_neg',
+      'BPix1+FPix1_pos+FPix3_pos',
+      'BPix1+FPix1_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter2ClustersRefRemovalPPRefForDmeson" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter2ClustersRefRemovalPPRefForDmeson" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter2PixelTrackingRegionsPPRefForDmeson = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 4.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 0.2 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.55 ),
+      originRadius = cms.double( 0.02 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False )
+    )
+)
+process.hltFullIter2PixelClusterCheckPPRefForDmeson = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter2PixelHitDoubletsPPRefForDmeson = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter2PixelTripletsPPRefForDmeson" ),
+    trackingRegions = cms.InputTag( "hltFullIter2PixelTrackingRegionsPPRefForDmeson" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter2PixelClusterCheckPPRefForDmeson" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0, 1 )
+)
+process.hltFullIter2PixelHitTripletsPPRefForDmeson = cms.EDProducer( "CAHitTripletEDProducer",
+    doublets = cms.InputTag( "hltFullIter2PixelHitDoubletsPPRefForDmeson" ),
+    extraHitRPhitolerance = cms.double( 0.032 ),
+    useBendingCorrection = cms.bool( True ),
+    CAThetaCut = cms.double( 0.004 ),
+    CAPhiCut = cms.double( 0.07 ),
+    CAThetaCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAPhiCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAHardPtCut = cms.double( 0.3 ),
+    maxChi2 = cms.PSet( 
+      value2 = cms.double( 6.0 ),
+      value1 = cms.double( 100.0 ),
+      pt1 = cms.double( 0.8 ),
+      enabled = cms.bool( True ),
+      pt2 = cms.double( 8.0 )
+    ),
+    SeedComparitorPSet = cms.PSet( 
+      clusterShapeHitFilter = cms.string( "ClusterShapeHitFilter" ),
+      ComponentName = cms.string( "LowPtClusterShapeSeedComparitor" ),
+      clusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter2PixelSeedsPPRefForDmeson = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter2PixelHitTripletsPPRefForDmeson" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet(  ComponentName = cms.string( "none" ) )
+)
+process.hltFullIter2CkfTrackCandidatesPPRefForDmeson = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter2MaskedMeasurementTrackerEventPPRefForDmeson" ),
+    src = cms.InputTag( "hltFullIter2PixelSeedsPPRefForDmeson" ),
+    clustersToSkip = cms.InputTag( "hltFullIter2ClustersRefRemovalPPRefForDmeson" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetHighPtTripletStepTrajectoryBuilderForDmesonPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter2CtfWithMaterialTracksPPRefForDmeson = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter2CkfTrackCandidatesPPRefForDmeson" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "highPtTripletStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter2MaskedMeasurementTrackerEventPPRefForDmeson" )
+)
+process.hltFullIter2TrackDNNClassifierPPRefForDmeson = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter2CtfWithMaterialTracksPPRefForDmeson" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( 0.47, 0.55, 0.62 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter2HighPurityTracksPPRefForDmeson = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter2CtfWithMaterialTracksPPRefForDmeson" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter2TrackDNNClassifierPPRefForDmeson','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter2TrackDNNClassifierPPRefForDmeson','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter3ClustersRefRemovalPPRef = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter2HighPurityTracksPPRefForDmeson" ),
+    trackClassifier = cms.InputTag( 'hltFullIter2TrackDNNClassifierPPRefForDmeson','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter2ClustersRefRemovalPPRefForDmeson" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter3MaskedMeasurementTrackerEventPPRef = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter3ClustersRefRemovalPPRef" )
+)
+process.hltFullIter3PixelTripletsPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3',
+      'BPix2+BPix3+BPix4',
+      'BPix1+BPix3+BPix4',
+      'BPix1+BPix2+BPix4',
+      'BPix2+BPix3+FPix1_pos',
+      'BPix2+BPix3+FPix1_neg',
+      'BPix1+BPix2+FPix1_pos',
+      'BPix1+BPix2+FPix1_neg',
+      'BPix1+BPix3+FPix1_pos',
+      'BPix1+BPix3+FPix1_neg',
+      'BPix2+FPix1_pos+FPix2_pos',
+      'BPix2+FPix1_neg+FPix2_neg',
+      'BPix1+FPix1_pos+FPix2_pos',
+      'BPix1+FPix1_neg+FPix2_neg',
+      'BPix1+BPix2+FPix2_pos',
+      'BPix1+BPix2+FPix2_neg',
+      'FPix1_pos+FPix2_pos+FPix3_pos',
+      'FPix1_neg+FPix2_neg+FPix3_neg',
+      'BPix1+FPix2_pos+FPix3_pos',
+      'BPix1+FPix2_neg+FPix3_neg',
+      'BPix1+FPix1_pos+FPix3_pos',
+      'BPix1+FPix1_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter3ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter3ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter3PixelTrackingRegionsPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( False ),
+      nSigmaZ = cms.double( 4.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 0.2 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.2 ),
+      originRadius = cms.double( 0.02 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False )
+    )
+)
+process.hltFullIter3PixelClusterCheckPPRef = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter3PixelHitDoubletsPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter3PixelTripletsPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter3PixelTrackingRegionsPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter3PixelClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0, 1 )
+)
+process.hltFullIter3PixelHitTripletsPPRef = cms.EDProducer( "CAHitTripletEDProducer",
+    doublets = cms.InputTag( "hltFullIter3PixelHitDoubletsPPRef" ),
+    extraHitRPhitolerance = cms.double( 0.032 ),
+    useBendingCorrection = cms.bool( True ),
+    CAThetaCut = cms.double( 0.002 ),
+    CAPhiCut = cms.double( 0.05 ),
+    CAThetaCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAPhiCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAHardPtCut = cms.double( 0.3 ),
+    maxChi2 = cms.PSet( 
+      value2 = cms.double( 8.0 ),
+      value1 = cms.double( 70.0 ),
+      pt1 = cms.double( 0.8 ),
+      enabled = cms.bool( True ),
+      pt2 = cms.double( 2.0 )
+    ),
+    SeedComparitorPSet = cms.PSet( 
+      clusterShapeHitFilter = cms.string( "ClusterShapeHitFilter" ),
+      ComponentName = cms.string( "LowPtClusterShapeSeedComparitor" ),
+      clusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter3PixelSeedsPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter3PixelHitTripletsPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet(  ComponentName = cms.string( "none" ) )
+)
+process.hltFullIter3CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter3MaskedMeasurementTrackerEventPPRef" ),
+    src = cms.InputTag( "hltFullIter3PixelSeedsPPRef" ),
+    clustersToSkip = cms.InputTag( "hltFullIter3ClustersRefRemovalPPRef" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetLowPtTripletStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPLowPtTripletStepTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter3CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter3CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "lowPtTripletStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter3MaskedMeasurementTrackerEventPPRef" )
+)
+process.hltFullIter3TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter3CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.23, 0.15, 0.41 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter3HighPurityTracksPPRef = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter3CtfWithMaterialTracksPPRef" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter3TrackDNNClassifierPPRef','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter3TrackDNNClassifierPPRef','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter4ClustersRefRemovalPPRef = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter3HighPurityTracksPPRef" ),
+    trackClassifier = cms.InputTag( 'hltFullIter3TrackDNNClassifierPPRef','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter3ClustersRefRemovalPPRef" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter4MaskedMeasurementTrackerEventPPRef = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter4ClustersRefRemovalPPRef" )
+)
+process.hltFullIter4PixelQuadrupletsPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3+BPix4',
+      'BPix1+BPix2+BPix3+FPix1_pos',
+      'BPix1+BPix2+BPix3+FPix1_neg',
+      'BPix1+BPix2+FPix1_pos+FPix2_pos',
+      'BPix1+BPix2+FPix1_neg+FPix2_neg',
+      'BPix1+FPix1_pos+FPix2_pos+FPix3_pos',
+      'BPix1+FPix1_neg+FPix2_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter4ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter4ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter4PixelTrackingRegionsPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 0.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 1.0 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 1.5 ),
+      originRadius = cms.double( 1.0 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False )
+    )
+)
+process.hltFullIter4PixelClusterCheckPPRef = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( True ),
+    MaxNumberOfStripClusters = cms.uint32( 500000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 150000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter4PixelHitDoubletsPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter4PixelQuadrupletsPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter4PixelTrackingRegionsPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter4PixelClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0, 1, 2 )
+)
+process.hltFullIter4PixelHitQuadrupletsPPRef = cms.EDProducer( "CAHitQuadrupletEDProducer",
+    doublets = cms.InputTag( "hltFullIter4PixelHitDoubletsPPRef" ),
+    extraHitRPhitolerance = cms.double( 0.032 ),
+    fitFastCircle = cms.bool( True ),
+    fitFastCircleChi2Cut = cms.bool( True ),
+    useBendingCorrection = cms.bool( True ),
+    CAThetaCut = cms.double( 0.0011 ),
+    CAPhiCut = cms.double( 0.0 ),
+    CAThetaCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAPhiCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAHardPtCut = cms.double( 0.0 ),
+    maxChi2 = cms.PSet( 
+      value2 = cms.double( 100.0 ),
+      value1 = cms.double( 500.0 ),
+      pt1 = cms.double( 0.8 ),
+      enabled = cms.bool( True ),
+      pt2 = cms.double( 2.0 )
+    ),
+    SeedComparitorPSet = cms.PSet( 
+      clusterShapeHitFilter = cms.string( "ClusterShapeHitFilter" ),
+      ComponentName = cms.string( "LowPtClusterShapeSeedComparitor" ),
+      clusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter4PixelSeedsPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsTripletOnlyEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter4PixelHitQuadrupletsPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      FilterStripHits = cms.bool( False ),
+      FilterPixelHits = cms.bool( True ),
+      ClusterShapeHitFilterName = cms.string( "ClusterShapeHitFilter" ),
+      FilterAtHelixStage = cms.bool( False ),
+      ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+      ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter4CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter4MaskedMeasurementTrackerEventPPRef" ),
+    src = cms.InputTag( "hltFullIter4PixelSeedsPPRef" ),
+    clustersToSkip = cms.InputTag( "hltFullIter4ClustersRefRemovalPPRef" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetDetachedQuadStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPDetachedQuadStepTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter4CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter4CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "detachedQuadStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter4MaskedMeasurementTrackerEventPPRef" )
+)
+process.hltFullIter4TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter4CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.66, -0.15, 0.46 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter4HighPurityTracksPPRef = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter4CtfWithMaterialTracksPPRef" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter4TrackDNNClassifierPPRef','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter4TrackDNNClassifierPPRef','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter5ClustersRefRemovalPPRef = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter4HighPurityTracksPPRef" ),
+    trackClassifier = cms.InputTag( 'hltFullIter4TrackDNNClassifierPPRef','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter4ClustersRefRemovalPPRef" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter5MaskedMeasurementTrackerEventPPRef = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter5ClustersRefRemovalPPRef" )
+)
+process.hltFullIter5PixelTripletsPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3',
+      'BPix2+BPix3+BPix4',
+      'BPix2+BPix3+FPix1_pos',
+      'BPix2+BPix3+FPix1_neg',
+      'BPix2+FPix1_pos+FPix2_pos',
+      'BPix2+FPix1_neg+FPix2_neg',
+      'FPix1_pos+FPix2_pos+FPix3_pos',
+      'FPix1_neg+FPix2_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter5ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter5ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter5PixelTrackingRegionsPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 0.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 0.5 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.25 ),
+      originRadius = cms.double( 1.5 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False )
+    )
+)
+process.hltFullIter5PixelClusterCheckPPRef = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( True ),
+    MaxNumberOfStripClusters = cms.uint32( 500000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 150000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter5PixelHitDoubletsPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter5PixelTripletsPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter5PixelTrackingRegionsPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter5PixelClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( False ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0, 1 )
+)
+process.hltFullIter5PixelHitTripletsPPRef = cms.EDProducer( "CAHitTripletEDProducer",
+    doublets = cms.InputTag( "hltFullIter5PixelHitDoubletsPPRef" ),
+    extraHitRPhitolerance = cms.double( 0.032 ),
+    useBendingCorrection = cms.bool( True ),
+    CAThetaCut = cms.double( 0.001 ),
+    CAPhiCut = cms.double( 0.0 ),
+    CAThetaCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAPhiCut_byTriplets = cms.VPSet( 
+      cms.PSet(  seedingLayers = cms.string( "" ),
+        cut = cms.double( -1.0 )
+      )
+    ),
+    CAHardPtCut = cms.double( 0.2 ),
+    maxChi2 = cms.PSet( 
+      value2 = cms.double( 10.0 ),
+      value1 = cms.double( 300.0 ),
+      pt1 = cms.double( 0.8 ),
+      enabled = cms.bool( True ),
+      pt2 = cms.double( 2.0 )
+    ),
+    SeedComparitorPSet = cms.PSet(  ComponentName = cms.string( "none" ) )
+)
+process.hltFullIter5PixelSeedsPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsTripletOnlyEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter5PixelHitTripletsPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      FilterStripHits = cms.bool( False ),
+      FilterPixelHits = cms.bool( True ),
+      ClusterShapeHitFilterName = cms.string( "ClusterShapeHitFilter" ),
+      FilterAtHelixStage = cms.bool( False ),
+      ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+      ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter5CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter5MaskedMeasurementTrackerEventPPRef" ),
+    src = cms.InputTag( "hltFullIter5PixelSeedsPPRef" ),
+    clustersToSkip = cms.InputTag( "hltFullIter5ClustersRefRemovalPPRef" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetDetachedTripletStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPDetachedTripletStepTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter5CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter5CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "detachedTripletStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter5MaskedMeasurementTrackerEventPPRef" )
+)
+process.hltFullIter5TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter5CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.42, 0.16, 0.78 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter5HighPurityTracksPPRef = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter5CtfWithMaterialTracksPPRef" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter5TrackDNNClassifierPPRef','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter5TrackDNNClassifierPPRef','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter6ClustersRefRemovalPPRef = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter5HighPurityTracksPPRef" ),
+    trackClassifier = cms.InputTag( 'hltFullIter5TrackDNNClassifierPPRef','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter5ClustersRefRemovalPPRef" ),
+    TrackQuality = cms.string( "tight" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter6MaskedMeasurementTrackerEventPPRef = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter6ClustersRefRemovalPPRef" )
+)
+process.hltFullIter6PixelClusterCheckPPRef = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( True ),
+    MaxNumberOfStripClusters = cms.uint32( 500000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 150000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter6PixelTrackingRegionSeedLayersBPPRef = cms.EDProducer( "PixelInactiveAreaTrackingRegionsSeedingLayersProducer",
+    RegionPSet = cms.PSet( 
+      deltaEta_Cand = cms.double( -1.0 ),
+      vertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      zErrorBeamSpot = cms.double( 24.2 ),
+      extraPhi = cms.double( 0.0 ),
+      extraEta = cms.double( 0.0 ),
+      seedingMode = cms.string( "Global" ),
+      maxNVertices = cms.int32( 5 ),
+      nSigmaZVertex = cms.double( 3.0 ),
+      nSigmaZBeamSpot = cms.double( 4.0 ),
+      ptMin = cms.double( 5.0 ),
+      input = cms.InputTag( "" ),
+      operationMode = cms.string( "VerticesFixed" ),
+      searchOpt = cms.bool( False ),
+      whereToUseMeasurementTracker = cms.string( "Never" ),
+      deltaPhi_Cand = cms.double( -1.0 ),
+      originRadius = cms.double( 0.015 ),
+      measurementTrackerName = cms.InputTag( "" ),
+      precise = cms.bool( True ),
+      zErrorVertex = cms.double( 0.3 )
+    ),
+    inactivePixelDetectorLabels = cms.VInputTag( 'hltSiPixelDigis' ),
+    badPixelFEDChannelCollectionLabels = cms.VInputTag( 'hltSiPixelDigis' ),
+    ignoreSingleFPixPanelModules = cms.bool( True ),
+    debug = cms.untracked.bool( False ),
+    createPlottingFiles = cms.untracked.bool( False ),
+    layerList = cms.vstring( 'BPix1+BPix2',
+      'BPix1+BPix3',
+      'BPix1+BPix4',
+      'BPix2+BPix3',
+      'BPix2+BPix4',
+      'BPix3+BPix4',
+      'BPix1+FPix1_pos',
+      'BPix1+FPix1_neg',
+      'BPix1+FPix2_pos',
+      'BPix1+FPix2_neg',
+      'BPix1+FPix3_pos',
+      'BPix1+FPix3_neg',
+      'BPix2+FPix1_pos',
+      'BPix2+FPix1_neg',
+      'BPix2+FPix2_pos',
+      'BPix2+FPix2_neg',
+      'BPix3+FPix1_pos',
+      'BPix3+FPix1_neg',
+      'FPix1_pos+FPix2_pos',
+      'FPix1_neg+FPix2_neg',
+      'FPix1_pos+FPix3_pos',
+      'FPix1_neg+FPix3_neg',
+      'FPix2_pos+FPix3_pos',
+      'FPix2_neg+FPix3_neg' ),
+    BPix = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter6ClustersRefRemovalPPRef" ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter6ClustersRefRemovalPPRef" ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter6PixelHitDoubletsBPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "" ),
+    trackingRegions = cms.InputTag( "" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "hltFullIter6PixelTrackingRegionSeedLayersBPPRef" ),
+    clusterCheck = cms.InputTag( "hltFullIter6PixelClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitDoublets = cms.bool( False ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0 )
+)
+process.hltFullIter6PixelSeedsBPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter6PixelHitDoubletsBPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      FilterStripHits = cms.bool( True ),
+      FilterPixelHits = cms.bool( False ),
+      ClusterShapeHitFilterName = cms.string( "ClusterShapeHitFilter" ),
+      FilterAtHelixStage = cms.bool( True ),
+      ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+      ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter6CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter6MaskedMeasurementTrackerEventPPRef" ),
+    src = cms.InputTag( "hltFullIter6PixelSeedsBPPRef" ),
+    clustersToSkip = cms.InputTag( "hltFullIter6ClustersRefRemovalPPRef" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetPixelPairStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 500000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter6CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter6CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "pixelPairStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter6MaskedMeasurementTrackerEventPPRef" )
+)
+process.hltFullIter6TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter6CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.31, -0.13, 0.13 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter6HighPurityTracksPPRef = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter6CtfWithMaterialTracksPPRef" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter6TrackDNNClassifierPPRef','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter6TrackDNNClassifierPPRef','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter7ClustersRefRemovalPPRef = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter6HighPurityTracksPPRef" ),
+    trackClassifier = cms.InputTag( 'hltFullIter6TrackDNNClassifierPPRef','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter6ClustersRefRemovalPPRef" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter7MaskedMeasurementTrackerEventPPRef = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" )
+)
+process.hltFullIter7MixedLayersAPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix2+FPix1_pos+FPix2_pos',
+      'BPix2+FPix1_neg+FPix2_neg' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      minRing = cms.int32( 1 ),
+      skipClusters = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      useRingSlector = cms.bool( True ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      maxRing = cms.int32( 1 )
+    ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter7MixedTrackingRegionsAPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 0.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 3.75 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.4 ),
+      originRadius = cms.double( 1.5 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False ),
+      originRScaling4BigEvts = cms.bool( True ),
+      ptMinScaling4BigEvts = cms.bool( True ),
+      minOriginR = cms.double( 0.0 ),
+      maxPtMin = cms.double( 0.7 ),
+      scalingStartNPix = cms.double( 20000.0 ),
+      scalingEndNPix = cms.double( 35000.0 ),
+      pixelClustersForScaling = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter7MixedClusterCheckPPRef = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter7MixedHitDoubletsAPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter7MixedLayersAPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter7MixedTrackingRegionsAPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter7MixedClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0 )
+)
+process.hltFullIter7MixedHitTripletsAPPRef = cms.EDProducer( "PixelTripletLargeTipEDProducer",
+    doublets = cms.InputTag( "hltFullIter7MixedHitDoubletsAPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitTriplets = cms.bool( False ),
+    maxElement = cms.uint32( 1000000 ),
+    extraHitRPhitolerance = cms.double( 0.0 ),
+    extraHitRZtolerance = cms.double( 0.0 ),
+    useMultScattering = cms.bool( True ),
+    useBending = cms.bool( True ),
+    useFixedPreFiltering = cms.bool( False ),
+    phiPreFiltering = cms.double( 0.3 )
+)
+process.hltFullIter7MixedSeedsAPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsTripletOnlyEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter7MixedHitTripletsAPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      FilterStripHits = cms.bool( True ),
+      FilterPixelHits = cms.bool( True ),
+      ClusterShapeHitFilterName = cms.string( "hltESPMixedStepClusterShapeHitFilter" ),
+      FilterAtHelixStage = cms.bool( False ),
+      ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+      ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter7MixedLayersBPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix3+BPix4+TIB1' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) )
+    ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter7MixedTrackingRegionsBPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 0.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 2.5 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.6 ),
+      originRadius = cms.double( 1.5 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False ),
+      originRScaling4BigEvts = cms.bool( True ),
+      ptMinScaling4BigEvts = cms.bool( True ),
+      minOriginR = cms.double( 0.0 ),
+      maxPtMin = cms.double( 0.7 ),
+      scalingStartNPix = cms.double( 20000.0 ),
+      scalingEndNPix = cms.double( 35000.0 ),
+      pixelClustersForScaling = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter7MixedHitDoubletsBPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter7MixedLayersBPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter7MixedTrackingRegionsBPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter7MixedClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0 )
+)
+process.hltFullIter7MixedHitTripletsBPPRef = cms.EDProducer( "PixelTripletLargeTipEDProducer",
+    doublets = cms.InputTag( "hltFullIter7MixedHitDoubletsBPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitTriplets = cms.bool( False ),
+    maxElement = cms.uint32( 1000000 ),
+    extraHitRPhitolerance = cms.double( 0.0 ),
+    extraHitRZtolerance = cms.double( 0.0 ),
+    useMultScattering = cms.bool( True ),
+    useBending = cms.bool( True ),
+    useFixedPreFiltering = cms.bool( False ),
+    phiPreFiltering = cms.double( 0.3 )
+)
+process.hltFullIter7MixedSeedsBPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsTripletOnlyEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter7MixedHitTripletsBPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      FilterStripHits = cms.bool( True ),
+      FilterPixelHits = cms.bool( True ),
+      ClusterShapeHitFilterName = cms.string( "hltESPMixedStepClusterShapeHitFilter" ),
+      FilterAtHelixStage = cms.bool( False ),
+      ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+      ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter7MixedSeedsPPRef = cms.EDProducer( "SeedCombiner",
+    seedCollections = cms.VInputTag( 'hltFullIter7MixedSeedsAPPRef','hltFullIter7MixedSeedsBPPRef' )
+)
+process.hltFullIter7CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( False ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter7MaskedMeasurementTrackerEventPPRef" ),
+    src = cms.InputTag( "hltFullIter7MixedSeedsPPRef" ),
+    clustersToSkip = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetMixedTripletStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPMixedTripletStepTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter7CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter7CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "mixedTripletStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter7MaskedMeasurementTrackerEventPPRef" )
+)
+process.hltFullIter7TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter7CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.86, -0.68, -0.43 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter7HighPurityTracksPPRef = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter7CtfWithMaterialTracksPPRef" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter7TrackDNNClassifierPPRef','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter7TrackDNNClassifierPPRef','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter8ClustersRefRemovalPPRef = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter7HighPurityTracksPPRef" ),
+    trackClassifier = cms.InputTag( 'hltFullIter7TrackDNNClassifierPPRef','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter7ClustersRefRemovalPPRef" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter8MaskedMeasurementTrackerEventPPRef = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" )
+)
+process.hltFullIter8PixelLessLayersPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'TIB1+TIB2+MTIB3',
+      'TIB1+TIB2+MTIB4',
+      'TIB1+TIB2+MTID1_pos',
+      'TIB1+TIB2+MTID1_neg',
+      'TID1_pos+TID2_pos+TID3_pos',
+      'TID1_neg+TID2_neg+TID3_neg',
+      'TID1_pos+TID2_pos+MTID3_pos',
+      'TID1_neg+TID2_neg+MTID3_neg',
+      'TID1_pos+TID2_pos+MTEC1_pos',
+      'TID1_neg+TID2_neg+MTEC1_neg',
+      'TID2_pos+TID3_pos+TEC1_pos',
+      'TID2_neg+TID3_neg+TEC1_neg',
+      'TID2_pos+TID3_pos+MTEC1_pos',
+      'TID2_neg+TID3_neg+MTEC1_neg',
+      'TEC1_pos+TEC2_pos+TEC3_pos',
+      'TEC1_neg+TEC2_neg+TEC3_neg',
+      'TEC1_pos+TEC2_pos+MTEC3_pos',
+      'TEC1_neg+TEC2_neg+MTEC3_neg',
+      'TEC1_pos+TEC2_pos+TEC4_pos',
+      'TEC1_neg+TEC2_neg+TEC4_neg',
+      'TEC1_pos+TEC2_pos+MTEC4_pos',
+      'TEC1_neg+TEC2_neg+MTEC4_neg',
+      'TEC2_pos+TEC3_pos+TEC4_pos',
+      'TEC2_neg+TEC3_neg+TEC4_neg',
+      'TEC2_pos+TEC3_pos+MTEC4_pos',
+      'TEC2_neg+TEC3_neg+MTEC4_neg',
+      'TEC2_pos+TEC3_pos+TEC5_pos',
+      'TEC2_neg+TEC3_neg+TEC5_neg',
+      'TEC2_pos+TEC3_pos+TEC6_pos',
+      'TEC2_neg+TEC3_neg+TEC6_neg',
+      'TEC3_pos+TEC4_pos+TEC5_pos',
+      'TEC3_neg+TEC4_neg+TEC5_neg',
+      'TEC3_pos+TEC4_pos+MTEC5_pos',
+      'TEC3_neg+TEC4_neg+MTEC5_neg',
+      'TEC3_pos+TEC5_pos+TEC6_pos',
+      'TEC3_neg+TEC5_neg+TEC6_neg',
+      'TEC4_pos+TEC5_pos+TEC6_pos',
+      'TEC4_neg+TEC5_neg+TEC6_neg' ),
+    BPix = cms.PSet(  ),
+    FPix = cms.PSet(  ),
+    TIB = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) )
+    ),
+    TID = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      minRing = cms.int32( 3 ),
+      skipClusters = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      useRingSlector = cms.bool( True ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      maxRing = cms.int32( 3 )
+    ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      minRing = cms.int32( 1 ),
+      skipClusters = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      useRingSlector = cms.bool( True ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      maxRing = cms.int32( 2 )
+    ),
+    MTIB = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      rphiRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','rphiRecHit' )
+    ),
+    MTID = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      minRing = cms.int32( 3 ),
+      skipClusters = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+      useRingSlector = cms.bool( True ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      maxRing = cms.int32( 3 ),
+      rphiRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','rphiRecHit' )
+    ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      minRing = cms.int32( 3 ),
+      skipClusters = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+      useRingSlector = cms.bool( True ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      maxRing = cms.int32( 3 ),
+      rphiRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','rphiRecHit' )
+    )
+)
+process.hltFullIter8PixelLessTrackingRegionsPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 0.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 3.0 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.4 ),
+      originRadius = cms.double( 1.0 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False ),
+      originRScaling4BigEvts = cms.bool( True ),
+      ptMinScaling4BigEvts = cms.bool( False ),
+      minOriginR = cms.double( 0.0 ),
+      maxPtMin = cms.double( 0.7 ),
+      scalingStartNPix = cms.double( 20000.0 ),
+      scalingEndNPix = cms.double( 35000.0 ),
+      pixelClustersForScaling = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter8PixelLessClusterCheckPPRef = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter8PixelLessHitDoubletsPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter8PixelLessLayersPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter8PixelLessTrackingRegionsPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter8PixelLessClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( False ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0 )
+)
+process.hltFullIter8PixelLessHitTripletsPPRef = cms.EDProducer( "MultiHitFromChi2EDProducer",
+    doublets = cms.InputTag( "hltFullIter8PixelLessHitDoubletsPPRef" ),
+    maxElement = cms.uint32( 1000000 ),
+    useFixedPreFiltering = cms.bool( False ),
+    phiPreFiltering = cms.double( 0.3 ),
+    extraHitRPhitolerance = cms.double( 0.0 ),
+    extraHitRZtolerance = cms.double( 0.0 ),
+    extraZKDBox = cms.double( 0.2 ),
+    extraRKDBox = cms.double( 0.2 ),
+    extraPhiKDBox = cms.double( 0.005 ),
+    fnSigmaRZ = cms.double( 2.0 ),
+    refitHits = cms.bool( True ),
+    ClusterShapeHitFilterName = cms.string( "ClusterShapeHitFilter" ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    maxChi2 = cms.double( 5.0 ),
+    chi2VsPtCut = cms.bool( True ),
+    pt_interv = cms.vdouble( 0.4, 0.7, 1.0, 2.0 ),
+    chi2_cuts = cms.vdouble( 3.0, 4.0, 5.0, 5.0 ),
+    detIdsToDebug = cms.vint32( 0, 0, 0 )
+)
+process.hltFullIter8PixelLessSeedsPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsTripletOnlyEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter8PixelLessHitTripletsPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      mode = cms.string( "and" ),
+      comparitors = cms.VPSet( 
+        cms.PSet(  FilterStripHits = cms.bool( True ),
+          FilterPixelHits = cms.bool( True ),
+          ClusterShapeHitFilterName = cms.string( "hltESPPixelLessStepClusterShapeHitFilter" ),
+          FilterAtHelixStage = cms.bool( False ),
+          ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+          ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+        ),
+        cms.PSet(  subclusterCutSN = cms.double( 12.0 ),
+          trimMaxADC = cms.double( 30.0 ),
+          seedCutMIPs = cms.double( 0.35 ),
+          subclusterCutMIPs = cms.double( 0.45 ),
+          subclusterWindow = cms.double( 0.7 ),
+          maxNSat = cms.uint32( 3 ),
+          trimMaxFracNeigh = cms.double( 0.25 ),
+          FilterAtHelixStage = cms.bool( False ),
+          maxTrimmedSizeDiffNeg = cms.double( 1.0 ),
+          seedCutSN = cms.double( 7.0 ),
+          ComponentName = cms.string( "StripSubClusterShapeSeedFilter" ),
+          maxTrimmedSizeDiffPos = cms.double( 0.7 ),
+          trimMaxFracTotal = cms.double( 0.15 ),
+          layerMask = cms.PSet(  )
+        )
+      ),
+      ComponentName = cms.string( "CombinedSeedComparitor" )
+    )
+)
+process.hltFullIter8CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( False ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter8MaskedMeasurementTrackerEventPPRef" ),
+    src = cms.InputTag( "hltFullIter8PixelLessSeedsPPRef" ),
+    clustersToSkip = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetPixelLessStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPPixelLessStepTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 500000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter8CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter8CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( True ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "pixelLessStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter8MaskedMeasurementTrackerEventPPRef" )
+)
+process.hltFullIter8TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter8CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.82, -0.61, -0.16 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter8HighPurityTracksPPRef = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIter8CtfWithMaterialTracksPPRef" ),
+    originalMVAVals = cms.InputTag( 'hltFullIter8TrackDNNClassifierPPRef','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIter8TrackDNNClassifierPPRef','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullIter9ClustersRefRemovalPPRef = cms.EDProducer( "TrackClusterRemover",
+    trajectories = cms.InputTag( "hltFullIter8HighPurityTracksPPRef" ),
+    trackClassifier = cms.InputTag( 'hltFullIter8TrackDNNClassifierPPRef','QualityMasks' ),
+    pixelClusters = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    stripClusters = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    oldClusterRemovalInfo = cms.InputTag( "hltFullIter8ClustersRefRemovalPPRef" ),
+    TrackQuality = cms.string( "highPurity" ),
+    maxChi2 = cms.double( 9.0 ),
+    minNumberOfLayersWithMeasBeforeFiltering = cms.int32( 0 ),
+    overrideTrkQuals = cms.InputTag( "" )
+)
+process.hltFullIter9MaskedMeasurementTrackerEventPPRef = cms.EDProducer( "MaskedMeasurementTrackerEventProducer",
+    src = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    OnDemand = cms.bool( False ),
+    clustersToSkip = cms.InputTag( "hltFullIter9ClustersRefRemovalPPRef" )
+)
+process.hltFullIter9TobTecLayersTriplPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'TOB1+TOB2+MTOB3',
+      'TOB1+TOB2+MTOB4',
+      'TOB1+TOB2+MTEC1_pos',
+      'TOB1+TOB2+MTEC1_neg' ),
+    BPix = cms.PSet(  ),
+    FPix = cms.PSet(  ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter9ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) )
+    ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter9ClustersRefRemovalPPRef" ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      rphiRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','rphiRecHit' )
+    ),
+    MTEC = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      minRing = cms.int32( 6 ),
+      skipClusters = cms.InputTag( "hltFullIter9ClustersRefRemovalPPRef" ),
+      useRingSlector = cms.bool( True ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      maxRing = cms.int32( 7 ),
+      rphiRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','rphiRecHit' )
+    )
+)
+process.hltFullIter9TobTecTrackingRegionsTriplPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 0.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 5.0 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.55 ),
+      originRadius = cms.double( 3.5 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False ),
+      originRScaling4BigEvts = cms.bool( True ),
+      ptMinScaling4BigEvts = cms.bool( False ),
+      minOriginR = cms.double( 0.0 ),
+      maxPtMin = cms.double( 0.7 ),
+      scalingStartNPix = cms.double( 20000.0 ),
+      scalingEndNPix = cms.double( 35000.0 ),
+      pixelClustersForScaling = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter9TobTecClusterCheckPPRef = cms.EDProducer( "ClusterCheckerEDProducer",
+    doClusterCheck = cms.bool( False ),
+    MaxNumberOfStripClusters = cms.uint32( 50000 ),
+    ClusterCollectionLabel = cms.InputTag( "hltSiStripRawToClustersFacility" ),
+    MaxNumberOfPixelClusters = cms.uint32( 10000 ),
+    PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+    cut = cms.string( "" ),
+    silentClusterCheck = cms.untracked.bool( False )
+)
+process.hltFullIter9TobTecHitDoubletsTriplPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter9TobTecLayersTriplPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter9TobTecTrackingRegionsTriplPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter9TobTecClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( False ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0 )
+)
+process.hltFullIter9TobTecHitTripletsTriplPPRef = cms.EDProducer( "MultiHitFromChi2EDProducer",
+    doublets = cms.InputTag( "hltFullIter9TobTecHitDoubletsTriplPPRef" ),
+    maxElement = cms.uint32( 1000000 ),
+    useFixedPreFiltering = cms.bool( False ),
+    phiPreFiltering = cms.double( 0.3 ),
+    extraHitRPhitolerance = cms.double( 0.0 ),
+    extraHitRZtolerance = cms.double( 0.0 ),
+    extraZKDBox = cms.double( 0.2 ),
+    extraRKDBox = cms.double( 0.2 ),
+    extraPhiKDBox = cms.double( 0.01 ),
+    fnSigmaRZ = cms.double( 2.0 ),
+    refitHits = cms.bool( True ),
+    ClusterShapeHitFilterName = cms.string( "ClusterShapeHitFilter" ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    maxChi2 = cms.double( 5.0 ),
+    chi2VsPtCut = cms.bool( True ),
+    pt_interv = cms.vdouble( 0.4, 0.7, 1.0, 2.0 ),
+    chi2_cuts = cms.vdouble( 3.0, 4.0, 5.0, 5.0 ),
+    detIdsToDebug = cms.vint32( 0, 0, 0 )
+)
+process.hltFullIter9TobTecSeedsTriplPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter9TobTecHitTripletsTriplPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      mode = cms.string( "and" ),
+      comparitors = cms.VPSet( 
+        cms.PSet(  FilterStripHits = cms.bool( True ),
+          FilterPixelHits = cms.bool( True ),
+          ClusterShapeHitFilterName = cms.string( "hltESPTobTecStepClusterShapeHitFilter" ),
+          FilterAtHelixStage = cms.bool( False ),
+          ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+          ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+        ),
+        cms.PSet(  subclusterCutSN = cms.double( 12.0 ),
+          trimMaxADC = cms.double( 30.0 ),
+          seedCutMIPs = cms.double( 0.35 ),
+          subclusterCutMIPs = cms.double( 0.45 ),
+          subclusterWindow = cms.double( 0.7 ),
+          maxNSat = cms.uint32( 3 ),
+          trimMaxFracNeigh = cms.double( 0.25 ),
+          FilterAtHelixStage = cms.bool( False ),
+          maxTrimmedSizeDiffNeg = cms.double( 1.0 ),
+          seedCutSN = cms.double( 7.0 ),
+          ComponentName = cms.string( "StripSubClusterShapeSeedFilter" ),
+          maxTrimmedSizeDiffPos = cms.double( 0.7 ),
+          trimMaxFracTotal = cms.double( 0.15 ),
+          layerMask = cms.PSet(  )
+        )
+      ),
+      ComponentName = cms.string( "CombinedSeedComparitor" )
+    )
+)
+process.hltFullIter9TobTecLayersPairPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'TOB1+TEC1_pos',
+      'TOB1+TEC1_neg',
+      'TEC1_pos+TEC2_pos',
+      'TEC1_neg+TEC2_neg',
+      'TEC2_pos+TEC3_pos',
+      'TEC2_neg+TEC3_neg',
+      'TEC3_pos+TEC4_pos',
+      'TEC3_neg+TEC4_neg',
+      'TEC4_pos+TEC5_pos',
+      'TEC4_neg+TEC5_neg',
+      'TEC5_pos+TEC6_pos',
+      'TEC5_neg+TEC6_neg',
+      'TEC6_pos+TEC7_pos',
+      'TEC6_neg+TEC7_neg' ),
+    BPix = cms.PSet(  ),
+    FPix = cms.PSet(  ),
+    TIB = cms.PSet(  ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      skipClusters = cms.InputTag( "hltFullIter9ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) )
+    ),
+    TEC = cms.PSet( 
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      minRing = cms.int32( 5 ),
+      skipClusters = cms.InputTag( "hltFullIter9ClustersRefRemovalPPRef" ),
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      useRingSlector = cms.bool( True ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutTight" ) ),
+      maxRing = cms.int32( 5 )
+    ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter9TobTecTrackingRegionsPairPPRef = cms.EDProducer( "GlobalTrackingRegionWithVerticesEDProducer",
+    RegionPSet = cms.PSet( 
+      useFixedError = cms.bool( True ),
+      nSigmaZ = cms.double( 0.0 ),
+      VertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+      beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+      useFoundVertices = cms.bool( True ),
+      fixedError = cms.double( 7.5 ),
+      maxNVertices = cms.int32( -1 ),
+      sigmaZVertex = cms.double( 4.0 ),
+      useFakeVertices = cms.bool( False ),
+      ptMin = cms.double( 0.6 ),
+      originRadius = cms.double( 6.0 ),
+      precise = cms.bool( True ),
+      useMultipleScattering = cms.bool( False ),
+      originRScaling4BigEvts = cms.bool( True ),
+      ptMinScaling4BigEvts = cms.bool( False ),
+      minOriginR = cms.double( 0.0 ),
+      maxPtMin = cms.double( 0.7 ),
+      scalingStartNPix = cms.double( 20000.0 ),
+      scalingEndNPix = cms.double( 35000.0 ),
+      pixelClustersForScaling = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" )
+    )
+)
+process.hltFullIter9TobTecHitDoubletsPairPPRef = cms.EDProducer( "HitPairEDProducer",
+    seedingLayers = cms.InputTag( "hltFullIter9TobTecLayersPairPPRef" ),
+    trackingRegions = cms.InputTag( "hltFullIter9TobTecTrackingRegionsPairPPRef" ),
+    trackingRegionsSeedingLayers = cms.InputTag( "" ),
+    clusterCheck = cms.InputTag( "hltFullIter9TobTecClusterCheckPPRef" ),
+    produceSeedingHitSets = cms.bool( True ),
+    produceIntermediateHitDoublets = cms.bool( True ),
+    maxElement = cms.uint32( 0 ),
+    maxElementTotal = cms.uint32( 50000000 ),
+    putEmptyIfMaxElementReached = cms.bool( False ),
+    layerPairs = cms.vuint32( 0 )
+)
+process.hltFullIter9TobTecSeedsPairPPRef = cms.EDProducer( "SeedCreatorFromRegionConsecutiveHitsEDProducer",
+    seedingHitSets = cms.InputTag( "hltFullIter9TobTecHitDoubletsPairPPRef" ),
+    propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+    SeedMomentumForBOFF = cms.double( 5.0 ),
+    OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+    MinOneOverPtError = cms.double( 1.0 ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    magneticField = cms.string( "ParabolicMf" ),
+    forceKinematicWithRegionDirection = cms.bool( False ),
+    SeedComparitorPSet = cms.PSet( 
+      mode = cms.string( "and" ),
+      comparitors = cms.VPSet( 
+        cms.PSet(  FilterStripHits = cms.bool( True ),
+          FilterPixelHits = cms.bool( True ),
+          ClusterShapeHitFilterName = cms.string( "hltESPTobTecStepClusterShapeHitFilter" ),
+          FilterAtHelixStage = cms.bool( False ),
+          ComponentName = cms.string( "PixelClusterShapeSeedComparitor" ),
+          ClusterShapeCacheSrc = cms.InputTag( "hltSiPixelClustersCacheAfterSplittingPPRefForDmeson" )
+        ),
+        cms.PSet(  subclusterCutSN = cms.double( 12.0 ),
+          trimMaxADC = cms.double( 30.0 ),
+          seedCutMIPs = cms.double( 0.35 ),
+          subclusterCutMIPs = cms.double( 0.45 ),
+          subclusterWindow = cms.double( 0.7 ),
+          maxNSat = cms.uint32( 3 ),
+          trimMaxFracNeigh = cms.double( 0.25 ),
+          FilterAtHelixStage = cms.bool( False ),
+          maxTrimmedSizeDiffNeg = cms.double( 1.0 ),
+          seedCutSN = cms.double( 7.0 ),
+          ComponentName = cms.string( "StripSubClusterShapeSeedFilter" ),
+          maxTrimmedSizeDiffPos = cms.double( 0.7 ),
+          trimMaxFracTotal = cms.double( 0.15 ),
+          layerMask = cms.PSet(  )
+        )
+      ),
+      ComponentName = cms.string( "CombinedSeedComparitor" )
+    )
+)
+process.hltFullIter9TobTecSeedsPPRef = cms.EDProducer( "SeedCombiner",
+    seedCollections = cms.VInputTag( 'hltFullIter9TobTecSeedsTriplPPRef','hltFullIter9TobTecSeedsPairPPRef' )
+)
+process.hltFullIter9CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( True ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter9MaskedMeasurementTrackerEventPPRef" ),
+    src = cms.InputTag( "hltFullIter9TobTecSeedsPPRef" ),
+    clustersToSkip = cms.InputTag( "hltFullIter9ClustersRefRemovalPPRef" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetTobTecStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 50 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPTobTecStepTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 500000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 5000 )
+)
+process.hltFullIter9CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter9CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPTobTecStepFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( True ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "tobTecStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "hltFullIter9MaskedMeasurementTrackerEventPPRef" )
+)
+process.hltFullIter9TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter9CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.76, -0.65, -0.55 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIter10JetCoreLayersPPRef = cms.EDProducer( "SeedingLayersEDProducer",
+    layerList = cms.vstring( 'BPix1+BPix2+BPix3',
+      'BPix2+BPix3+BPix4',
+      'BPix1+BPix3+BPix4',
+      'BPix1+BPix2+BPix4',
+      'BPix2+BPix3+FPix1_pos',
+      'BPix2+BPix3+FPix1_neg',
+      'BPix1+BPix2+FPix1_pos',
+      'BPix1+BPix2+FPix1_neg',
+      'BPix2+FPix1_pos+FPix2_pos',
+      'BPix2+FPix1_neg+FPix2_neg',
+      'BPix1+FPix1_pos+FPix2_pos',
+      'BPix1+FPix1_neg+FPix2_neg',
+      'FPix1_pos+FPix2_pos+FPix3_pos',
+      'FPix1_neg+FPix2_neg+FPix3_neg',
+      'BPix1+BPix2+TIB1',
+      'BPix1+BPix3+TIB1',
+      'BPix1+BPix4+TIB1',
+      'BPix2+BPix3+TIB1',
+      'BPix2+BPix4+TIB1',
+      'BPix3+BPix4+TIB1' ),
+    BPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0027 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      useErrorsFromParam = cms.bool( True ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" ),
+      hitErrorRZ = cms.double( 0.006 )
+    ),
+    FPix = cms.PSet( 
+      hitErrorRPhi = cms.double( 0.0051 ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      useErrorsFromParam = cms.bool( True ),
+      hitErrorRZ = cms.double( 0.0036 ),
+      HitProducer = cms.string( "hltSiPixelRecHitsAfterSplittingPPRefForDmeson" )
+    ),
+    TIB = cms.PSet( 
+      matchedRecHits = cms.InputTag( 'hltSiStripMatchedRecHitsFullPPRef','matchedRecHit' ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      clusterChargeCut = cms.PSet(  refToPSet_ = cms.string( "HLTSiStripClusterChargeCutNone" ) )
+    ),
+    TID = cms.PSet(  ),
+    TOB = cms.PSet(  ),
+    TEC = cms.PSet(  ),
+    MTIB = cms.PSet(  ),
+    MTID = cms.PSet(  ),
+    MTOB = cms.PSet(  ),
+    MTEC = cms.PSet(  )
+)
+process.hltFullIter10JetCoreRegionSeedsPPRef = cms.EDProducer( "SeedGeneratorFromRegionHitsEDProducer",
+    OrderedHitsFactoryPSet = cms.PSet( 
+      maxElement = cms.uint32( 0 ),
+      ComponentName = cms.string( "StandardHitTripletGenerator" ),
+      SeedingLayers = cms.InputTag( "hltFullIter10JetCoreLayersPPRef" ),
+      LayerSrc = cms.InputTag( "hltFullIter10JetCoreLayersPPRef" ),
+      GeneratorPSet = cms.PSet( 
+        maxElement = cms.uint32( 0 ),
+        useBending = cms.bool( True ),
+        useFixedPreFiltering = cms.bool( False ),
+        ComponentName = cms.string( "PixelTripletHLTGenerator" ),
+        useMultScattering = cms.bool( True ),
+        phiPreFiltering = cms.double( 0.3 ),
+        SeedComparitorPSet = cms.PSet(  ComponentName = cms.string( "none" ) ),
+        extraHitRPhitolerance = cms.double( 0.032 ),
+        extraHitRZtolerance = cms.double( 0.037 )
+      )
+    ),
+    SeedComparitorPSet = cms.PSet(  ComponentName = cms.string( "none" ) ),
+    RegionFactoryPSet = cms.PSet( 
+      ComponentName = cms.string( "CandidateSeededTrackingRegionsProducer" ),
+      RegionPSet = cms.PSet( 
+        precise = cms.bool( True ),
+        useMultipleScattering = cms.bool( False ),
+        beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+        ptMin = cms.double( 10.0 ),
+        originRadius = cms.double( 0.2 ),
+        originHalfLength = cms.double( 0.2 ),
+        deltaPhiRegion = cms.double( 0.2 ),
+        measurementTrackerName = cms.string( "" ),
+        zVertex = cms.double( 5.0 ),
+        deltaEtaRegion = cms.double( 0.2 ),
+        rVertex = cms.double( 5.0 ),
+        useFakeVertices = cms.bool( False ),
+        JetSrc = cms.InputTag( "hltJetsForCoreTracking" ),
+        vertexSrc = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+        howToUseMeasurementTracker = cms.string( "Never" ),
+        zErrorVetex = cms.double( 0.1 ),
+        nSigmaZVertex = cms.double( 3.0 ),
+        nSigmaZBeamSpot = cms.double( -1.0 ),
+        zErrorBeamSpot = cms.double( 15.0 ),
+        deltaEta = cms.double( 0.2 ),
+        deltaPhi = cms.double( 0.2 ),
+        vertexCollection = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+        maxNRegions = cms.int32( 3 ),
+        searchOpt = cms.bool( False ),
+        whereToUseMeasurementTracker = cms.string( "Never" ),
+        input = cms.InputTag( "hltJetsForCoreTracking" ),
+        maxNVertices = cms.int32( 1 ),
+        mode = cms.string( "VerticesFixed" )
+      ),
+      CollectionsPSet = cms.PSet( 
+        recoL2MuonsCollection = cms.InputTag( "" ),
+        recoTrackMuonsCollection = cms.InputTag( "" ),
+        recoMuonsCollection = cms.InputTag( "" )
+      ),
+      RegionInJetsCheckPSet = cms.PSet( 
+        recoCaloJetsCollection = cms.InputTag( "hltJetsForCoreTracking" ),
+        deltaRExclusionSize = cms.double( 0.3 ),
+        jetsPtMin = cms.double( 5.0 ),
+        doJetsExclusionCheck = cms.bool( True )
+      ),
+      ToolsPSet = cms.PSet( 
+        regionBase = cms.string( "seedOnJets" ),
+        thePropagatorName = cms.string( "AnalyticalPropagator" )
+      )
+    ),
+    SeedCreatorPSet = cms.PSet( 
+      ComponentName = cms.string( "SeedFromConsecutiveHitsCreator" ),
+      forceKinematicWithRegionDirection = cms.bool( True ),
+      magneticField = cms.string( "ParabolicMf" ),
+      SeedMomentumForBOFF = cms.double( 5.0 ),
+      propagator = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+      MinOneOverPtError = cms.double( 1.0 ),
+      OriginTransverseErrorMultiplier = cms.double( 1.0 ),
+      maxseeds = cms.int32( 10000 )
+    ),
+    ClusterCheckPSet = cms.PSet( 
+      MaxNumberOfPixelClusters = cms.uint32( 150000 ),
+      cut = cms.string( "strip < 1000000 && pixel < 150000 && (strip < 50000 + 10*pixel) && (pixel < 5000 + 0.1*strip)" ),
+      PixelClusterCollectionLabel = cms.InputTag( "hltSiPixelClustersAfterSplittingPPRefForDmeson" ),
+      doClusterCheck = cms.bool( True ),
+      ClusterCollectionLabel = cms.InputTag( "hltMeasurementTrackerEvent" ),
+      MaxNumberOfStripClusters = cms.uint32( 500000 )
+    )
+)
+process.hltFullIter10CkfTrackCandidatesPPRef = cms.EDProducer( "CkfTrackCandidateMaker",
+    cleanTrajectoryAfterInOut = cms.bool( True ),
+    doSeedingRegionRebuilding = cms.bool( True ),
+    onlyPixelHitsForSeedCleaner = cms.bool( False ),
+    reverseTrajectories = cms.bool( False ),
+    useHitsSplitting = cms.bool( True ),
+    MeasurementTrackerEvent = cms.InputTag( "hltAfterSplittingMeasureTrackerEventForDmeson" ),
+    src = cms.InputTag( "hltFullIter10JetCoreRegionSeedsPPRef" ),
+    clustersToSkip = cms.InputTag( "" ),
+    phase2clustersToSkip = cms.InputTag( "" ),
+    TrajectoryBuilderPSet = cms.PSet(  refToPSet_ = cms.string( "HLTPSetJetCoreStepTrajectoryBuilderForFullTrackingPPOnAA" ) ),
+    TransientInitialStateEstimatorParameters = cms.PSet( 
+      propagatorAlongTISE = cms.string( "PropagatorWithMaterialParabolicMf" ),
+      numberMeasurementsForFit = cms.int32( 4 ),
+      propagatorOppositeTISE = cms.string( "PropagatorWithMaterialParabolicMfOpposite" )
+    ),
+    numHitsForSeedCleaner = cms.int32( 4 ),
+    NavigationSchool = cms.string( "SimpleNavigationSchool" ),
+    RedundantSeedCleaner = cms.string( "CachingSeedCleanerBySharedInput" ),
+    TrajectoryCleaner = cms.string( "hltESPTrajectoryCleanerBySharedHits" ),
+    maxNSeeds = cms.uint32( 100000 ),
+    maxSeedsBeforeCleaning = cms.uint32( 10000 )
+)
+process.hltFullIter10CtfWithMaterialTracksPPRef = cms.EDProducer( "TrackProducer",
+    useSimpleMF = cms.bool( True ),
+    SimpleMagneticField = cms.string( "ParabolicMf" ),
+    src = cms.InputTag( "hltFullIter10CkfTrackCandidatesPPRef" ),
+    clusterRemovalInfo = cms.InputTag( "" ),
+    beamSpot = cms.InputTag( "hltOnlineBeamSpot" ),
+    Fitter = cms.string( "hltESPFlexibleKFFittingSmoother" ),
+    useHitsSplitting = cms.bool( False ),
+    alias = cms.untracked.string( "ctfWithMaterialTracks" ),
+    TrajectoryInEvent = cms.bool( False ),
+    TTRHBuilder = cms.string( "hltESPTTRHBWithTrackAngle" ),
+    AlgorithmName = cms.string( "jetCoreRegionalStep" ),
+    Propagator = cms.string( "hltESPRungeKuttaTrackerPropagator" ),
+    GeometricInnerState = cms.bool( False ),
+    NavigationSchool = cms.string( "" ),
+    MeasurementTracker = cms.string( "" ),
+    MeasurementTrackerEvent = cms.InputTag( "" )
+)
+process.hltFullIter10TrackDNNClassifierPPRef = cms.EDProducer( "TrackTfClassifier",
+    src = cms.InputTag( "hltFullIter10CtfWithMaterialTracksPPRef" ),
+    beamspot = cms.InputTag( "hltOnlineBeamSpot" ),
+    vertices = cms.InputTag( "hltFullIter0PrimaryVerticesPPRefForDmeson" ),
+    ignoreVertices = cms.bool( False ),
+    qualityCuts = cms.vdouble( -0.62, -0.49, -0.02 ),
+    mva = cms.PSet( 
+      tfDnnLabel = cms.string( "hltESPTrackSelectionTfCKF" ),
+      batchSize = cms.int32( 16 )
+    )
+)
+process.hltFullIterativeTrackingMergedPPRefForDmeson = cms.EDProducer( "TrackCollectionMerger",
+    trackProducers = cms.VInputTag( 'hltFullIter0CtfWithMaterialTracksPPRefForDmeson','hltFullIter1CtfWithMaterialTracksPPRefForDmeson','hltFullIter2CtfWithMaterialTracksPPRefForDmeson','hltFullIter3CtfWithMaterialTracksPPRef','hltFullIter4CtfWithMaterialTracksPPRef','hltFullIter5CtfWithMaterialTracksPPRef','hltFullIter6CtfWithMaterialTracksPPRef','hltFullIter7CtfWithMaterialTracksPPRef','hltFullIter8CtfWithMaterialTracksPPRef','hltFullIter9CtfWithMaterialTracksPPRef','hltFullIter10CtfWithMaterialTracksPPRef' ),
+    inputClassifiers = cms.vstring( 'hltFullIter0TrackDNNClassifierPPRefForDmeson',
+      'hltFullIter1TrackDNNClassifierPPRefForDmeson',
+      'hltFullIter2TrackDNNClassifierPPRefForDmeson',
+      'hltFullIter3TrackDNNClassifierPPRef',
+      'hltFullIter4TrackDNNClassifierPPRef',
+      'hltFullIter5TrackDNNClassifierPPRef',
+      'hltFullIter6TrackDNNClassifierPPRef',
+      'hltFullIter7TrackDNNClassifierPPRef',
+      'hltFullIter8TrackDNNClassifierPPRef',
+      'hltFullIter9TrackDNNClassifierPPRef',
+      'hltFullIter10TrackDNNClassifierPPRef' ),
+    trackAlgoPriorityOrder = cms.string( "hltESPTrackAlgoPriorityOrder" ),
+    shareFrac = cms.double( 0.19 ),
+    foundHitBonus = cms.double( 10.0 ),
+    lostHitPenalty = cms.double( 5.0 ),
+    minShareHits = cms.uint32( 2 ),
+    allowFirstHitShare = cms.bool( True ),
+    enableMerging = cms.bool( True ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullOnlinePrimaryVerticesPPRefForDmeson = cms.EDProducer( "PrimaryVertexProducer",
+    vertexCollections = cms.VPSet( 
+      cms.PSet(  chi2cutoff = cms.double( 3.0 ),
+        label = cms.string( "" ),
+        useBeamConstraint = cms.bool( False ),
+        minNdof = cms.double( 0.0 ),
+        maxDistanceToBeam = cms.double( 1.0 ),
+        algorithm = cms.string( "AdaptiveVertexFitter" )
+      ),
+      cms.PSet(  chi2cutoff = cms.double( 3.0 ),
+        label = cms.string( "WithBS" ),
+        useBeamConstraint = cms.bool( False ),
+        minNdof = cms.double( 0.0 ),
+        maxDistanceToBeam = cms.double( 1.0 ),
+        algorithm = cms.string( "AdaptiveVertexFitter" )
+      )
+    ),
+    verbose = cms.untracked.bool( False ),
+    TkFilterParameters = cms.PSet( 
+      maxEta = cms.double( 2.4 ),
+      minPt = cms.double( 0.0 ),
+      minSiliconLayersWithHits = cms.int32( 5 ),
+      minPixelLayersWithHits = cms.int32( 2 ),
+      maxNormalizedChi2 = cms.double( 20.0 ),
+      trackQuality = cms.string( "any" ),
+      algorithm = cms.string( "filter" ),
+      maxD0Significance = cms.double( 5.0 )
+    ),
+    beamSpotLabel = cms.InputTag( "hltOnlineBeamSpot" ),
+    TrackLabel = cms.InputTag( "hltFullIterativeTrackingMergedPPRefForDmeson" ),
+    TrackTimeResosLabel = cms.InputTag( "dummy_default" ),
+    TrackTimesLabel = cms.InputTag( "dummy_default" ),
+    trackMTDTimeQualityVMapTag = cms.InputTag( "dummy_default" ),
+    TkClusParameters = cms.PSet( 
+      algorithm = cms.string( "gap" ),
+      TkGapClusParameters = cms.PSet(  zSeparation = cms.double( 1.0 ) )
+    ),
+    isRecoveryIteration = cms.bool( False ),
+    recoveryVtxCollection = cms.InputTag( "" ),
+    useMVACut = cms.bool( False ),
+    minTrackTimeQuality = cms.double( 0.8 )
+)
+process.hltGoodHighPurityFullTracksForDmesonPPRef = cms.EDProducer( "TrackCollectionFilterCloner",
+    originalSource = cms.InputTag( "hltFullIterativeTrackingMergedPPRefForDmeson" ),
+    originalMVAVals = cms.InputTag( 'hltFullIterativeTrackingMergedPPRefForDmeson','MVAValues' ),
+    originalQualVals = cms.InputTag( 'hltFullIterativeTrackingMergedPPRefForDmeson','QualityMasks' ),
+    minQuality = cms.string( "highPurity" ),
+    copyExtras = cms.untracked.bool( True ),
+    copyTrajectories = cms.untracked.bool( False )
+)
+process.hltFullCandsPPRef = cms.EDProducer( "ConcreteChargedCandidateProducer",
+    src = cms.InputTag( "hltGoodHighPurityFullTracksForDmesonPPRef" ),
+    particleType = cms.string( "pi+" )
+)
+process.hltFullTrackFilterForDmesonPPRef = cms.EDFilter( "HLTSingleVertexPixelTrackFilter",
+    saveTags = cms.bool( False ),
+    vertexCollection = cms.InputTag( "hltFullOnlinePrimaryVerticesPPRefForDmeson" ),
+    trackCollection = cms.InputTag( "hltFullCandsPPRef" ),
+    MinPt = cms.double( 0.0 ),
+    MaxPt = cms.double( 10000.0 ),
+    MaxEta = cms.double( 9999.0 ),
+    MaxVz = cms.double( 9999.0 ),
+    MinTrks = cms.int32( 0 ),
+    MinSep = cms.double( 999.0 )
+)
+process.hltTkTkVtxForDmesonDpt25PPRef = cms.EDProducer( "HLTDisplacedtktkVtxProducer",
+    Src = cms.InputTag( "hltFullCandsPPRef" ),
+    PreviousCandTag = cms.InputTag( "hltFullTrackFilterForDmesonPPRef" ),
+    MaxEta = cms.double( 2.0 ),
+    MinPt = cms.double( 6.0 ),
+    MinPtPair = cms.double( 25.0 ),
+    MinInvMass = cms.double( 1.47 ),
+    MaxInvMass = cms.double( 2.27 ),
+    massParticle1 = cms.double( 0.1396 ),
+    massParticle2 = cms.double( 0.4937 ),
+    ChargeOpt = cms.int32( -1 ),
+    triggerTypeDaughters = cms.int32( 91 )
+)
+process.hltTkTkFilterForDmesonDpt25PPRef = cms.EDFilter( "HLTDisplacedtktkFilter",
+    saveTags = cms.bool( True ),
+    FastAccept = cms.bool( False ),
+    MinLxySignificance = cms.double( 1.0 ),
+    MaxLxySignificance = cms.double( 0.0 ),
+    MaxNormalisedChi2 = cms.double( 999.0 ),
+    MinVtxProbability = cms.double( 0.0 ),
+    MinCosinePointingAngle = cms.double( 0.8 ),
+    triggerTypeDaughters = cms.int32( 91 ),
+    DisplacedVertexTag = cms.InputTag( "hltTkTkVtxForDmesonDpt25PPRef" ),
+    BeamSpotTag = cms.InputTag( "hltOnlineBeamSpot" ),
+    TrackTag = cms.InputTag( "hltFullCandsPPRef" )
+)
+process.hltPrePPRefDmesonTrackingGlobalDpt35 = cms.EDFilter( "HLTPrescaler",
+    offset = cms.uint32( 0 ),
+    L1GtReadoutRecordTag = cms.InputTag( "hltGtStage2Digis" )
+)
+process.hltTkTkVtxForDmesonDpt35PPRef = cms.EDProducer( "HLTDisplacedtktkVtxProducer",
+    Src = cms.InputTag( "hltFullCandsPPRef" ),
+    PreviousCandTag = cms.InputTag( "hltFullTrackFilterForDmesonPPRef" ),
+    MaxEta = cms.double( 2.0 ),
+    MinPt = cms.double( 6.0 ),
+    MinPtPair = cms.double( 35.0 ),
+    MinInvMass = cms.double( 1.47 ),
+    MaxInvMass = cms.double( 2.27 ),
+    massParticle1 = cms.double( 0.1396 ),
+    massParticle2 = cms.double( 0.4937 ),
+    ChargeOpt = cms.int32( -1 ),
+    triggerTypeDaughters = cms.int32( 91 )
+)
+process.hltTkTkFilterForDmesonDpt35PPRef = cms.EDFilter( "HLTDisplacedtktkFilter",
+    saveTags = cms.bool( True ),
+    FastAccept = cms.bool( False ),
+    MinLxySignificance = cms.double( 1.0 ),
+    MaxLxySignificance = cms.double( 0.0 ),
+    MaxNormalisedChi2 = cms.double( 999.0 ),
+    MinVtxProbability = cms.double( 0.0 ),
+    MinCosinePointingAngle = cms.double( 0.8 ),
+    triggerTypeDaughters = cms.int32( 91 ),
+    DisplacedVertexTag = cms.InputTag( "hltTkTkVtxForDmesonDpt35PPRef" ),
+    BeamSpotTag = cms.InputTag( "hltOnlineBeamSpot" ),
+    TrackTag = cms.InputTag( "hltFullCandsPPRef" )
+)
+process.hltL1sSingleJet44 = cms.EDFilter( "HLTL1TSeed",
+    saveTags = cms.bool( True ),
+    L1SeedsLogicalExpression = cms.string( "L1_SingleJet44" ),
+    L1ObjectMapInputTag = cms.InputTag( "hltGtStage2ObjectMap" ),
+    L1GlobalInputTag = cms.InputTag( "hltGtStage2Digis" ),
+    L1MuonInputTag = cms.InputTag( 'hltGtStage2Digis','Muon' ),
+    L1MuonShowerInputTag = cms.InputTag( 'hltGtStage2Digis','MuonShower' ),
+    L1EGammaInputTag = cms.InputTag( 'hltGtStage2Digis','EGamma' ),
+    L1JetInputTag = cms.InputTag( 'hltGtStage2Digis','Jet' ),
+    L1TauInputTag = cms.InputTag( 'hltGtStage2Digis','Tau' ),
+    L1EtSumInputTag = cms.InputTag( 'hltGtStage2Digis','EtSum' ),
+    L1EtSumZdcInputTag = cms.InputTag( 'hltGtStage2Digis','EtSumZDC' )
+)
+process.hltPrePPRefDmesonTrackingGlobalDpt45 = cms.EDFilter( "HLTPrescaler",
+    offset = cms.uint32( 0 ),
+    L1GtReadoutRecordTag = cms.InputTag( "hltGtStage2Digis" )
+)
+process.hltTkTkVtxForDmesonDpt45PPRef = cms.EDProducer( "HLTDisplacedtktkVtxProducer",
+    Src = cms.InputTag( "hltFullCandsPPRef" ),
+    PreviousCandTag = cms.InputTag( "hltFullTrackFilterForDmesonPPRef" ),
+    MaxEta = cms.double( 2.0 ),
+    MinPt = cms.double( 6.0 ),
+    MinPtPair = cms.double( 45.0 ),
+    MinInvMass = cms.double( 1.47 ),
+    MaxInvMass = cms.double( 2.27 ),
+    massParticle1 = cms.double( 0.1396 ),
+    massParticle2 = cms.double( 0.4937 ),
+    ChargeOpt = cms.int32( -1 ),
+    triggerTypeDaughters = cms.int32( 91 )
+)
+process.hltTkTkFilterForDmesonDpt45PPRef = cms.EDFilter( "HLTDisplacedtktkFilter",
+    saveTags = cms.bool( True ),
+    FastAccept = cms.bool( False ),
+    MinLxySignificance = cms.double( 1.0 ),
+    MaxLxySignificance = cms.double( 0.0 ),
+    MaxNormalisedChi2 = cms.double( 999.0 ),
+    MinVtxProbability = cms.double( 0.0 ),
+    MinCosinePointingAngle = cms.double( 0.8 ),
+    triggerTypeDaughters = cms.int32( 91 ),
+    DisplacedVertexTag = cms.InputTag( "hltTkTkVtxForDmesonDpt45PPRef" ),
+    BeamSpotTag = cms.InputTag( "hltOnlineBeamSpot" ),
+    TrackTag = cms.InputTag( "hltFullCandsPPRef" )
+)
+process.hltPrePPRefDmesonTrackingGlobalDpt60 = cms.EDFilter( "HLTPrescaler",
+    offset = cms.uint32( 0 ),
+    L1GtReadoutRecordTag = cms.InputTag( "hltGtStage2Digis" )
+)
+process.hltTkTkVtxForDmesonDpt60PPRef = cms.EDProducer( "HLTDisplacedtktkVtxProducer",
+    Src = cms.InputTag( "hltFullCandsPPRef" ),
+    PreviousCandTag = cms.InputTag( "hltFullTrackFilterForDmesonPPRef" ),
+    MaxEta = cms.double( 2.0 ),
+    MinPt = cms.double( 6.0 ),
+    MinPtPair = cms.double( 60.0 ),
+    MinInvMass = cms.double( 1.47 ),
+    MaxInvMass = cms.double( 2.27 ),
+    massParticle1 = cms.double( 0.1396 ),
+    massParticle2 = cms.double( 0.4937 ),
+    ChargeOpt = cms.int32( -1 ),
+    triggerTypeDaughters = cms.int32( 91 )
+)
+process.hltTkTkFilterForDmesonDpt60PPRef = cms.EDFilter( "HLTDisplacedtktkFilter",
+    saveTags = cms.bool( True ),
+    FastAccept = cms.bool( False ),
+    MinLxySignificance = cms.double( 1.0 ),
+    MaxLxySignificance = cms.double( 0.0 ),
+    MaxNormalisedChi2 = cms.double( 999.0 ),
+    MinVtxProbability = cms.double( 0.0 ),
+    MinCosinePointingAngle = cms.double( 0.8 ),
+    triggerTypeDaughters = cms.int32( 91 ),
+    DisplacedVertexTag = cms.InputTag( "hltTkTkVtxForDmesonDpt60PPRef" ),
+    BeamSpotTag = cms.InputTag( "hltOnlineBeamSpot" ),
+    TrackTag = cms.InputTag( "hltFullCandsPPRef" )
+)
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 process.hltTriggerSummaryAOD = cms.EDProducer( "TriggerSummaryProducerAOD",
     throw = cms.bool( False ),
     processName = cms.string( "@" ),

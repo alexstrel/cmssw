@@ -3056,6 +3056,7 @@ upgradeProperties[2026] = {
         'Era' : 'Phase2C22I13M9',
         'ScenToRun' : ['GenSimHLBeamSpot','DigiTrigger','RecoGlobal', 'HARVESTGlobal', 'ALCAPhase2'],
     },
+<<<<<<< HEAD
     '2026D110' : {
         'Geom' : 'Extended2026D110',
         'HLTmenu': '@relval2026',
@@ -3084,6 +3085,8 @@ upgradeProperties[2026] = {
         'Era' : 'Phase2C22I13M9',
         'ScenToRun' : ['GenSimHLBeamSpot','DigiTrigger','RecoGlobal', 'HARVESTGlobal', 'ALCAPhase2'],
     },
+=======
+>>>>>>> carlos-alpaka/Alpaka_dev_14_0_0
 }
 
 # standard PU sequences
