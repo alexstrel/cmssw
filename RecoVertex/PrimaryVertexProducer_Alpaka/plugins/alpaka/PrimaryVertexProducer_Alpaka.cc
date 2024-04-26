@@ -95,7 +95,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::wait(iEvent.queue());
 
       //// Then run the clusterizer per blocks
-      ClusterizerAlgo clusterizerKernel_{iEvent.queue()}; 
+      ClusterizerAlgo clusterizerKernel_{iEvent.queue(), blockSize}; 
       clusterizerKernel_.clusterize(iEvent.queue(), tracksInBlocks, deviceVertex, cParams, nBlocks, blockSize);
       // Need to have all vertex before arbitrating and deciding what we keep
       alpaka::wait(iEvent.queue());
