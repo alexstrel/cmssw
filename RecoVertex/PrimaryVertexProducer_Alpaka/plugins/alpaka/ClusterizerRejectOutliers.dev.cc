@@ -11,21 +11,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
     ALPAKA_FN_ACC void operator()(const TAcc& acc,  portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double *beta_, double *osumtkwt_) const{ 
       // This has the core of the clusterization algorithm
-      int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
-      int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
       int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
 
-      double& _beta = alpaka::declareSharedVar<double, __COUNTER__>(acc);
-      double& osumtkwt = alpaka::declareSharedVar<double, __COUNTER__>(acc);
-
-      if (once_per_block(acc)){
-        _beta    = beta_[blockIdx];
-        osumtkwt = osumtkwt_[blockIdx];
-      }
-      alpaka::syncBlockThreads(acc);
+      double _beta     = beta_[blockIdx];
+      double _osumtkwt = osumtkwt_[blockIdx];
 
       // After splitting we might get some candidates that are very low quality/have very far away tracks
-      rejectOutliers(acc,tracks, vertices,cParams, osumtkwt, _beta);
+      rejectOutliers(acc,tracks, vertices,cParams, _osumtkwt, _beta);
       alpaka::syncBlockThreads(acc);
     }
   }; // class kernel

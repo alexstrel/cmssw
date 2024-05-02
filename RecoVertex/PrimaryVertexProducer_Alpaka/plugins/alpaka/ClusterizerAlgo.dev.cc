@@ -17,33 +17,36 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
       int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
 
-      double& _beta = alpaka::declareSharedVar<double, __COUNTER__>(acc);
       double& osumtkwt = alpaka::declareSharedVar<double, __COUNTER__>(acc);
       for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){ // TODO:Saving and reading in the tracks dataformat might be a bit too much?
 	double temp_weight = static_cast<double>(tracks[itrack].weight());      
-        //alpaka::atomicAdd(acc, &osumtkwt, static_cast<double&>(tracks[itrack].weight()), alpaka::hierarchy::Threads{});
 	alpaka::atomicAdd(acc, &osumtkwt, temp_weight, alpaka::hierarchy::Threads{});
       }
-      alpaka::syncBlockThreads(acc);     
+      alpaka::syncBlockThreads(acc); 
+
+      // Broadcast track weight parameter:
+      double _osumtkwt = osumtkwt;
+
       // In each block, initialize to a single vertex with all tracks
       initialize(acc, tracks, vertices, cParams);
       alpaka::syncBlockThreads(acc);
       // First estimation of critical temperature
+      double _beta{0.0};
       getBeta0(acc, tracks, vertices, cParams, _beta);
       alpaka::syncBlockThreads(acc);
       // Cool down to beta0 with rho = 0.0 (no regularization term)
-      thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_highT(), 0.0);
+      thermalize(acc, tracks, vertices, cParams, _osumtkwt, _beta, cParams.delta_highT(), 0.0);
       alpaka::syncBlockThreads(acc);
       // Now the cooling loop
-      coolingWhileSplitting(acc, tracks, vertices, cParams, osumtkwt, _beta);
+      coolingWhileSplitting(acc, tracks, vertices, cParams, _osumtkwt, _beta);
       alpaka::syncBlockThreads(acc);
       // After cooling, merge closeby vertices
-      reMergeTracks(acc,tracks, vertices,cParams, osumtkwt, _beta);
+      reMergeTracks(acc,tracks, vertices,cParams, _osumtkwt, _beta);
       alpaka::syncBlockThreads(acc);
 
       if (once_per_block(acc)){
         beta_[blockIdx]     = _beta;
-        osumtkwt_[blockIdx] = osumtkwt;
+        osumtkwt_[blockIdx] = _osumtkwt;
       }
       alpaka::syncBlockThreads(acc);      
     }

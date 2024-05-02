@@ -15,7 +15,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   // Device functions //
   //////////////////////
 
-   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void set_vtx_range(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
+   template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void set_vtx_range(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double _beta){
     // These updates the range of vertices associated to each track through the kmin/kmax variables
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
@@ -60,10 +60,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         tracks[itrack].kmax() = (int) std::min((maxVerticesPerBlock * blockIdx) + (int) vertices[blockIdx].nV(), (int) std::max(kmin, kmax) + 1);
       }
     } //end for
-    alpaka::syncBlockThreads(acc);
+    //alpaka::syncBlockThreads(acc);
   }
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void update(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta, double rho0, bool updateTc){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void update(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, const double _beta, double rho0, bool updateTc){
     // Main function that updates the annealing parameters on each T step, computes all partition functions and so on
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
@@ -128,10 +128,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       }
       vertices[ivertex].rho() = vertices[ivertex].rho()*vertices[ivertex].se()*osumtkwt; // This is the 'size' or 'mass' of the vertex  
     } // end vertex for
-    alpaka::syncBlockThreads(acc);
+    //alpaka::syncBlockThreads(acc);
   } //end update
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void merge(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void merge(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double _beta){
     // If two vertex are too close together, merge them
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
@@ -207,15 +207,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         if ((tracks[itrack].kmin() > ivertexO) || ((tracks[itrack].kmax() < (tracks[itrack].kmin() + 1)) && (tracks[itrack].kmin() > maxVerticesPerBlock*blockIdx))) tracks[itrack].kmin()--;
       }
       alpaka::syncBlockThreads(acc);
-      set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
+      set_vtx_range(acc, tracks, vertices, cParams, _beta);
       return; 
     }
     alpaka::syncBlockThreads(acc);
-    set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
+    set_vtx_range(acc, tracks, vertices, cParams, _beta);
     alpaka::syncBlockThreads(acc);
   }
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void split(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta, double threshold){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void split(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, const double _beta, double threshold){
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
@@ -384,7 +384,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     alpaka::syncBlockThreads(acc);
   }
   
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void purge(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta, double rho0){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void purge(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double _beta, double rho0){
     // Remove repetitive or low quality entries
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
@@ -396,7 +396,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     double rhoconst = rho0*exp(-_beta*(cParams.dzCutOff()*cParams.dzCutOff()));
     int nprev = vertices[blockIdx].nV();
     // Reassign
-    set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
+    set_vtx_range(acc, tracks, vertices, cParams, _beta);
     for (int ivertexO = maxVerticesPerBlock * blockIdx + threadIdx; ivertexO < maxVerticesPerBlock * blockIdx + vertices[blockIdx].nV() ; ivertexO += blockSize){
       int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
       vertices[ivertex].aux1() = 0; // sum of track-vertex probabilities
@@ -447,7 +447,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     } // end if 
     alpaka::syncBlockThreads(acc);
     if (nprev != vertices[blockIdx].nV()){
-      set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
+      set_vtx_range(acc, tracks, vertices, cParams, _beta);
     }
   }
 
@@ -544,6 +544,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::atomicAdd(acc, &znew, tracks[itrack].aux2(), alpaka::hierarchy::Threads{});
     }
     alpaka::syncBlockThreads(acc);
+#if 0    
     if (once_per_block(acc)){
       _beta = 2 * znew/wnew; // 1/beta_C, or T_C
       if (_beta > cParams.TMin()){ // If T_C > T_Min we have a game to play
@@ -552,10 +553,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       }
       else _beta = cParams.coolingFactor()/cParams.TMin(); // Otherwise, just one step
     }
-    alpaka::syncBlockThreads(acc);
+#else
+    //broadcast:
+    _beta = 2 * znew/wnew; // 1/beta_C, or T_C
+    if (_beta > cParams.TMin()){ // If T_C > T_Min we have a game to play
+      int coolingsteps = 1 - int(std::log(_beta/ cParams.TMin()) / std::log(cParams.coolingFactor())); // A tricky conversion to round the number of cooling steps
+      _beta = std::pow(cParams.coolingFactor(), coolingsteps)/cParams.TMin(); // First cooling step
+    }
+    else _beta = cParams.coolingFactor()/cParams.TMin(); // Otherwise, just one step    
+#endif    
+    //alpaka::syncBlockThreads(acc);
   }
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void thermalize(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta, double delta_highT, double rho0){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void thermalize(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, const double _beta, double delta_highT, double rho0){
     // At a fixed temperature, iterate vertex position update until stable
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
@@ -575,7 +585,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     int maxIterations = 1000;
     alpaka::syncBlockThreads(acc);
     // Always start by resetting track-vertex assignment
-    set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
+    set_vtx_range(acc, tracks, vertices, cParams, _beta);
     alpaka::syncBlockThreads(acc);
     // Accumulator of variations
     double delta_sum_range = 0;
@@ -592,7 +602,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       delta_sum_range += dmax;
       alpaka::syncBlockThreads(acc);
       if (delta_sum_range > zrange_min_ && dmax > zrange_min_) {  // I.e., if a vertex moved too much we reassign
-        set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
+        set_vtx_range(acc, tracks, vertices, cParams, _beta);
 	delta_sum_range = 0.;
       }
       alpaka::syncBlockThreads(acc);
@@ -602,7 +612,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     } // end while
   } // thermalize
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void coolingWhileSplitting(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void coolingWhileSplitting(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, double& _beta){
     // Perform cooling of the deterministic annealing
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
     double betafreeze = (1./cParams.TMin()) * sqrt(cParams.coolingFactor()); // Last temperature
@@ -610,48 +620,51 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::syncBlockThreads(acc);
       int nprev = vertices[blockIdx].nV();
       alpaka::syncBlockThreads(acc);
-      merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+      merge(acc, tracks, vertices, cParams, _beta);
       alpaka::syncBlockThreads(acc);
       while (nprev !=  vertices[blockIdx].nV() ) { // If we are here, we merged before, keep merging until stable
         nprev = vertices[blockIdx].nV();
 	alpaka::syncBlockThreads(acc);
 	update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Update positions after merge
 	alpaka::syncBlockThreads(acc);
-	merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+	merge(acc, tracks, vertices, cParams, _beta);
 	alpaka::syncBlockThreads(acc);
       } // end while after merging
       split(acc, tracks, vertices, cParams, osumtkwt, _beta, 1.0); // As we are close to a critical temperature, check if we need to split and if so, do it
       alpaka::syncBlockThreads(acc);
-      if (once_per_block(acc)){ // Cool down
-	_beta = _beta/cParams.coolingFactor();
-      }
-      alpaka::syncBlockThreads(acc);
+      //if (once_per_block(acc)){ // Cool down
+        //_beta = _beta/cParams.coolingFactor();
+      //}
+      //alpaka::syncBlockThreads(acc);
+      // Cool down:
+      _beta = _beta/cParams.coolingFactor();
+      //
       thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_highT(), 0.0); // Stabilize positions after cooling
       alpaka::syncBlockThreads(acc);
-      set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta); // Reassign tracks to vertex
+      set_vtx_range(acc, tracks, vertices, cParams, _beta); // Reassign tracks to vertex
       alpaka::syncBlockThreads(acc);
       update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Last, update positions again
       alpaka::syncBlockThreads(acc);
     }
   } // end coolingWhileSplitting
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void reMergeTracks(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void reMergeTracks(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, const double _beta){
     // After the cooling, we merge any closeby vertices
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
     int nprev = vertices[blockIdx].nV();
-    merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+    merge(acc, tracks, vertices, cParams, _beta);
     while (nprev !=  vertices[blockIdx].nV() ) { // If we are here, we merged before, keep merging until stable
-      set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta); // Reassign tracks to vertex
+      set_vtx_range(acc, tracks, vertices, cParams, _beta); // Reassign tracks to vertex
       alpaka::syncBlockThreads(acc);
       update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Update before any final merge
       alpaka::syncBlockThreads(acc);
       nprev = vertices[blockIdx].nV();
-      merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+      merge(acc, tracks, vertices, cParams, _beta);
       alpaka::syncBlockThreads(acc);
     } // end while
   } // end reMergeTracks
   
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void reSplitTracks(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void reSplitTracks(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, const double _beta){
     // Last splitting at the minimal temperature which is a bit more permissive
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
     int ntry = 0; 
@@ -662,13 +675,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_highT(), 0.0);
       alpaka::syncBlockThreads(acc);
       nprev = vertices[blockIdx].nV();
-      merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+      merge(acc, tracks, vertices, cParams, _beta);
       alpaka::syncBlockThreads(acc);
       while (nprev !=  vertices[blockIdx].nV() ) {
 	nprev = vertices[blockIdx].nV();
         update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false);
 	alpaka::syncBlockThreads(acc);
-        merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+        merge(acc, tracks, vertices, cParams, _beta);
 	alpaka::syncBlockThreads(acc);
       }
       threshold *= 1.1; // Make it a bit easier to split
@@ -677,7 +690,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
   }
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void rejectOutliers(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, double& osumtkwt, double& _beta){
+  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void rejectOutliers(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, double& _beta){
     // Treat outliers, either low quality vertex, or those with very far away tracks
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
     double rho0 = 0.0; // Yes, here is where this thing is used
@@ -691,47 +704,49 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_lowT(), rho0);
     int nprev = vertices[blockIdx].nV();
     alpaka::syncBlockThreads(acc);
-    merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+    merge(acc, tracks, vertices, cParams, _beta);
     alpaka::syncBlockThreads(acc);
     while (nprev !=  vertices[blockIdx].nV()) {
-      set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta); // Reassign tracks to vertex
+      set_vtx_range(acc, tracks, vertices, cParams, _beta); // Reassign tracks to vertex
       alpaka::syncBlockThreads(acc);
       update(acc, tracks, vertices, cParams, osumtkwt, _beta, rho0, false); // At rho0 it changes the initial value of the partition function
       alpaka::syncBlockThreads(acc);
       nprev = vertices[blockIdx].nV();
-      merge(acc, tracks, vertices, cParams, osumtkwt, _beta);
+      merge(acc, tracks, vertices, cParams, _beta);
       alpaka::syncBlockThreads(acc);
     }
     while (_beta < 1./cParams.Tpurge()){ // Cool down to purge temperature
       alpaka::syncBlockThreads(acc);
-      if (once_per_block(acc)){ // Cool down
-        _beta = std::min(_beta/cParams.coolingFactor(), 1./cParams.Tpurge());
-      }
-      alpaka::syncBlockThreads(acc);
+      //if (once_per_block(acc)){ // Cool down
+        //_beta = std::min(_beta/cParams.coolingFactor(), 1./cParams.Tpurge());
+      //}
+      //alpaka::syncBlockThreads(acc);
+      _beta = std::min(_beta/cParams.coolingFactor(), 1./cParams.Tpurge());
       thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_lowT(), rho0);
     }
     alpaka::syncBlockThreads(acc);
     // And now purge
     nprev = vertices[blockIdx].nV();
-    purge(acc, tracks, vertices, cParams, osumtkwt, _beta, rho0);
+    purge(acc, tracks, vertices, cParams, _beta, rho0);
     while (nprev !=  vertices[blockIdx].nV()) {
       thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_lowT(), rho0);
       nprev = vertices[blockIdx].nV();
       alpaka::syncBlockThreads(acc);
-      purge(acc, tracks, vertices, cParams, osumtkwt, _beta, rho0);
+      purge(acc, tracks, vertices, cParams, _beta, rho0);
       alpaka::syncBlockThreads(acc);
     }
     while (_beta < 1./cParams.Tstop()){ // Cool down to stop temperature
       alpaka::syncBlockThreads(acc);
-      if (once_per_block(acc)){ // Cool down
-        _beta = std::min(_beta/cParams.coolingFactor(), 1./cParams.Tstop());
-      }
+      //if (once_per_block(acc)){ // Cool down
+        //_beta = std::min(_beta/cParams.coolingFactor(), 1./cParams.Tstop());
+      //}
+      _beta = std::min(_beta/cParams.coolingFactor(), 1./cParams.Tstop());
       alpaka::syncBlockThreads(acc);
       thermalize(acc, tracks, vertices, cParams, osumtkwt, _beta, cParams.delta_lowT(), rho0);
     }
     alpaka::syncBlockThreads(acc);
     // The last track to vertex assignment of the clusterizer!
-    set_vtx_range(acc, tracks, vertices, cParams, osumtkwt, _beta);
+    set_vtx_range(acc, tracks, vertices, cParams, _beta);
     alpaka::syncBlockThreads(acc);
   } // rejectOutliers
 
