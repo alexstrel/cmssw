@@ -25,7 +25,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   class ClusterizerAlgo {
   public:
-    ClusterizerAlgo(Queue& queue, int32_t bSize);
+    ClusterizerAlgo(Queue& queue, int32_t nBlocks);
 
     void clusterize(Queue& queue, portablevertex::TrackDeviceCollection& inputTracks, portablevertex::VertexDeviceCollection& deviceVertex, const std::shared_ptr<portablevertex::ClusterParamsHostCollection> cParams, int32_t nBlocks, int32_t blockSize); // Clusterization
  

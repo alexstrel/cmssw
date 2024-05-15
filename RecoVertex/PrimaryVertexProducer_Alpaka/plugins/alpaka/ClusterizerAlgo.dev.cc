@@ -52,11 +52,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     }
   }; // class kernel
  
-  ClusterizerAlgo::ClusterizerAlgo(Queue& queue, int32_t bSize) : 
-	  beta_(cms::alpakatools::make_device_buffer<double[]>(queue, bSize)),
-	  osumtkwt_(cms::alpakatools::make_device_buffer<double[]>(queue, bSize))  {
-    alpaka::memset(queue,  beta_, bSize);
-    alpaka::memset(queue,  osumtkwt_, bSize);
+  ClusterizerAlgo::ClusterizerAlgo(Queue& queue, int32_t nBlocks) : 
+	  beta_(cms::alpakatools::make_device_buffer<double[]>(queue, nBlocks)),
+	  osumtkwt_(cms::alpakatools::make_device_buffer<double[]>(queue, nBlocks))  {
   }  
 
   void ClusterizerAlgo::clusterize(Queue& queue, portablevertex::TrackDeviceCollection& deviceTrack, portablevertex::VertexDeviceCollection& deviceVertex, const std::shared_ptr<portablevertex::ClusterParamsHostCollection> cParams, int32_t nBlocks, int32_t blockSize){
