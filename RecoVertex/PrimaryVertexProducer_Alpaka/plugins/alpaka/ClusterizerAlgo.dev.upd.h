@@ -9,14 +9,135 @@
 
 #include "RecoVertex/PrimaryVertexProducer_Alpaka/plugins/alpaka/ClusterizerAlgo.h"
 
+//../../../../HeterogeneousCore/AlpakaInterface/interface/workdivision.h
+//../../../../HeterogeneousCore/AlpakaInterface/interface/config.h
+
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
   using namespace cms::alpakatools;
   ////////////////////// 
   // Device functions //
   //////////////////////
 
-   template <bool debug = false, typename TAcc, typename TReduced, typename TData, typename TReducer, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> 
-   ALPAKA_FN_ACC static void block_reducer(const TAcc& ac, TReduced &out, const TData &in, TReducer reducer) {
+namespace imp{
+
+    template <typename T, int n> struct array {
+      using value_type            = T;
+      static constexpr int N = n;
+      T data[n];
+
+      constexpr T &operator[](int i) { return data[i]; }
+      constexpr const T &operator[](int i) const { return data[i]; }
+      constexpr int size() const { return n; }
+
+      array() = default;
+      array(const array<T, n> &) = default;
+      array(array<T, n> &&) = default;
+
+      // Constructor to initialize all elements to a single value
+      array(const T& value) {
+        //std::fill(data, data + n, value);	      
+#pragma unroll
+        for(int i = 0; i < n; i++){ 	      
+          data[i] = value;
+	}
+      }
+
+      // Constructor to initialize from a smaller array and zero the remaining elements
+      template <int m, typename std::enable_if<(m < n), int>::type = 0>
+      array(const array<T, m>& other) {
+        //std::copy(other.data, other.data + m, data);
+        //std::fill(data + m, data + n, T{});
+#pragma unroll 
+	for(int i = 0; i < m; i++) {
+	  data[i] = other[i];	
+	}	
+#pragma unroll 
+        for(int i = m; i < n; i++) {
+          data[i] = T{};
+        }
+      }      
+
+      array<T, n> &operator=(const array<T, n> &) = default;
+      array<T, n> &operator=(array<T, n> &&) = default;
+    };
+}//end imp
+
+   template <typename TAcc, typename TReducedData, int N, int NReduced, typename TReducer, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> 
+   ALPAKA_FN_ACC static void block_reducer(const TAcc& acc, imp::array<TReducedData,N> &out, const imp::array<TReducedData,N> &in, TReducer reducer) {
+     //if constexpr (NReduced > N) return;//cannot reduce more elements then provided via array args.
+
+     constexpr int max_items = 64;
+
+     constexpr int M = (N > NReduced) ? NReduced : N;
+
+     auto& dummy(alpaka::declareSharedVar<imp::array<TReducedData, M * max_items>, __COUNTER__>(acc));
+
+     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
+     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
+     //
+     int const warpSize = alpaka::warp::getSize(acc);
+     int const warpIdx  = threadIdx / warpExtent;
+     int const laneIdx  = threadIdx % warpExtent;
+
+     int items  = std::min( blockSize / warpSize, max_items );
+     //
+     imp::array<TReducedData, M> result_arr{in};
+     //single warp reduce:
+     for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+       int const width = offset << 1;//only part of warp is used
+#pragma unroll       
+       for(int i = 0; i < M; i++){
+         result_arr[i] = reducer(result_arr[i], alpaka::warp::shfl_down(acc, result_arr[i], offset, width));
+       }
+     }
+
+     if (laneIdx == 0) {
+#pragma unroll
+       for(int i = 0; i < M; i++){	     
+         dummy[i*max_items+warpIndex] = result_arr[i];
+       }
+     }
+
+     alpaka::syncBlockThreads(acc);
+
+     if (threadIdx < items) {//we assume here that items < max_items, check it!
+#pragma unroll
+       for(int i = 0; i < M; i++) {	     
+         result_arr[i] = dummy[i*max_items + threadIdx];
+       }
+
+       for (int offset = items / 2; offset > 0; offset /= 2) {
+         const int width = offset << 1;
+#pragma unroll	 
+	 for(int i = 0; i < M; i++){
+           result_arr[i] = reducer(result_arr[i], alpaka::warp::shfl_down(acc, result_arr[i], offset, width));
+	 }
+       }
+
+       // Write the final result to output
+       if (threadIdx == 0) {
+#pragma unroll
+         for(int i = 0; i < N; i++) {	       
+           dummy[i] = result_arr[i];//just a single-thread contiguous buffer
+	 }
+       }
+     }
+     /////////////
+     alpaka::syncBlockThreads(acc);
+
+     if (laneIdx == 0) {
+#pragma unroll
+       for(int i = 0; i < N; i++) {	     
+         result_arr[i] = dummy[i];
+       }
+     }
+     //
+#pragma once
+     for(int i = 0; i < M; i++){
+       out[i] = alpaka::warp::shfl(acc, result_arr[i], warpSize);
+     }
+     //
+     alpaka::syncBlockThreads(acc);
    }
 
    template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void set_vtx_range(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double _beta){
@@ -67,7 +188,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     //alpaka::syncBlockThreads(acc);
   }
 
-  template <bool debug = false, typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void update(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, const double _beta, double rho0, bool updateTc){
+  template <bool debug = false, typename TAcc, bool updateTc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>> ALPAKA_FN_ACC static void update(const TAcc& acc, portablevertex::TrackDeviceCollection::View tracks, portablevertex::VertexDeviceCollection::View vertices, const portablevertex::ClusterParamsHostCollection::ConstView cParams, const double osumtkwt, const double _beta, double rho0){
     // Main function that updates the annealing parameters on each T step, computes all partition functions and so on
     int blockSize = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
@@ -93,10 +214,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           double w = vertices[ivertex].rho() * tracks[itrack].vert_exp()[ivertex] * sumw * tracks[itrack].oneoverdz2(); 
           tracks[itrack].vert_sw()[ivertex]  = w; // Contribution of track to vertex as weight
           tracks[itrack].vert_swz()[ivertex] = w * tracks[itrack].z(); // Weighted track position
-          if (updateTc){ 
+          if constexpr (updateTc){ 
 	    tracks[itrack].vert_swE()[ivertex] = -w * tracks[itrack].vert_exparg()[ivertex]/(_beta); // Only need it when changing the Tc (i.e. after a split), to recompute it
-	  }
-	  else{
+	  } else {
 	    tracks[itrack].vert_swE()[ivertex] = 0;
 	  }
         } //end vertex for
@@ -109,21 +229,42 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       vertices[ivertexO].sw() = 0.;
       vertices[ivertexO].swz() = 0.;
       vertices[ivertexO].aux1() = 0.;
-      if (updateTc) vertices[ivertexO].swE() = 0.;
+      if constexpr (updateTc) vertices[ivertexO].swE() = 0.;
     } // end vertex for
+    
+    // define the reduction method
+    auto reducer = [] ALPAKA_FN_ACC (double x, double y) -> double { 
+      return x + y; 
+    };
+
     for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
       for (int ivertexO = tracks[itrack].kmin(); ivertexO < tracks[itrack].kmax() ; ++ivertexO){
 	// TODO: these atomics are going to be very slow. Can we optimize?
         int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
+ 
+#ifdef DEBUG_REDUCE	
+        auto out = imp::array<double, 4>{0.0};
 
-////!!!!	
+	const auto in = imp::array<double, 4>{tracks[itrack].vert_se()[ivertex], 
+		                              tracks[itrack].vert_sw()[ivertex], 
+					      tracks[itrack].vert_swz()[ivertex], 
+					      updateTc? tracks[itrack].vert_swE()[ivertex] : 0.0 };
 
-        alpaka::atomicAdd(acc, &vertices[ivertex].se(), tracks[itrack].vert_se()[ivertex], alpaka::hierarchy::Threads{});
-        alpaka::atomicAdd(acc, &vertices[ivertex].sw(), tracks[itrack].vert_sw()[ivertex], alpaka::hierarchy::Threads{});
-        alpaka::atomicAdd(acc, &vertices[ivertex].swz(), tracks[itrack].vert_swz()[ivertex], alpaka::hierarchy::Threads{});
-        if (updateTc) alpaka::atomicAdd(acc, &vertices[ivertex].swE(), tracks[itrack].vert_swE()[ivertex], alpaka::hierarchy::Threads{});
-////!!!!	
-	
+	constexpr int ReductionN = updateTc ? 4 : 3;
+
+        block_reducer<TAcc, double, 4, ReductionN>(acc, out, in, reducer);
+        // Load reduced data to the global buffer:
+	vertices[ivertex].se() = out[0];
+	vertices[ivertex].sw() = out[1];
+        vertices[ivertex].swz()= out[2];
+
+	if constexpr (updateTc) vertices[ivertex].swE() = out[3];
+#else
+        //alpaka::atomicAdd(acc, &vertices[ivertex].se(), tracks[itrack].vert_se()[ivertex], alpaka::hierarchy::Threads{});
+        //alpaka::atomicAdd(acc, &vertices[ivertex].sw(), tracks[itrack].vert_sw()[ivertex], alpaka::hierarchy::Threads{});
+        //alpaka::atomicAdd(acc, &vertices[ivertex].swz(), tracks[itrack].vert_swz()[ivertex], alpaka::hierarchy::Threads{});
+        //if (updateTc) alpaka::atomicAdd(acc, &vertices[ivertex].swE(), tracks[itrack].vert_swE()[ivertex], alpaka::hierarchy::Threads{});
+#endif		
       } // end for
     }
     alpaka::syncBlockThreads(acc);
@@ -229,7 +370,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     int threadIdx = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0u]; // Thread number inside block
     int blockIdx  = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[0u]; // Block number inside grid
     int maxVerticesPerBlock = (int) 512/blockSize; // Max vertices size is 512 over number of blocks in grid
-    update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Update positions after merge
+    update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0); // Update positions after merge
     alpaka::syncBlockThreads(acc);
     double epsilon = 1e-3;
     int nprev = vertices[blockIdx].nV();
@@ -245,12 +386,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     auto& critical_index = alpaka::declareSharedVar<float[128], __COUNTER__>(acc);
     int& ncritical = alpaka::declareSharedVar<int, __COUNTER__>(acc);
     // Information for the vertex splitting properties
+#ifndef DEBUG_REDUCE
     double& p1 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
     double& p2 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
     double& z1 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
     double& z2 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
     double& w1 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
     double& w2 = alpaka::declareSharedVar<double, __COUNTER__>(acc);
+#else
+    auto pzw = imp::array<double, 6>{0.0};
+    double& p1 = pzw[0];
+    double& p2 = pzw[1];
+    double& z1 = pzw[2];
+    double& z2 = pzw[3];
+    double& w1 = pzw[4];
+    double& w2 = pzw[5];    
+#endif    
 
     if (once_per_block(acc)){
       ncritical = 0;
@@ -284,6 +435,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       // A little bit of safety here. First is needed to avoid reading the -1 entry of vertices->order. Second is not as far as we don't go over 511 vertices, but better keep it just in case
       if (ivertexO > blockIdx * maxVerticesPerBlock) ivertexprev = vertices[ivertexO-1].order();  // This will be used in a couple of computations
       if (ivertexO < blockIdx * maxVerticesPerBlock + nprev -1) ivertexnext = vertices[ivertexO+1].order();  // This will be used in a couple of computations
+#ifdef DEBUG_REDUCE      
       if (once_per_block(acc)){
         p1 = 0.;
 	p2 = 0.;
@@ -293,34 +445,43 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	w2 = 0.;
       }
       alpaka::syncBlockThreads(acc);
+#else
+      auto reducer = [] ALPAKA_FN_ACC (double x, double y) -> double {
+        return x + y;
+      };      
+#endif      
       for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
-        if (tracks[itrack].sum_Z() > 1.e-100) {
-          // winner-takes-all, usually overestimates splitting
-          double tl = tracks[itrack].z() < vertices[ivertex].z() ? 1. : 0.;
-          double tr = 1. - tl;
-          // soften it, especially at low T
-          double arg = (tracks[itrack].z() - vertices[ivertex].z()) * sqrt((_beta) * tracks[itrack].oneoverdz2());
-          if (abs(arg) < 20) {
-            double t = exp(-arg);
-            tl = t / (t + 1.);
-            tr = 1 / (t + 1.);
-          }
-	  // Recompute split vertex quantities
-          double p = vertices[ivertex].rho() * tracks[itrack].weight() * exp(-(_beta) * (tracks[itrack].z()-vertices[ivertex].z())*(tracks[itrack].z()-vertices[ivertex].z())* tracks[itrack].oneoverdz2())/ tracks[itrack].sum_Z();
-          double w = p * tracks[itrack].oneoverdz2();
-
-///!!!!
-
-	  alpaka::atomicAdd(acc, &p1, p*tl, alpaka::hierarchy::Threads{});
-	  alpaka::atomicAdd(acc, &p2, p*tr, alpaka::hierarchy::Threads{});
-	  alpaka::atomicAdd(acc, &z1, w*tl*tracks[itrack].z(), alpaka::hierarchy::Threads{});
-	  alpaka::atomicAdd(acc, &z2, p*tr*tracks[itrack].z(), alpaka::hierarchy::Threads{});
-	  alpaka::atomicAdd(acc, &w1, w*tl, alpaka::hierarchy::Threads{});
-	  alpaka::atomicAdd(acc, &w2, w*tr, alpaka::hierarchy::Threads{});
-
-///!!!!	  
+        if (tracks[itrack].sum_Z() < 1.e-100) continue; 
+	
+        // winner-takes-all, usually overestimates splitting
+        double tl = tracks[itrack].z() < vertices[ivertex].z() ? 1. : 0.;
+        double tr = 1. - tl;
+        // soften it, especially at low T
+        double arg = (tracks[itrack].z() - vertices[ivertex].z()) * sqrt((_beta) * tracks[itrack].oneoverdz2());
+        if (abs(arg) < 20) {
+          double t = exp(-arg);
+          tl = t / (t + 1.);
+          tr = 1 / (t + 1.);
         }
+	// Recompute split vertex quantities
+        double p = vertices[ivertex].rho() * tracks[itrack].weight() * exp(-(_beta) * (tracks[itrack].z()-vertices[ivertex].z())*(tracks[itrack].z()-vertices[ivertex].z())* tracks[itrack].oneoverdz2())/ tracks[itrack].sum_Z();
+        double w = p * tracks[itrack].oneoverdz2();
+
+#ifdef DEBUG_REDUCE
+	const auto in = imp::array<double, 6>{p*tl, p*tr, w*tl*tracks[itrack].z(), p*tr*tracks[itrack].z(), w*tl, w*tr};
+
+	block_reducer<TAcc, double, 6, 6>(acc, pzw, in, reducer);
+#else	  
+	alpaka::atomicAdd(acc, &p1, p*tl, alpaka::hierarchy::Threads{});
+	alpaka::atomicAdd(acc, &p2, p*tr, alpaka::hierarchy::Threads{});
+	alpaka::atomicAdd(acc, &z1, w*tl*tracks[itrack].z(), alpaka::hierarchy::Threads{});
+	alpaka::atomicAdd(acc, &z2, p*tr*tracks[itrack].z(), alpaka::hierarchy::Threads{});
+	alpaka::atomicAdd(acc, &w1, w*tl, alpaka::hierarchy::Threads{});
+	alpaka::atomicAdd(acc, &w2, w*tr, alpaka::hierarchy::Threads{});
+#endif	  
+       
       }
+#ifndef DEBUG_REDUCE      
       alpaka::syncBlockThreads(acc);
       if (once_per_block(acc)){
 	// If one vertex is taking all the things, then set the others slightly off to help splitting
@@ -344,10 +505,49 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           z2 = 0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexnext].z();
         }
       } // end once_per_block
+#else
+      // If one vertex is taking all the things, then set the others slightly off to help splitting
+/*
+      if (pzw[4] > 0){
+        pzw[2] /= pzw[4];
+      }else{
+        pzw[2] = vertices[ivertex].z() - epsilon;
+      }
+      if (pzw[5] > 0) {
+        pzw[3] /= pzw[5];
+      } else {
+        pzw[3] = vertices[ivertex].z() + epsilon;
+      }
+      // If there is not enough room, reduce split size
+      if ((ivertexO > maxVerticesPerBlock*blockIdx) && (pzw[2] < (0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexprev].z()))) { // First in the if is ivertexO, as we care on whether the vertex is the leftmost or rightmost
+        pzw[2] = 0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexprev].z();
+      }
+      if ((ivertexO < maxVerticesPerBlock* blockIdx +  nprev - 1) && (pzw[3] > (0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexnext].z()))) {
+        pzw[3] = 0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexnext].z();
+      }
+*/      
+      if (w1 > 0){
+        z1 = z1/w1;
+      } else {
+        z1 = vertices[ivertex].z() - epsilon;
+      }
+      if (w2 > 0){
+        z2 = z2/w2;
+      } else {
+          z2 = vertices[ivertex].z() + epsilon;
+      }
+      // If there is not enough room, reduce split size
+      if ((ivertexO > maxVerticesPerBlock*blockIdx) && (z1 < (0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexprev].z()))) { // First in the if is ivertexO, as we care on whether the vertex is the leftmost or rightmost
+        z1 = 0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexprev].z();
+      }
+      if ((ivertexO < maxVerticesPerBlock* blockIdx +  nprev - 1) && (z2 > (0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexnext].z()))) {
+        z2 = 0.6 * vertices[ivertex].z() + 0.4 * vertices[ivertexnext].z();
+      }
+#endif      
       // Now save the properties of the new stuff
       alpaka::syncBlockThreads(acc);
       int nnew = 999999;
-      if (abs(z2-z2) > epsilon){ 
+      if (abs(z2-z2) > epsilon){
         // Find the first empty index to save the vertex
         for (int icheck = maxVerticesPerBlock * blockIdx ; icheck < maxVerticesPerBlock * (blockIdx + 1); icheck ++ ){
           if (not(vertices[icheck].isGood())){
@@ -357,6 +557,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         }
         if (nnew == 999999) break;
       }
+#ifdef DEBUG_REDUCE      
       if (once_per_block(acc)){
         double pk1 = p1 * vertices[ivertex].rho() / (p1 + p2);
         double pk2 = p2 * vertices[ivertex].rho() / (p1 + p2);
@@ -381,6 +582,29 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	vertices[blockIdx].nV() += 1;
       }
       alpaka::syncBlockThreads(acc);
+#else
+      double pk1 = p1 * vertices[ivertex].rho() / (p1 + p2);
+      double pk2 = p2 * vertices[ivertex].rho() / (p1 + p2);
+      vertices[ivertex].z() = z2;
+      vertices[ivertex].rho() = pk2;
+      // Insert it into the first available slot           
+      vertices[nnew].z()     = z1;
+      vertices[nnew].rho()   = pk1;
+      // And register it as used
+      vertices[nnew].isGood()= true;
+      // TODO:: this is likely not needed as far as it is reset anytime we call update
+      vertices[nnew].sw()     = 0.;
+      vertices[nnew].se()     = 0.;
+      vertices[nnew].swz()    = 0.;
+      vertices[nnew].swE()    = 0.;
+      vertices[nnew].exp()    = 0.;
+      vertices[nnew].exparg() = 0.;
+      for (int ivnew = maxVerticesPerBlock * blockIdx +  nprev ; ivnew > ivertexO ; ivnew--){ // As we add a vertex, we update from the back downwards
+        vertices[ivnew].order() = vertices[ivnew-1].order();
+      }
+      vertices[ivertexO].order() = nnew;
+      vertices[blockIdx].nV() += 1;
+#endif      
       // Now, update kmin/kmax for all tracks
       for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
         if (tracks[itrack].kmin() > ivertexO) tracks[itrack].kmin()++;
@@ -417,6 +641,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       vertices[ivertex].aux2() = 0; // number of uniquely assigned tracks
     }
     alpaka::syncBlockThreads(acc);
+#ifdef DEBUG_REDUCE
+    auto reducer = [] ALPAKA_FN_ACC (double x, double y) -> double {
+      return x + y;
+    };    
+#endif
     // Get quality of vertex in terms of #Tracks and sum of track probabilities
     for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){
       double track_aux1 = ((tracks[itrack].sum_Z() > eps) && (tracks[itrack].weight() > cParams.uniquetrkminp())) ? 1./tracks[itrack].sum_Z() : 0.;
@@ -424,13 +653,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         int ivertex = vertices[ivertexO].order(); // Remember to always take ordering from here when dealing with vertices
 	double ppcut = cParams.uniquetrkweight() * vertices[ivertex].rho() / (vertices[ivertex].rho()+rhoconst);
 	double track_vertex_aux1 = exp(-(_beta)*tracks[itrack].oneoverdz2() * ( (tracks[itrack].z()-vertices[ivertex].z())*(tracks[itrack].z()-vertices[ivertex].z()) ));
-        float p = vertices[ivertex].rho()*track_vertex_aux1*track_aux1; // The whole track-vertex P_ij = rho_j*p_ij*p_i
-///!!!!	
+#ifndef DEBUG_REDUCE
+	float p = vertices[ivertex].rho()*track_vertex_aux1*track_aux1; // The whole track-vertex P_ij = rho_j*p_ij*p_i
+	
         alpaka::atomicAdd(acc, &vertices[ivertex].aux1(), p, alpaka::hierarchy::Threads{});
         if (p>ppcut) {
           alpaka::atomicAdd(acc, &vertices[ivertex].aux2(), 1.f, alpaka::hierarchy::Threads{});
         }
-///!!!!	
+#else
+	auto  out = imp::array<float, 1>{0.f};
+        const auto p = imp::array<float, 1>{ vertices[ivertex].rho()*track_vertex_aux1*track_aux1 }; // The whole track-vertex P_ij = rho_j*p_ij*p_i
+        block_reducer<TAcc, float, 1, 1>(acc, out, p, reducer);
+	vertices[ivertex].aux1() = out[0];
+        if (p>ppcut) {
+          vertices[ivertex].aux2() =  1.f * blockSize;
+        }	
+#endif	
       }
     }
     alpaka::syncBlockThreads(acc);
@@ -536,6 +774,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       tracks[itrack].aux2() = tracks[itrack].weight()*tracks[itrack].oneoverdz2()*tracks[itrack].z(); // Weighted position
     }
     // Initial vertex position
+#ifndef DEBUG_REDUCE
     alpaka::syncBlockThreads(acc);
     float& wnew = alpaka::declareSharedVar<float, __COUNTER__>(acc);
     float& znew = alpaka::declareSharedVar<float, __COUNTER__>(acc);
@@ -544,14 +783,24 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       znew = 0.;
     }
     alpaka::syncBlockThreads(acc);
+#else
+    auto wnewznew = imp::array<float, 2>{0.f}
+    float &wnew = wnewznew[0];
+    float &znew = wnewznew[1];
+
+    auto reducer = [] ALPAKA_FN_ACC (float x, float y) -> float {
+      return x + y;
+    };    
+#endif    
     for (int itrack = threadIdx+blockIdx*blockSize; itrack < threadIdx+(blockIdx+1)*blockSize ; itrack += blockSize){ // TODO:Saving and reading in the tracks dataformat might be a bit too much?
 
-///!!!
-
+#ifndef DEBUG_REDUCE
+      const auto in = imp::array<float, 2>{tracks[itrack].aux1(), tracks[itrack].aux2()};
+      block_reducer<TAcc, float, 2, 2>(acc, wnewznew, in, reducer);
+#else	    
       alpaka::atomicAdd(acc, &wnew, tracks[itrack].aux1(), alpaka::hierarchy::Threads{});
       alpaka::atomicAdd(acc, &znew, tracks[itrack].aux2(), alpaka::hierarchy::Threads{});
-
-///!!!      
+#endif      
     }
     alpaka::syncBlockThreads(acc);
     if (once_per_block(acc)){
@@ -617,7 +866,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     double delta_sum_range = 0;
     while (niter++ < maxIterations){ // Loop until vertex position change is small
       // One iteration of new vertex positions
-      update(acc, tracks, vertices, cParams, osumtkwt, _beta, rho0, false);
+      update(acc, tracks, vertices, cParams, osumtkwt, _beta, rho0);
       alpaka::syncBlockThreads(acc);
       // One iteration of max variation
       double dmax = 0.;
@@ -651,7 +900,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       while (nprev !=  vertices[blockIdx].nV() ) { // If we are here, we merged before, keep merging until stable
         nprev = vertices[blockIdx].nV();
 	alpaka::syncBlockThreads(acc);
-	update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Update positions after merge
+	update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0); // Update positions after merge
 	alpaka::syncBlockThreads(acc);
 	merge(acc, tracks, vertices, cParams, _beta);
 	alpaka::syncBlockThreads(acc);
@@ -669,7 +918,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::syncBlockThreads(acc);
       set_vtx_range(acc, tracks, vertices, cParams, _beta); // Reassign tracks to vertex
       alpaka::syncBlockThreads(acc);
-      update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Last, update positions again
+      update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0); // Last, update positions again
       alpaka::syncBlockThreads(acc);
     }
   } // end coolingWhileSplitting
@@ -682,7 +931,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     while (nprev !=  vertices[blockIdx].nV() ) { // If we are here, we merged before, keep merging until stable
       set_vtx_range(acc, tracks, vertices, cParams, _beta); // Reassign tracks to vertex
       alpaka::syncBlockThreads(acc);
-      update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false); // Update before any final merge
+      update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0); // Update before any final merge
       alpaka::syncBlockThreads(acc);
       nprev = vertices[blockIdx].nV();
       merge(acc, tracks, vertices, cParams, _beta);
@@ -705,7 +954,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       alpaka::syncBlockThreads(acc);
       while (nprev !=  vertices[blockIdx].nV() ) {
 	nprev = vertices[blockIdx].nV();
-        update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0, false);
+        update(acc, tracks, vertices, cParams, osumtkwt, _beta, 0.0);
 	alpaka::syncBlockThreads(acc);
         merge(acc, tracks, vertices, cParams, _beta);
 	alpaka::syncBlockThreads(acc);
@@ -723,7 +972,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     if (cParams.dzCutOff() > 0){
       rho0 = vertices[blockIdx].nV() > 1 ? 1./vertices[blockIdx].nV() : 1.;
       for (int rhoindex = 0; rhoindex < 5 ; rhoindex++){ //Can't be parallelized in any reasonable way
-        update(acc, tracks, vertices, cParams, osumtkwt, _beta, rhoindex*rho0/5., false);
+        update(acc, tracks, vertices, cParams, osumtkwt, _beta, rhoindex*rho0/5.);
         alpaka::syncBlockThreads(acc);
       }
     } // end if
@@ -735,7 +984,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     while (nprev !=  vertices[blockIdx].nV()) {
       set_vtx_range(acc, tracks, vertices, cParams, _beta); // Reassign tracks to vertex
       alpaka::syncBlockThreads(acc);
-      update(acc, tracks, vertices, cParams, osumtkwt, _beta, rho0, false); // At rho0 it changes the initial value of the partition function
+      update(acc, tracks, vertices, cParams, osumtkwt, _beta, rho0); // At rho0 it changes the initial value of the partition function
       alpaka::syncBlockThreads(acc);
       nprev = vertices[blockIdx].nV();
       merge(acc, tracks, vertices, cParams, _beta);
