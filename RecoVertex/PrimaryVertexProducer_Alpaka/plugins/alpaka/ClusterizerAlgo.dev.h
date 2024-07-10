@@ -86,14 +86,6 @@ namespace imp{
       array<T, n> &operator=(array<T, n> &&) = default;
     };
 
-    inline auto sumd = [] ALPAKA_FN_ACC (double x, double y) -> double {
-      return x+y; 	    
-    };
-
-    inline auto sumf = [] ALPAKA_FN_ACC (float x, float y)   -> float  {
-      return x+y;
-    };
-
     /**
       plus reducer, used for conventional sum reductions
     */
