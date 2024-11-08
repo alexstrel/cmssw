@@ -131,7 +131,7 @@ int main() {
     using QueueAcc      = alpaka::Queue<Acc, QueueProperty>;
     //
     using reducer_t     = cms::alpakatools::reduce::plus<reduce_t>;
-    using transformer_t = cms::alpakatools::reduce::axpy<DataType>;     
+    using transformer_t = cms::alpakatools::blas::axpy<DataType>;     
 
     // Define the 2D extent (dimensions : e.g., phys volume x internal dof)
     Vec2D const extent(static_cast<Idx>(N), static_cast<Idx>(DoF));    

@@ -13,7 +13,7 @@ namespace reduce {
 
   template <> struct atomic_type<int> {
     using type = int;
-  }  
+  };  
 
   template <> struct atomic_type<float> {
     using type = float;
