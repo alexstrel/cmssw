@@ -9,15 +9,21 @@
 
 #include <alpaka/alpaka.hpp>
 
+#include "FWCore/Utilities/interface/CMSUnrollLoop.h"
+
 namespace cms::alpakatools {
 
-  template <class T, int maxSize>
+  template <class T, std::int32_t maxSize>
   class VecArray {
   public:
     using self = VecArray<T, maxSize>;
     using value_t = T;
 
-    inline constexpr int push_back_unsafe(const T &element) {
+    // same notations as std::vector/array
+    using value_type = T;
+    static constexpr std::int32_t N = maxSize;
+
+    inline constexpr std::int32_t push_back_unsafe(const T &element) {
       auto previousSize = m_size;
       m_size++;
       if (previousSize < maxSize) {
@@ -30,7 +36,7 @@ namespace cms::alpakatools {
     }
 
     template <class... Ts>
-    constexpr int emplace_back_unsafe(Ts &&...args) {
+    constexpr std::int32_t emplace_back_unsafe(Ts &&...args) {
       auto previousSize = m_size;
       m_size++;
       if (previousSize < maxSize) {
@@ -58,7 +64,7 @@ namespace cms::alpakatools {
 
     // thread-safe version of the vector, when used in a kernel
     template <typename TAcc>
-    ALPAKA_FN_ACC int push_back(const TAcc &acc, const T &element) {
+    ALPAKA_FN_ACC std::int32_t push_back(const TAcc &acc, const T &element) {
       auto previousSize = alpaka::atomicAdd(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       if (previousSize < maxSize) {
         m_data[previousSize] = element;
@@ -70,7 +76,7 @@ namespace cms::alpakatools {
     }
 
     template <typename TAcc, class... Ts>
-    ALPAKA_FN_ACC int emplace_back(const TAcc &acc, Ts &&...args) {
+    ALPAKA_FN_ACC std::int32_t emplace_back(const TAcc &acc, Ts &&...args) {
       auto previousSize = alpaka::atomicAdd(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       if (previousSize < maxSize) {
         (new (&m_data[previousSize]) T(std::forward<Ts>(args)...));
@@ -89,25 +95,48 @@ namespace cms::alpakatools {
         return T();
     }
 
-    inline constexpr T const *begin() const { return m_data; }
-    inline constexpr T const *end() const { return m_data + m_size; }
-    inline constexpr T *begin() { return m_data; }
-    inline constexpr T *end() { return m_data + m_size; }
-    inline constexpr int size() const { return m_size; }
-    inline constexpr T &operator[](int i) { return m_data[i]; }
-    inline constexpr const T &operator[](int i) const { return m_data[i]; }
-    inline constexpr void reset() { m_size = 0; }
-    inline static constexpr int capacity() { return maxSize; }
-    inline constexpr T const *data() const { return m_data; }
-    inline constexpr void resize(int size) { m_size = size; }
-    inline constexpr bool empty() const { return 0 == m_size; }
-    inline constexpr bool full() const { return maxSize == m_size; }
+    VecArray()                             = default;
+    VecArray(const VecArray<T, maxSize> &) = default;
+    VecArray(VecArray<T, maxSize> &&)      = default;
+
+    ALPAKA_FN_ACC VecArray(const T& value) {
+      CMS_UNROLL_LOOP
+      for(std::int32_t i = 0; i < maxSize; i++){
+        m_data[i] = value;
+      }
+    }
+
+    VecArray<T, maxSize> &operator=(const VecArray<T, maxSize> &) = default;
+    VecArray<T, maxSize> &operator=(VecArray<T, maxSize> &&)      = default;    
+
+    inline constexpr T const *begin()            const { return m_data;          }
+    inline constexpr T const *end()              const { return m_data + m_size; }
+    inline constexpr T *begin()                        { return m_data;          }
+    inline constexpr T *end()                          { return m_data + m_size; }
+    inline constexpr std::int32_t size()         const { return m_size;          }
+    inline constexpr T &operator[](std::int32_t i)              { return m_data[i];       }
+    inline constexpr const T &operator[](std::int32_t i)  const { return m_data[i];       }
+    inline constexpr void reset()                      { m_size = 0;             }
+    inline static constexpr std::int32_t capacity()             { return maxSize;         }
+    inline constexpr T const *data()             const { return m_data;          }
+    inline constexpr void resize(std::int32_t size)             { m_size = size;          }
+    inline constexpr bool empty()                const { return 0 == m_size;     }
+    inline constexpr bool full()                 const { return maxSize == m_size; }
 
   private:
     T m_data[maxSize];
 
-    int m_size;
+    std::int32_t m_size;
   };
+
+  template<typename T>
+  struct is_vector_array : std::false_type {};
+
+  template<typename T, std::int32_t  N>
+  struct is_vector_array<cms::alpakatools::VecArray<T, N>> : std::true_type {};
+
+  template<typename T>
+  inline constexpr bool is_vector_array_v = is_vector_array<T>::value;
 
 }  // namespace cms::alpakatools
 
