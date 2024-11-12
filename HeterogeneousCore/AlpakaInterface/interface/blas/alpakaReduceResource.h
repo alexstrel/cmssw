@@ -1,6 +1,7 @@
 #ifndef HeterogeneousCore_AlpakaInterface_interface_blas alpakaReduceResource_h
 #define HeterogeneousCore_AlpakaInterface_interface_blas_alpakaReduceResource_h
 
+#include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
 
 namespace cms::alpakatools {
 namespace reduce {
@@ -23,11 +24,11 @@ namespace reduce {
     using type = double;
   };
 
-  template <typename T> struct atomic_type<T, std::enable_if_t<std::is_same_v<T, alpaka::reduce::array<double, T::N>>>> {
+  template <typename T> struct atomic_type<T, std::enable_if_t<std::is_same_v<T, cms::alpakatools::VecArray<double, T::N>>>> {
     using type = double;
   };
 
-  template <typename T> struct atomic_type<T, std::enable_if_t<std::is_same_v<T, alpaka::reduce::array<float, T::N>>>> {
+  template <typename T> struct atomic_type<T, std::enable_if_t<std::is_same_v<T, cms::alpakatools::VecArray<float, T::N>>>> {
     using type = float;
   };
 

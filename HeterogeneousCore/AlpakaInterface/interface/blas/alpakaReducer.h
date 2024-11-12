@@ -6,7 +6,7 @@ namespace reduce {
 
   template <typename T> constexpr std::enable_if_t<std::is_arithmetic_v<T>, T> zero() { return static_cast<T>(0); }
 
-  template <typename T, typename U> constexpr std::enable_if_t<std::is_arithmetic_v<T> and std::is_arithmetic_v<U>, T> set(U x)
+  template <typename T, typename U> constexpr std::enable_if_t<std::is_arithmetic_v<T> and std::is_arithmetic_v<U>, T> set(U x) { return static_cast<T>(x); }
 
   /**
       plus reducer, used for conventional sum reductions
