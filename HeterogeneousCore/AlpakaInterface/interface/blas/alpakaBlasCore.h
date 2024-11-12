@@ -81,7 +81,7 @@ namespace blas{
 	cms::alpakatools::VecArray<T*, nSrc> result;
 
         for (int i = 0; i < nSrc; ++i) {
-            result[i] = vec[i].data();
+            result[i] = const_cast<T*> (vec[i].data());//vec[i].data();
         }
         return result;
       }
@@ -202,21 +202,21 @@ namespace blas{
 	  using w_type = std::remove_cvref_t<decltype(args.w)>;
           using z_type = std::remove_cvref_t<decltype(args.z)>;
 
-	  static_assert((    alpaka::reduce::is_reduce_array_v<x_type> 
-		         and alpaka::reduce::is_reduce_array_v<y_type>
-		         and alpaka::reduce::is_reduce_array_v<w_type>
-		         and alpaka::reduce::is_reduce_array_v<z_type>),
+	  static_assert((    cms::alpakatools::is_vector_array_v<x_type> 
+		         and cms::alpakatools::is_vector_array_v<y_type>
+		         and cms::alpakatools::is_vector_array_v<w_type>
+		         and cms::alpakatools::is_vector_array_v<z_type>),
                   "All arguments must be of type alpaka::reduce::array<T, N>.");	
-          result = f.template transform<TAcc, typename Args::CMdSpan, typename Args::MdSpan>(acc, args.x, args.y, args.w, args.z, i, 0, batch_idx);       
+          result = f.template transform<TAcc, typename Args::Txz, typename Args::Tyw>(acc, args.x, args.y, args.w, args.z, i, 0, batch_idx);       
         } else {
-          static_assert((alpaka::reduce::is_reduce_array_v<T> && ...),
+          static_assert((cms::alpakatools::is_vector_array_v<T> && ...),
                   "All arguments must be of type alpaka::reduce::array<T, N>.");
-          result = f.template transform<TAcc, typename Args::CMdSpan, typename Args::MdSpan>(acc, external_args..., i, 0, batch_idx); 
+          result = f.template transform<TAcc, typename Args::Txz, typename Args::Tyw>(acc, external_args..., i, 0, batch_idx); 
         }
       	
-        result = block_reducer.template apply<TAcc, TransformReducer_t, use_cg_reduce, use_cg_reducer>(acc, batch_idx, result, f, true);    	
+        result = block_reducer.template apply<TAcc, TransformReducer_t>(acc, batch_idx, result, f, true);    	
 
-        auto& isLastBlockDone = alpaka::declareSharedVar<alpaka::reduce::array<bool, Args::nSrc>, __COUNTER__>(acc);
+        auto& isLastBlockDone = alpaka::declareSharedVar<cms::alpakatools::VecArray<bool, Args::nSrc>, __COUNTER__>(acc);
         
 	using count_t = typename Args::count_t;
 
@@ -247,7 +247,7 @@ namespace blas{
             ii    += blockDim_x * blockDim_y;//alpaka::block_size<2>();                              
           }//ok	  
           //
-          result = block_reducer.template apply<TAcc, TransformReducer_t, use_cg_reduce, use_cg_reducer>(acc, batch_idx, result, f, true);
+          result = block_reducer.template apply<TAcc, TransformReducer_t>(acc, batch_idx, result, f, true);
           
           if( threadIdx_x == 0 and threadIdx_y == 0) {         
             d_result[batch_idx] = result;

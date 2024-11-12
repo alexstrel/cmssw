@@ -267,7 +267,7 @@ int main() {
     
     alpaka::wait(computeQueue);
     
-    auto host_values = msrc_axpyDot_functor.host_reduced_values();
+    auto host_values = msrc_axpyNorm_functor.host_reduced_values();
     
     //  Print results
     auto yy = yView.data();
