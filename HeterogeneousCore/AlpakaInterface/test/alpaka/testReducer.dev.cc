@@ -193,17 +193,14 @@ int main() {
       //
       alpaka::memcpy(computeQueue, yAcc[i], yView);
       //
-      auto yy = yView.data();
-      auto xx = xView.data();    
-    
       double gres = 0.0;
     
       auto axpy = transformer_t();
       auto r    = reducer_t();
 
       for(size_t j{0}; j < N; ++j) {
-        yy[j] = axpy(a, xx[j], yy[j]);
-        auto const t = yy[j]*yy[j];           
+        yView[j] = axpy(a, xView[j], yView[j]);
+        auto const t = yView[j]*yView[j];           
         gres = r(gres, t);  
       }
    
@@ -269,16 +266,12 @@ int main() {
     
     auto host_values = msrc_axpyNorm_functor.host_reduced_values();
     
-    //  Print results
-    auto yy = yView.data();
-    auto xx = xView.data();    
-    
     double gres = 0.0;
     
     auto r  = reducer_t();
 
     for(size_t j{0}; j < N; ++j) { //dof 
-      auto const t = yy[j] * yy[j]; 
+      auto const t = yView[j] * yView[j]; 
       gres = r(t, gres);  
     }
    
@@ -291,11 +284,10 @@ int main() {
       alpaka::memcpy(computeQueue, yView, yAcc[i]);
       alpaka::wait(computeQueue);
       //
-      auto yy = yView.data();
       double gnrm = 0.0;
 
       for(size_t j{0}; j < N; ++j) { //dof
-        gnrm += (yy[j] * yy[j]);
+        gnrm += (yView[j] * yView[j]);
       }
    
       std::cout << "NORM on the host :: " << std::setprecision(16)
