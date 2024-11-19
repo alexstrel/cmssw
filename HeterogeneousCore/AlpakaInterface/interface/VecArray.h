@@ -109,19 +109,19 @@ namespace cms::alpakatools {
     VecArray<T, maxSize> &operator=(const VecArray<T, maxSize> &) = default;
     VecArray<T, maxSize> &operator=(VecArray<T, maxSize> &&)      = default;    
 
-    inline constexpr T const *begin()            const { return m_data;          }
-    inline constexpr T const *end()              const { return m_data + m_size; }
-    inline constexpr T *begin()                        { return m_data;          }
-    inline constexpr T *end()                          { return m_data + m_size; }
-    inline constexpr std::int32_t size()         const { return m_size;          }
-    inline constexpr T &operator[](std::int32_t i)              { return m_data[i];       }
-    inline constexpr const T &operator[](std::int32_t i)  const { return m_data[i];       }
-    inline constexpr void reset()                      { m_size = 0;             }
-    inline static constexpr std::int32_t capacity()             { return maxSize;         }
-    inline constexpr T const *data()             const { return m_data;          }
-    inline constexpr void resize(std::int32_t size)             { m_size = size;          }
-    inline constexpr bool empty()                const { return 0 == m_size;     }
-    inline constexpr bool full()                 const { return maxSize == m_size; }
+    inline constexpr T const *begin()                     const { return m_data;            }
+    inline constexpr T const *end()                       const { return m_data + m_size;   }
+    inline constexpr T *begin()                                 { return m_data;            }
+    inline constexpr T *end()                                   { return m_data + m_size;   }
+    inline constexpr std::int32_t size()                  const { return m_size;            }
+    inline constexpr T &operator[](std::int32_t i)              { return m_data[i];         }
+    inline constexpr const T &operator[](std::int32_t i)  const { return m_data[i];         }
+    inline constexpr void reset()                               { m_size = 0;               }
+    inline static constexpr std::int32_t capacity()             { return maxSize;           }
+    inline constexpr T const *data()                      const { return m_data;            }
+    inline constexpr void resize(std::int32_t size)             { m_size = size;            }
+    inline constexpr bool empty()                         const { return 0 == m_size;       }
+    inline constexpr bool full()                          const { return maxSize == m_size; }
 
   private:
     T m_data[maxSize];
