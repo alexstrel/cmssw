@@ -54,7 +54,7 @@ namespace cms::alpakatools{
 	  cms::alpakatools::VecArray<T*, nSrc> result;
 
           for (int i = 0; i < nSrc; ++i) {
-            result[i] = const_cast<T*> (vec[i].data());//vec[i].data();
+            result[i] = const_cast<T*> (vec[i].data());
           }
           return result;
         }
@@ -179,11 +179,11 @@ namespace cms::alpakatools{
 		           and cms::alpakatools::is_vector_array_v<y_type>
 		           and cms::alpakatools::is_vector_array_v<w_type>
 		           and cms::alpakatools::is_vector_array_v<z_type>),
-                  "All arguments must be of type alpaka::reduce::array<T, N>.");	
+                  "All arguments must be of type cms::alpakatools::VecArray<T, N>.");	
             result = f.template transform<TAcc, typename Args::Txz, typename Args::Tyw>(acc, args.x, args.y, args.w, args.z, i, 0, batch_idx);       
           } else {
             static_assert((cms::alpakatools::is_vector_array_v<T> && ...),
-                  "All arguments must be of type alpaka::reduce::array<T, N>.");
+                  "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
             result = f.template transform<TAcc, typename Args::Txz, typename Args::Tyw>(acc, external_args..., i, 0, batch_idx); 
           }
       	
@@ -210,15 +210,15 @@ namespace cms::alpakatools{
           alpaka::syncBlockThreads(acc);           
 
           if ( isLastBlockDone[batch_idx] ) {
-	    auto ii = threadIdx_y * blockDim_x + threadIdx_x;//2d index
+	    auto ii = threadIdx_y * blockDim_x + threadIdx_x;
 	  
             result = f.init();
           
             while (ii < gridDim_x) {
               result = f.template reduce<TAcc>(acc, result, d_partial[batch_idx * gridDim_x + ii]);
             
-              ii    += blockDim_x * blockDim_y;//alpaka::block_size<2>();                              
-            }//ok	  
+              ii    += blockDim_x * blockDim_y;                             
+            }	  
             //
             result = block_reducer.template apply<TAcc, TransformReducer_t>(acc, batch_idx, result, f, true);
           

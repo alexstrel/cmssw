@@ -35,8 +35,13 @@ namespace cms::alpakatools{
     class WarpReduceKernel
     {
       public:
-
-        static constexpr std::int32_t default_warp_size = 32;//this has to be alpaka::warp::getSize(acc)
+#ifdef (__CUDA_ARCH__)
+        static constexpr std::int32_t default_warp_size = 32;//has to be alpaka::warp::getSize(acc)
+#elif defined(__HIP_DEVICE_COMPILE__)
+	static constexpr std::int32_t default_warp_size = 64;
+#else	
+	static constexpr std::int32_t default_warp_size = 1;
+#endif
 
         WarpReduceKernel() = default;
 
@@ -50,7 +55,7 @@ namespace cms::alpakatools{
 
           auto r = f.get_reducer();
 
-          reduce_t result = r.init(in);//?
+          reduce_t result = r.init(in);
           //
           for (std::uint32_t offset = warpExtent / 2; offset > 0; offset /= 2) {
             std::uint32_t const width = offset << 1;//only part of warp is used    
@@ -104,8 +109,8 @@ namespace cms::alpakatools{
           std::int32_t const warpExtent = alpaka::warp::getSize(acc);
 
           auto const blockExtent = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc);
-
-          constexpr std::uint32_t max_w_items = 32;//64? 
+          
+	  constexpr std::uint32_t max_w_items = 32;//64
 
           std::int32_t const w_items   = std::min( static_cast<std::int32_t> (blockExtent.prod() / warpExtent), static_cast<std::int32_t> (max_w_items) );
           //
