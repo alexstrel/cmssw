@@ -8,7 +8,8 @@
 namespace cms::alpakatools {
   namespace transform {
 
-    template <typename T> struct xpy {
+    template <typename T>
+    struct xpy {
       //
       using data_t = T;
 
@@ -16,15 +17,17 @@ namespace cms::alpakatools {
       ALPAKA_FN_HOST_ACC inline T operator()(T x, T y) const { return apply(x, y); }
     };
 
-    template <typename T> struct xmy {
+    template <typename T>
+    struct xmy {
       //
       using data_t = T;
 
       ALPAKA_FN_HOST_ACC static inline T apply(T x, T y) { return x - y; }
       ALPAKA_FN_HOST_ACC inline T operator()(T x, T y) const { return apply(x, y); }
-    };  
+    };
 
-    template <typename T> struct axpy {
+    template <typename T>
+    struct axpy {
       //
       using data_t = T;
 
@@ -32,16 +35,16 @@ namespace cms::alpakatools {
       ALPAKA_FN_HOST_ACC inline T operator()(T a, T x, T y) const { return apply(a, x, y); }
     };
 
-    template <typename T> struct xpay {
+    template <typename T>
+    struct xpay {
       //
       using data_t = T;
 
       ALPAKA_FN_HOST_ACC static inline T apply(T a, T x, T y) { return x + a * y; }
       ALPAKA_FN_HOST_ACC inline T operator()(T a, T x, T y) const { return apply(a, x, y); }
-    };  
+    };
 
-  }//transform	
-}//cms::alpakatools
+  }  // namespace transform
+}  // namespace cms::alpakatools
 
 #endif
-
