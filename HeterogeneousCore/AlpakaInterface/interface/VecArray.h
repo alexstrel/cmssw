@@ -130,13 +130,13 @@ namespace cms::alpakatools {
   };
 
   template <typename T>
-  struct is_vector_array : std::false_type {};
+  struct is_VecArray : std::false_type {};
 
   template <typename T, int N>
-  struct is_vector_array<cms::alpakatools::VecArray<T, N>> : std::true_type {};
+  struct is_VecArray<cms::alpakatools::VecArray<T, N>> : std::true_type {};
 
   template <typename T>
-  inline constexpr bool is_vector_array_v = is_vector_array<T>::value;
+  inline constexpr bool is_VecArray_v = is_VecArray<T>::value;
 
 }  // namespace cms::alpakatools
 
