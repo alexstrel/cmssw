@@ -36,10 +36,10 @@ namespace cms::alpakatools {
       ALPAKA_FN_ACC inline auto get_reducer() const { return reducer; }
     };
 
-    template <typename xz_buf_t, typename yw_buf_t, typename reducer_params_t, uint64_t nSrc_ = 1>
+    template <typename xz_buf_t, typename yw_buf_t, typename reducer_params_t, unsigned long long nSrc_ = 1>
     class TransformReduceArgs {
     public:
-      static constexpr std::uint64_t nSrc = nSrc_;
+      static constexpr unsigned long long nSrc = nSrc_;
 
       using reduce_t = std::remove_cvref_t<reducer_params_t>::reduce_t;
       using count_t = std::remove_cvref_t<reducer_params_t>::count_t;
@@ -154,7 +154,7 @@ namespace cms::alpakatools {
 
       template <typename TAcc, typename... T, bool use_cg_reduce = false, bool use_cg_reducer = false>
       ALPAKA_FN_ACC std::enable_if_t<alpaka::Dim<TAcc>::value <= 3, void> apply(TAcc const &acc,
-                                                                                uint32_t const batch_idx,
+                                                                                unsigned int const batch_idx,
                                                                                 T... external_args) {
         // Set leading dim:
         constexpr std::size_t lDim = alpaka::Dim<TAcc>::value - 1;  // leading dimension
@@ -166,7 +166,7 @@ namespace cms::alpakatools {
         auto const [blockDim_y, blockDim_x] = block_2d(acc);
 
         // Block/Grid dims
-        auto const i(static_cast<uint32_t>(threadIdx_x + blockIdx_x * blockDim_x));
+        auto const i(static_cast<unsigned int>(threadIdx_x + blockIdx_x * blockDim_x));
 
         auto result = 0.f;
 
@@ -243,7 +243,7 @@ namespace cms::alpakatools {
               typename reduce_t,
               typename coeff_t,
               typename Functor,
-              uint64_t nSrc = 1,
+              unsigned long long nSrc = 1,
               bool... control_flags>
     auto instantiateTransformReduceKernel(const TDevAcc &devAcc,
                                           TQueue &queue,

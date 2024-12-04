@@ -7,7 +7,7 @@
 
 namespace cms::alpakatools {
   namespace reduce {
-    ALPAKA_FN_HOST_ACC inline std::uint32_t roundUpToPowerOf2(std::uint32_t N) {  //
+    ALPAKA_FN_HOST_ACC inline unsigned int roundUpToPowerOf2(unsigned int N) {  //
 
       if (N <= 1) {
         return 2;
@@ -24,9 +24,9 @@ namespace cms::alpakatools {
       return (N + 1);
     }
 
-    ALPAKA_FN_HOST_ACC inline std::uint32_t getSubgoupMask(std::uint32_t subgroup_size) {  //
+    ALPAKA_FN_HOST_ACC inline unsigned int getSubgoupMask(unsigned int subgroup_size) {  //
 
-      std::uint32_t pw = (subgroup_size >> 1) & 0xF;
+      unsigned int pw = (subgroup_size >> 1) & 0xF;
 
       if (1 & pw)
         return 0x3;
@@ -39,11 +39,11 @@ namespace cms::alpakatools {
     class WarpReduceKernel {
     public:
 #ifdef(__CUDA_ARCH__)
-      static constexpr std::int32_t default_warp_size = 32;  //has to be alpaka::warp::getSize(acc)
+      static constexpr int default_warp_size = 32;  //has to be alpaka::warp::getSize(acc)
 #elif defined(__HIP_DEVICE_COMPILE__)
-      static constexpr std::int32_t default_warp_size = 64;
+      static constexpr int default_warp_size = 64;
 #else
-      static constexpr std::int32_t default_warp_size = 1;
+      static constexpr int default_warp_size = 1;
 #endif
 
       WarpReduceKernel() = default;
@@ -57,14 +57,14 @@ namespace cms::alpakatools {
                               typename transform_reducer_t::reduce_t> {
         using reduce_t = typename transform_reducer_t::reduce_t;
 
-        std::int32_t const warpExtent = alpaka::warp::getSize(acc);
+        int const warpExtent = alpaka::warp::getSize(acc);
 
         auto r = f.get_reducer();
 
         reduce_t result = r.init(in);
         //
-        for (std::uint32_t offset = warpExtent / 2; offset > 0; offset /= 2) {
-          std::uint32_t const width = offset << 1;  //only part of warp is used
+        for (unsigned int offset = warpExtent / 2; offset > 0; offset /= 2) {
+          unsigned int const width = offset << 1;  //only part of warp is used
           result = r(result, alpaka::warp::shfl_down(acc, result, offset, width));
         }
 
@@ -111,19 +111,19 @@ namespace cms::alpakatools {
 
       template <typename TAcc, typename transform_reducer_t>
       ALPAKA_FN_ACC inline auto apply(TAcc const& acc,
-                                      std::int32_t const batch,
+                                      int const batch,
                                       typename transform_reducer_t::reduce_t const& in,
                                       const transform_reducer_t f,
                                       bool all = true) -> typename transform_reducer_t::reduce_t {
         using reduce_t = typename transform_reducer_t::reduce_t;
-        std::int32_t const warpExtent = alpaka::warp::getSize(acc);
+        int const warpExtent = alpaka::warp::getSize(acc);
 
         auto const blockExtent = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc);
 
-        constexpr std::uint32_t max_w_items = 32;  //64
+        constexpr unsigned int max_w_items = 32;  //64
 
-        std::int32_t const w_items = std::min(static_cast<std::int32_t>(blockExtent.prod() / warpExtent),
-                                              static_cast<std::int32_t>(max_w_items));
+        int const w_items = std::min(static_cast<int>(blockExtent.prod() / warpExtent),
+                                              static_cast<int>(max_w_items));
         //
         // Perform warp reduction using shuffle operations
         auto result = warp_reducer.template apply<TAcc, transform_reducer_t>(acc, in, f, all);
@@ -139,11 +139,11 @@ namespace cms::alpakatools {
         auto const threadIdx_x = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[leading_dim];
         auto const blockDim_x = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[leading_dim];
 
-        std::int32_t const warpIdx_x = threadIdx_x / warpExtent;
-        std::int32_t const laneIdx = threadIdx_x % warpExtent;
+        int const warpIdx_x = threadIdx_x / warpExtent;
+        int const laneIdx = threadIdx_x % warpExtent;
 
-        std::int32_t const w_items_x =
-            std::min(static_cast<std::int32_t>(blockDim_x / warpExtent), static_cast<std::int32_t>(max_w_items));
+        int const w_items_x =
+            std::min(static_cast<int>(blockDim_x / warpExtent), static_cast<int>(max_w_items));
 
         auto& sdata(alpaka::declareSharedVar<cms::alpakatools::VecArray<reduce_t, max_w_items>, __COUNTER__>(acc));
 
