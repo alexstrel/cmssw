@@ -14,7 +14,7 @@ namespace cms::alpakatools {
       //
       using device_atomic_t = reduce_t;
       using system_atomic_t = reduce_t;
-      using count_t = std::int32_t;
+      using count_t = int;
       //
       using TBufHost = alpaka::Buf<alpaka::DevCpu, system_atomic_t, Dim1D, Idx>;
       using TBufAcc = alpaka::Buf<TAcc, system_atomic_t, Dim1D, Idx>;
