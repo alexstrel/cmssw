@@ -36,7 +36,7 @@ namespace cms::alpakatools {
       return 0xFF;
     }
 
-    class WarpReduceKernel {
+    class WarpReducer {
     public:
 #ifdef(__CUDA_ARCH__)
       static constexpr int default_warp_size = 32;  //has to be alpaka::warp::getSize(acc)
@@ -46,7 +46,7 @@ namespace cms::alpakatools {
       static constexpr int default_warp_size = 1;
 #endif
 
-      WarpReduceKernel() = default;
+      WarpReducer() = default;
 
       template <typename TAcc, typename transform_reducer_t>
       ALPAKA_FN_ACC inline auto apply(TAcc const& acc,
@@ -83,7 +83,7 @@ namespace cms::alpakatools {
                               typename transform_reducer_t::reduce_t> {
         using reduce_t = typename transform_reducer_t::reduce_t;
 
-        using atomic_t = typename cms::alpakatools::atomic_type<reduce_t>::type;
+        using atomic_t = typename cms::alpakatools::AtomicType<reduce_t>::type;
 
         constexpr std::size_t n = sizeof(reduce_t) / sizeof(atomic_t);
 
@@ -103,11 +103,11 @@ namespace cms::alpakatools {
       }
     };
 
-    class BlockReduceKernel {
+    class BlockReducer {
     public:
-      BlockReduceKernel() = default;
+      BlockReducer() = default;
 
-      WarpReduceKernel warp_reducer;
+      WarpReducer warp_reducer;
 
       template <typename TAcc, typename transform_reducer_t>
       ALPAKA_FN_ACC inline auto apply(TAcc const& acc,
