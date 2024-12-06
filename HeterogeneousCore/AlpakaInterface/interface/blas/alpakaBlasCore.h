@@ -36,7 +36,7 @@ namespace cms::alpakatools {
       ALPAKA_FN_ACC inline auto get_reducer() const { return reducer; }
     };
 
-    template <typename xz_buf_t, typename yw_buf_t, typename reducer_params_t, unsigned long long nSrc_ = 1>
+    template <typename xz_buf_t, typename yw_buf_t, typename reducer_params_t, unsigned long long nSrc_ = 1, bool host_reduction = true>
     class TransformReduceArgs {
     public:
       static constexpr unsigned long long nSrc = nSrc_;
@@ -80,7 +80,7 @@ namespace cms::alpakatools {
                           std::vector<yw_buf_t> &y_,
                           [[maybe_unused]] std::vector<yw_buf_t> &w_,
                           [[maybe_unused]] const std::vector<xz_buf_t> &z_)
-          : result_h(params.get_host_reduce_ptr()),
+          : result_h(host_reduction ? params.get_host_reduce_ptr() : nullptr),
             result_d(params.get_device_reduce_ptr()),
             partial(params.get_partial_ptr()),
             x(init_vec_array<xz_buf_t>(x_)),
@@ -91,7 +91,7 @@ namespace cms::alpakatools {
             reducer_params(params) {}
 
       TransformReduceArgs(reducer_params_t &params)
-          : result_h(params.get_host_reduce_ptr()),
+          : result_h(host_reduction ? params.get_host_reduce_ptr() : nullptr),
             result_d(params.get_device_reduce_ptr()),
             partial(params.get_partial_ptr()),
             count(params.get_count_ptr()),
@@ -99,6 +99,7 @@ namespace cms::alpakatools {
 
       template <typename TQueue>
       auto fetch_data(TQueue queue) const {
+	static_assert(host_reduction);      
         reducer_params.fetch_reduce_data(queue);
       }
     };
