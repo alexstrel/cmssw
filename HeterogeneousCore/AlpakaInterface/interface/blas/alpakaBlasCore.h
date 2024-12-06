@@ -104,15 +104,15 @@ namespace cms::alpakatools {
     };
 
     template <typename TransformReducer_t, typename Args>
-    class MultiSrcTransformReduceKernel {
+    class MultiSrcTransformReducer {
     public:
       const Args args;
 
       TransformReducer_t f;
 
-      BlockReduceKernel block_reducer;
+      BlockReducer block_reducer;
 
-      MultiSrcTransformReduceKernel(TransformReducer_t f, const Args &args) : f(f), args(args) {}
+      MultiSrcTransformReducer(TransformReducer_t f, const Args &args) : f(f), args(args) {}
 
       template <typename TQueue>
       auto fetch(TQueue queue) const {
@@ -245,14 +245,14 @@ namespace cms::alpakatools {
               typename Functor,
               unsigned long long nSrc = 1,
               bool... control_flags>
-    auto instantiateTransformReduceKernel(const TDevAcc &devAcc,
-                                          TQueue &queue,
-                                          const coeff_t &a,
-                                          const coeff_t &b,
-                                          const std::vector<TXZBufAcc> &x,
-                                          std::vector<TYWBufAcc> &y,
-                                          std::vector<TYWBufAcc> &w,
-                                          const std::vector<TXZBufAcc> &z) {
+    auto instantiateTransformReducer(const TDevAcc &devAcc,
+                                           TQueue &queue,
+                                     const coeff_t &a,
+                                     const coeff_t &b,
+                                     const std::vector<TXZBufAcc> &x,
+                                           std::vector<TYWBufAcc> &y,
+                                           std::vector<TYWBufAcc> &w,
+                                     const std::vector<TXZBufAcc> &z) {
       auto const nsrc = x.size();
 
       if (nsrc != nSrc)
@@ -268,7 +268,7 @@ namespace cms::alpakatools {
       //
       Functor tr_func(a, b);
 
-      return MultiSrcTransformReduceKernel<Functor, decltype(args)>(tr_func, args);
+      return MultiSrcTransformReducer<Functor, decltype(args)>(tr_func, args);
     }
 
   }  // namespace blas

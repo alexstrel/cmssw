@@ -230,15 +230,15 @@ int main() {
 
     std::cout << "Running improved test..." << std::endl;
 
-    auto msrc_axpyNorm_functor = instantiateTransformReduceKernel<Acc,
-                                                                 decltype(devAcc),
-                                                                 QueueAcc,
-                                                                 Buf_t,
-                                                                 Buf_t,
-                                                                 reduce_t,
-                                                                 DataType,
-                                                                 func_t,
-                                                                 nSrc, false > (devAcc, computeQueue, a, a, xAcc, yAcc, yAcc, xAcc);
+    auto msrc_axpyNorm_functor = instantiateTransformReducer<Acc,
+                                                             decltype(devAcc),
+                                                             QueueAcc,
+                                                             Buf_t,
+                                                             Buf_t,
+                                                             reduce_t,
+                                                             DataType,
+                                                             func_t,
+                                                             nSrc, false > (devAcc, computeQueue, a, a, xAcc, yAcc, yAcc, xAcc);
 
     AxpyNormProductKernel<Acc, decltype(devAcc), decltype(msrc_axpyNorm_functor)> axpyNormProduct;
 
