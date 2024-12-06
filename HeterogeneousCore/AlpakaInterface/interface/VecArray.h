@@ -101,7 +101,7 @@ namespace cms::alpakatools {
 
     ALPAKA_FN_ACC VecArray(const T &value) {
       CMS_UNROLL_LOOP
-      for (int i = 0; i < maxSize; i++) {
+      for (int i = 0; i < m_size; i++) {
         m_data[i] = value;
       }
     }
