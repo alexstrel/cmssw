@@ -7,6 +7,17 @@
 namespace cms::alpakatools {
   namespace reduce {
 
+    template<typename T, typename TAcc, typename TDevAcc, typename TQueue> class ReducerResource;
+
+    template<typename T, typename TAcc, typename TDevAcc, typename TQueue>
+    decltype(auto) create_reduction_resources(const TDevAcc &devAcc, TQueue queue, Idx nSrc) {
+
+      auto max_reduce_blocks = 2 * alpaka::getAccDevProps<TAcc>(devAcc).m_multiProcessorCount;
+
+      return ReducerResource<T, TAcc, TDevAcc, TQueue>(devAcc, queue, nSrc, max_reduce_blocks);
+    }
+
+
     template <typename T, typename TAcc, typename TDevAcc, typename TQueue>
     class ReducerResource {
     public:
@@ -22,6 +33,9 @@ namespace cms::alpakatools {
       using TBuf1DAcc = alpaka::Buf<TAcc, device_atomic_t, Dim1D, Idx>;
 
       using TCountBufAcc = alpaka::Buf<TAcc, count_t, Dim1D, Idx>;
+
+      template<typename T_, typename TAcc_, typename TDevAcc_, typename TQueue_>
+      friend decltype(auto) create_reduction_resources(const TDevAcc_ &devAcc, TQueue_ queue, Idx nSrc);
 
       //static ReducerResource reduction_buffers;
       static ReducerResource<T, TAcc, TDevAcc, TQueue>& get_reduction_resources(const TDevAcc& devAcc,

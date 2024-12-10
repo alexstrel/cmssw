@@ -272,6 +272,38 @@ namespace cms::alpakatools {
       return MultiSrcTransformReducer<Functor, decltype(args)>(tr_func, args);
     }
 
+   template <typename TAcc,
+              typename TDevAcc,
+              typename TQueue,
+              typename TXZBufAcc,
+              typename TYWBufAcc,
+              typename reduce_t,
+              typename coeff_t,
+              typename Functor,
+              unsigned long long nSrc = 1,
+              bool... control_flags>
+    auto instantiateTransformReducer(const TDevAcc &devAcc,
+                                           TQueue &queue,
+                                     const coeff_t &a,
+                                     const coeff_t &b,
+                                     const std::vector<TXZBufAcc> &x,
+                                           std::vector<TYWBufAcc> &y,
+                                           std::vector<TYWBufAcc> &w,
+                                     const std::vector<TXZBufAcc> &z,
+				           auto                   &reduce_bufs) {
+      auto const nsrc = x.size();
+
+      if (nsrc != nSrc)
+        std::cout << "Incorrect number of sources\n" << std::endl;
+
+      auto args = TransformReduceArgs<TXZBufAcc, TYWBufAcc, decltype(reduce_bufs), nSrc>(reduce_bufs, x, y, w, z);
+      //
+      Functor tr_func(a, b);
+
+      return MultiSrcTransformReducer<Functor, decltype(args)>(tr_func, args);
+    }
+    
+
   }  // namespace blas
 }  // namespace cms::alpakatools
 
