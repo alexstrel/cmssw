@@ -230,6 +230,8 @@ int main() {
 
     std::cout << "Running improved test..." << std::endl;
 
+    auto reduce_bufs = cms::alpakatools::reduce::create_reduction_resources<DataType, Acc, decltype(devAcc), QueueAcc>(devAcc, computeQueue, nSrc);    
+
     auto msrc_axpyNorm_functor = instantiateTransformReducer<Acc,
                                                              decltype(devAcc),
                                                              QueueAcc,
@@ -238,7 +240,7 @@ int main() {
                                                              reduce_t,
                                                              DataType,
                                                              func_t,
-                                                             nSrc, false > (devAcc, computeQueue, a, a, xAcc, yAcc, yAcc, xAcc);
+                                                             nSrc, false > (devAcc, computeQueue, a, a, xAcc, yAcc, yAcc, xAcc, reduce_bufs);
 
     AxpyNormProductKernel<Acc, decltype(devAcc), decltype(msrc_axpyNorm_functor)> axpyNormProduct;
 
