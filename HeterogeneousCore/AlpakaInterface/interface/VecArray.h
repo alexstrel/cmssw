@@ -9,6 +9,8 @@
 
 #include <alpaka/alpaka.hpp>
 
+#include "FWCore/Utilities/interface/CMSUnrollLoop.h"
+
 namespace cms::alpakatools {
 
   template <class T, int maxSize>
@@ -16,6 +18,10 @@ namespace cms::alpakatools {
   public:
     using self = VecArray<T, maxSize>;
     using value_t = T;
+
+    // same notations as std::vector/array
+    using value_type = T;
+    static constexpr int N = maxSize;
 
     inline constexpr int push_back_unsafe(const T &element) {
       auto previousSize = m_size;
@@ -89,6 +95,20 @@ namespace cms::alpakatools {
         return T();
     }
 
+    VecArray() = default;
+    VecArray(const VecArray<T, maxSize> &) = default;
+    VecArray(VecArray<T, maxSize> &&) = default;
+
+    ALPAKA_FN_ACC VecArray(const T &value) {
+      CMS_UNROLL_LOOP
+      for (int i = 0; i < m_size; i++) {
+        m_data[i] = value;
+      }
+    }
+
+    VecArray<T, maxSize> &operator=(const VecArray<T, maxSize> &) = default;
+    VecArray<T, maxSize> &operator=(VecArray<T, maxSize> &&) = default;
+
     inline constexpr T const *begin() const { return m_data; }
     inline constexpr T const *end() const { return m_data + m_size; }
     inline constexpr T *begin() { return m_data; }
@@ -108,6 +128,15 @@ namespace cms::alpakatools {
 
     int m_size;
   };
+
+  template <typename T>
+  struct is_VecArray : std::false_type {};
+
+  template <typename T, int N>
+  struct is_VecArray<cms::alpakatools::VecArray<T, N>> : std::true_type {};
+
+  template <typename T>
+  inline constexpr bool is_VecArray_v = is_VecArray<T>::value;
 
 }  // namespace cms::alpakatools
 
