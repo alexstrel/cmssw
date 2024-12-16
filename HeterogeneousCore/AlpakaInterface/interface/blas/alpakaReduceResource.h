@@ -17,7 +17,6 @@ namespace cms::alpakatools {
       return ReducerResource<T, TAcc, TDevAcc, TQueue>(devAcc, queue, nSrc, max_reduce_blocks);
     }
 
-
     template <typename T, typename TAcc, typename TDevAcc, typename TQueue>
     class ReducerResource {
     public:
