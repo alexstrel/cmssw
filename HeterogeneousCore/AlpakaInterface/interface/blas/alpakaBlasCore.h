@@ -26,14 +26,13 @@ namespace cms::alpakatools {
 
       TransformReduceFunctor(transformer_t t, reducer_t r) : transformer(t), reducer(r) {}
 
-      template <typename TAcc>
-      ALPAKA_FN_ACC inline reduce_t operator()(TAcc const &acc, const reduce_t &x, const reduce_t &y) const {
+      ALPAKA_FN_ACC reduce_t operator()(const reduce_t &x, const reduce_t &y) const {
         return reducer(x, y);
-      }
+      }     
 
-      ALPAKA_FN_ACC inline auto init() const { return reducer.init(); }
+      ALPAKA_FN_ACC auto init() const { return reducer.init(); }
 
-      ALPAKA_FN_ACC inline auto get_reducer() const { return reducer; }
+      ALPAKA_FN_ACC auto get_reducer() const { return reducer; }
     };
 
     template <typename xz_buf_t, typename yw_buf_t, typename reducer_params_t, unsigned long long nSrc_ = 1, bool host_reduction = true>
