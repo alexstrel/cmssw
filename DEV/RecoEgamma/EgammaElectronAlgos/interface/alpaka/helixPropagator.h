@@ -201,25 +201,25 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			s = theS;
 			x = thePos;
 			p = theDir;
-// below code seems has no effect?
+
 			if (sol != bothSol)
 				return;
 
-			int theActualDir1 = propDir == 1 ? 1 : -1;
-			int theActualDir2 = propDir == 1 ? 1 : -1;
+			const int theActualDir1 = propDir == 1 ? 1 : -1;
+			const int theActualDir2 = propDir == 1 ? 1 : -1;
 
-			auto dMag1 = d1.norm();
+			const auto dMag1 = d1.norm();
 			auto tmp1 = 0.5f * dMag1 * float(rho);
 			if (std::abs(tmp1) > 1.f)
 				tmp1 = std::copysign(1.f,tmp1);
-			auto theS1 = theActualDir1 * 2.f * std::asin(tmp1) / (rho * sinTheta);
+			const auto theS1 = theActualDir1 * 2.f * std::asin(tmp1) / (rho * sinTheta);
 			thePos1 = Vector3D(startingPos(0) + d1(0), startingPos(1) + d1(1), startingPos(2) + theS1 * cosTheta);
 
-			auto dMag2 = d2.norm();
+			const auto dMag2 = d2.norm();
 			auto tmp2 = 0.5f * dMag2 * float(rho);
 			if (std::abs(tmp2) > 1.f)
 				tmp2 = std::copysign(1.f, tmp2);
-			auto theS2 = theActualDir2 * 2.f * std::asin(tmp2) / (float(rho) * sinTheta);
+			const auto theS2 = theActualDir2 * 2.f * std::asin(tmp2) / (float(rho) * sinTheta);
 			thePos2 = Vector3D(startingPos(0) + d2(0), startingPos(1) + d2(1), startingPos(2) + theS2 * cosTheta);
 
 		}
