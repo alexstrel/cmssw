@@ -1,4 +1,4 @@
-#ifndef HeterogeneousCore_AlpakaInterface_interface_blas alpakaTransformer_h
+#ifndef HeterogeneousCore_AlpakaInterface_interface_blas_alpakaTransformer_h
 #define HeterogeneousCore_AlpakaInterface_interface_blas_alpakaTransformer_h
 
 /**

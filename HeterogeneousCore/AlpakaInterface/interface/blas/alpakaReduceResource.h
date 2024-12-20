@@ -1,4 +1,4 @@
-#ifndef HeterogeneousCore_AlpakaInterface_interface_blas alpakaReduceResource_h
+#ifndef HeterogeneousCore_AlpakaInterface_interface_blas_alpakaReduceResource_h
 #define HeterogeneousCore_AlpakaInterface_interface_blas_alpakaReduceResource_h
 
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"

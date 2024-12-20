@@ -1,9 +1,11 @@
-#ifndef HeterogeneousCore_AlpakaInterface_interface_blas alpakaBlasCore_h
+#ifndef HeterogeneousCore_AlpakaInterface_interface_blas_alpakaBlasCore_h
 #define HeterogeneousCore_AlpakaInterface_interface_blas_alpakaBlasCore_h
 
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaReducer.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaBlockReduction.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaReduceResource.h" 
 
 namespace cms::alpakatools {
   namespace blas {
@@ -110,7 +112,7 @@ namespace cms::alpakatools {
 
       TransformReducer_t f;
 
-      BlockReducer block_reducer;
+      reduce::BlockReducer block_reducer;
 
       MultiSrcTransformReducer(TransformReducer_t f, const Args &args) : f(f), args(args) {}
 
@@ -176,13 +178,13 @@ namespace cms::alpakatools {
           using w_type = std::remove_cvref_t<decltype(args.w)>;
           using z_type = std::remove_cvref_t<decltype(args.z)>;
 
-          static_assert((cms::alpakatools::is_vector_array_v<x_type> and cms::alpakatools::is_vector_array_v<y_type> and
-                         cms::alpakatools::is_vector_array_v<w_type> and cms::alpakatools::is_vector_array_v<z_type>),
+          static_assert((cms::alpakatools::is_VecArray_v<x_type> and cms::alpakatools::is_VecArray_v<y_type> and
+                         cms::alpakatools::is_VecArray_v<w_type> and cms::alpakatools::is_VecArray_v<z_type>),
                         "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
           result = f.template transform<TAcc, typename Args::Txz, typename Args::Tyw>(
               acc, args.x, args.y, args.w, args.z, i, 0, batch_idx);
         } else {
-          static_assert((cms::alpakatools::is_vector_array_v<T> && ...),
+          static_assert((cms::alpakatools::is_VecArray_v<T> && ...),
                         "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
           result = f.template transform<TAcc, typename Args::Txz, typename Args::Tyw>(
               acc, external_args..., i, 0, batch_idx);
@@ -246,7 +248,7 @@ namespace cms::alpakatools {
               unsigned long long nSrc = 1,
               bool... control_flags>
     auto instantiateTransformReducer(const TDevAcc &devAcc,
-                                           TQueue &queue,
+                                     const TQueue &queue,
                                      const coeff_t &a,
                                      const coeff_t &b,
                                      const std::vector<TXZBufAcc> &x,
@@ -282,7 +284,7 @@ namespace cms::alpakatools {
               unsigned long long nSrc = 1,
               bool... control_flags>
     auto instantiateTransformReducer(const TDevAcc &devAcc,
-                                           TQueue &queue,
+                                     const TQueue &queue,
                                      const coeff_t &a,
                                      const coeff_t &b,
                                      const std::vector<TXZBufAcc> &x,

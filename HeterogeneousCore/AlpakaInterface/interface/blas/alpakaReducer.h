@@ -1,4 +1,4 @@
-#ifndef HeterogeneousCore_AlpakaInterface_interface_blas alpakaReducer_h
+#ifndef HeterogeneousCore_AlpakaInterface_interface_blas_alpakaReducer_h
 #define HeterogeneousCore_AlpakaInterface_interface_blas_alpakaReducer_h
 
 namespace cms::alpakatools {
@@ -12,7 +12,7 @@ namespace cms::alpakatools {
     template <typename T, std::int32_t N>
     ALPAKA_FN_HOST_ACC inline VecArray<T, N> zero() {
       VecArray<T, N> v;
-      CMS_UNROLL_UNROLL
+      CMS_UNROLL_LOOP
       for (std::int32_t i = 0; i < N; i++)
         v[i] = zero<T>();
       return v;
