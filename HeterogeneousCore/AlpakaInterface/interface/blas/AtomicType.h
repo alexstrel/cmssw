@@ -1,4 +1,4 @@
-#ifndef HeterogeneousCore_AlpakaInterface_interface_blas AtomicType_h
+#ifndef HeterogeneousCore_AlpakaInterface_interface_blas_AtomicType_h
 #define HeterogeneousCore_AlpakaInterface_interface_blas_AtomicType_h
 
 #include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"

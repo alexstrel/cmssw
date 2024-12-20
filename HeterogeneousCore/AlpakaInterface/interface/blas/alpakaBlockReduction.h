@@ -1,9 +1,9 @@
-#ifndef HeterogeneousCore_AlpakaInterface_interface_blas alpakaBlockReduction_h
+#ifndef HeterogeneousCore_AlpakaInterface_interface_blas_alpakaBlockReduction_h
 #define HeterogeneousCore_AlpakaInterface_interface_blas_alpakaBlockReduction_h
 
 #include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
 
-#include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaAtomicHelper.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/blas/AtomicType.h"
 
 namespace cms::alpakatools {
   namespace reduce {
@@ -38,7 +38,7 @@ namespace cms::alpakatools {
 
     class WarpReducer {
     public:
-#ifdef(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__)
       static constexpr int default_warp_size = 32;  //has to be alpaka::warp::getSize(acc)
 #elif defined(__HIP_DEVICE_COMPILE__)
       static constexpr int default_warp_size = 64;
