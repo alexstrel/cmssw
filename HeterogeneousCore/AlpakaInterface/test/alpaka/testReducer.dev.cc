@@ -21,8 +21,6 @@
 using namespace cms::alpakatools;
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
-// static constexpr auto s_tag = "[" ALPAKA_TYPE_ALIAS_NAME(alpakaTestPrefixScan) "]";
-
 template <typename reduce_t, 
           typename Transformer, 
           typename Reducer, 
@@ -45,11 +43,11 @@ struct AxpyNorm : public blas::TransformReduceFunctor<reduce_t, Transformer, Red
         , a(a) 
         {}      
   
-  template< typename TAcc, typename TData > 
-  ALPAKA_FN_ACC inline reduce_t transform(TAcc const& acc, const cms::alpakatools::VecArray<TData*, nSrc> &x, 
-                                                                 cms::alpakatools::VecArray<TData*, nSrc> &y,
-                                                                 cms::alpakatools::VecArray<TData*, nSrc> &,
-					                   const cms::alpakatools::VecArray<TData*, nSrc> &,                                                                 
+  template< typename TAcc, typename TDataXZ, typename TDataYW > 
+  ALPAKA_FN_ACC inline reduce_t transform(TAcc const& acc, const cms::alpakatools::VecArray<TDataXZ*, nSrc> &x, 
+                                                                 cms::alpakatools::VecArray<TDataYW*, nSrc> &y,
+                                                                 cms::alpakatools::VecArray<TDataYW*, nSrc> &,
+					                   const cms::alpakatools::VecArray<TDataXZ*, nSrc> &,                                                                 
                                                                  int i, 
                                                                  int j, 
                                                                  int k) {
@@ -57,17 +55,17 @@ struct AxpyNorm : public blas::TransformReduceFunctor<reduce_t, Transformer, Red
     //
     auto const srcIdx = k;
 
-    y[srcIdx][i] = transformer(a, x[srcIdx][i], y[srcIdx][i]);
+    y[srcIdx][i] = TR::transformer(a, x[srcIdx][i], y[srcIdx][i]);
     //
     auto const t = y[srcIdx][i] * y[srcIdx][i];     
     //      
-    res = reducer(res, t);       
+    res = TR::reducer(res, t);       
 
     return res;
   }
   // not needed...
   template< typename TAcc >  
-  ALPAKA_FN_ACC inline reduce_t reduce(TAcc const& acc, const reduce_t &x, const reduce_t &y ) const { return reducer(x, y);    }  
+  ALPAKA_FN_ACC inline reduce_t reduce(TAcc const& acc, const reduce_t &x, const reduce_t &y ) const { return TR::reducer(x, y);  }  
  
   //constexpr int flops() const { return 4; }   //! flops per element
 }; 
@@ -87,6 +85,7 @@ class AxpyNormProductKernel
 
 };
 
+
 int main() {
   // get the list of devices on the current platform
   auto const& devices = cms::alpakatools::devices<Platform>();
@@ -99,10 +98,9 @@ int main() {
   
   static const Idx N     = 1 << 8;
   //
-  static constexpr Idx DoF   = 1;// not used in this test    
   static constexpr Idx nSrc  = 4;    
   //
-  std::cout << "N : " << N << " DoF : " << DoF << std::endl;
+  std::cout << "N : " << N << std::endl;
   //
   using DataType = double;
     
@@ -114,11 +112,11 @@ int main() {
     // Select specific devices
     auto const platformHost = alpaka::PlatformCpu{};
     auto const devHost      = alpaka::getDevByIdx(platformHost, 0);
-    auto const platformAcc  = alpaka::Platform<Acc>{};    
+    auto const platformAcc  = alpaka::Platform<Acc3D>{};    
     
-    auto const computeQueue = Queue(device);    
+    auto computeQueue = Queue(device); // TODO: cannot be const due to unsupported combination for memcpy (specialization does not exist in Alpaka?)   
     
-    if ( alpaka::getAccName<Acc>() == "AccCpuSerial<3,unsigned int>" ) {
+    if ( alpaka::getAccName<Acc3D>() == "AccCpuSerial<3,unsigned int>" ) {
       std::cout << "... skipped" << std::endl;	    
       return EXIT_SUCCESS;
     }    
@@ -128,18 +126,18 @@ int main() {
 
     // Select queue
     using QueueProperty = alpaka::NonBlocking;
-    using QueueAcc      = alpaka::Queue<Acc, QueueProperty>;
+    using QueueAcc      = std::remove_cvref_t<decltype(computeQueue)>;//alpaka::Queue<Acc3D, QueueProperty>;
     //
     using reducer_t     = cms::alpakatools::reduce::plus<reduce_t>;
-    using transformer_t = cms::alpakatools::blas::axpy<DataType>;     
+    using transformer_t = cms::alpakatools::transform::axpy<DataType>;     
 
-    // Define the 2D extent (dimensions : e.g., phys volume x internal dof)
-    Vec2D const extent(static_cast<Idx>(N), static_cast<Idx>(DoF));    
+    // Define the 1D extent (dimensions : e.g., phys volume)
+    Vec1D const extent(static_cast<Idx>(N));    
     //
     using HostViewType = decltype(alpaka::createView(
       std::declval<decltype(devHost)>(),
       std::declval<DataType*>(),
-      std::declval<Vec2D const&>()
+      std::declval<Vec1D const&>()
     ));
     // Input vector allocation and copy to device buffer
     //
@@ -151,12 +149,12 @@ int main() {
         
     // Use increasing values as input
     //
-    HostViewType xView = alpaka::createView(devHost, xv.data(), extent);//create 3D view 
+    HostViewType xView = alpaka::createView(devHost, xv.data(), extent);//create 2D view 
     //
-    HostViewType yView = alpaka::createView(devHost, yv.data(), extent);//create 3D view       
+    HostViewType yView = alpaka::createView(devHost, yv.data(), extent);//create 2D view       
 
     // Input buffer at device
-    using Buf_t = alpaka::Buf<Acc, DataType, Dim2D, Idx>;
+    using Buf_t = alpaka::Buf<Acc3D, DataType, Dim1D, Idx>;
     
     std::vector<Buf_t> xAcc;  xAcc.reserve(nSrc);
     std::vector<Buf_t> yAcc;  yAcc.reserve(nSrc);    
@@ -170,7 +168,7 @@ int main() {
     
     constexpr bool use_random_nums = true;
 
-    for(int i = 0; i < nSrc; i++) {
+    for(Idx i = 0; i < nSrc; i++) {
        // populate the vector with random numbers
       if constexpr (use_random_nums) {
         std::generate(xv.begin(), xv.end(), [&]() { return distr(gen); });
@@ -222,7 +220,7 @@ int main() {
     //
     const Idx n_blocks  = block_size[0]*grid_size[2];//nSrc * blockDimX
     
-    auto max_reduce_blocks = 2 * alpaka::getAccDevProps<Acc>(devAcc).m_multiProcessorCount;//only 2 blocks per MP are active    
+    auto max_reduce_blocks = 2 * alpaka::getAccDevProps<Acc3D>(devAcc).m_multiProcessorCount;//only 2 blocks per MP are active    
     
     std::cout << "NBlocks :: " << n_blocks << " : " << max_reduce_blocks << std::endl;
     //
@@ -230,23 +228,24 @@ int main() {
 
     std::cout << "Running improved test..." << std::endl;
 
-    auto reduce_bufs = cms::alpakatools::reduce::create_reduction_resources<DataType, Acc, decltype(devAcc), QueueAcc>(devAcc, computeQueue, nSrc);    
+    auto reduce_bufs = cms::alpakatools::reduce::create_reduction_resources<DataType, Acc3D, decltype(devAcc), QueueAcc>(devAcc, computeQueue, nSrc);    
 
-    auto msrc_axpyNorm_functor = instantiateTransformReducer<Acc,
-                                                             decltype(devAcc),
-                                                             QueueAcc,
-                                                             Buf_t,
-                                                             Buf_t,
-                                                             reduce_t,
-                                                             DataType,
-                                                             func_t,
-                                                             nSrc, false > (devAcc, computeQueue, a, a, xAcc, yAcc, yAcc, xAcc, reduce_bufs);
+    auto msrc_axpyNorm_functor = blas::instantiateTransformReducer<Acc3D,
+                                                                   decltype(devAcc),
+                                                                   QueueAcc,
+                                                                   Buf_t,
+                                                                   Buf_t,
+                                                                   reduce_t,
+                                                                   DataType,
+                                                                   func_t,
+                                                                   nSrc, false > (devAcc, computeQueue, a, a, xAcc, yAcc, yAcc, xAcc, reduce_bufs);
 
-    AxpyNormProductKernel<Acc, decltype(devAcc), decltype(msrc_axpyNorm_functor)> axpyNormProduct;
+
+    AxpyNormProductKernel<Acc3D, decltype(devAcc), decltype(msrc_axpyNorm_functor)> axpyNormProduct;
 
     alpaka::WorkDivMembers<Dim3D, Idx> workDiv{grid_size, block_size, Vec3D::ones()};
 
-    alpaka::exec<Acc>(
+    alpaka::exec<Acc3D>(
         computeQueue,
         workDiv,
         axpyNormProduct,
