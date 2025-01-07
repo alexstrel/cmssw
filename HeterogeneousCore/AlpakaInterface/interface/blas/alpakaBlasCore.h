@@ -57,7 +57,7 @@ namespace cms::alpakatools {
         using T = typename alpaka::trait::ElemType<buf_t>::type;
         cms::alpakatools::VecArray<T *, nSrc> result;
 
-        for (int i = 0; i < nSrc; ++i) {
+        for (Idx i = 0; i < nSrc; ++i) {
           result[i] = const_cast<T *>(vec[i].data());
         }
         return result;
@@ -114,7 +114,7 @@ namespace cms::alpakatools {
 
       reduce::BlockReducer block_reducer;
 
-      MultiSrcTransformReducer(TransformReducer_t f, const Args &args) : f(f), args(args) {}
+      MultiSrcTransformReducer(TransformReducer_t f, const Args &args) : args(args), f(f) {}
 
       template <typename TQueue>
       auto fetch(TQueue queue) const {
@@ -126,7 +126,7 @@ namespace cms::alpakatools {
 
         std::vector<host_reduce_t> values(Args::nSrc);
         //
-        for (int i = 0; i < Args::nSrc; i++) {
+        for (Idx i = 0; i < Args::nSrc; i++) {
           values[i] = args.result_h[i];
         }
         //
@@ -206,7 +206,7 @@ namespace cms::alpakatools {
           d_partial[blockIdx_x + gridDim_x * batch_idx] = result;
 
           alpaka::mem_fence(acc, alpaka::memory_scope::Device{});
-          auto value =
+          unsigned int value =
               alpaka::atomicAdd(acc, static_cast<count_t *>(&count[batch_idx]), 1, alpaka::hierarchy::Blocks{});
 
           isLastBlockDone[batch_idx] = (value == (gridDim_x - 1));

@@ -139,10 +139,10 @@ namespace cms::alpakatools {
         auto const threadIdx_x = alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[leading_dim];
         auto const blockDim_x = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[leading_dim];
 
-        int const warpIdx_x = threadIdx_x / warpExtent;
-        int const laneIdx = threadIdx_x % warpExtent;
+        unsigned int const warpIdx_x = threadIdx_x / warpExtent;
+        unsigned int const laneIdx = threadIdx_x % warpExtent;
 
-        int const w_items_x =
+        unsigned int const w_items_x =
             std::min(static_cast<int>(blockDim_x / warpExtent), static_cast<int>(max_w_items));
 
         auto& sdata(alpaka::declareSharedVar<cms::alpakatools::VecArray<reduce_t, max_w_items>, __COUNTER__>(acc));
