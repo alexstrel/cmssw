@@ -12,6 +12,8 @@
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "DataFormats/TrajectorySeed/interface/TrajectorySeedCollection.h"
 #include "DataFormats/TrackerCommon/interface/TrackerTopology.h"
+#include "DataFormats/EgammaReco/interface/ElectronSeed.h"
+#include "DataFormats/EgammaReco/interface/ElectronSeedFwd.h"
 
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
@@ -96,7 +98,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			reco::SuperclusterHostCollection hostProductSCs{i, event.queue()};
 			reco::SuperclusterDeviceCollection deviceProductSCs{i, event.queue()};
 
-			i = 0; // To fix these make they no sense
+			i = 0; // To fix : Should be a smarter way to get the size of these 
 			for (auto& initialSeedRef : event.get(initialSeedsToken_)) 
 				++i;
 
@@ -106,16 +108,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			auto& viewSCs = hostProductSCs.view();
 			auto& viewSeeds = hostProductSeeds.view();
 
-
-			// In order to write out a reduced collection of matched seeds?
-			// Might want to create some sort of assiciation SoA
-			//reco::EleSeedHostCollection modifiedHostProductSeeds{i, event.queue()};
-			//reco::EleSeedDeviceCollection modifieddeviceProductSeeds{i, event.queue()};
-
 			////////////////////////////////////////////////////////////////////
 			// Fill in SOAs
 			// Technically should separate in different producers that create the SoAs
 			// Info on SoAs : https://github.com/cms-sw/cmssw/blob/master/DataFormats/SoATemplate/README.md
+
+
+			/////////////////////////////////////////////////////////////
+			// Can I use these maps for proper conversion back to legacy?
+			/////////////////////////////////////////////////////////////
+			// In order to write out a reduced collection of matched seeds?
+			// Might want to create some sort of assiciation SoA
+
+			std::map<int, reco::SuperClusterRef> superClusterRefMap_;
+			std::map<int, TrajectorySeed> seedRefMap_;
 
 			i = 0;
 	        for (auto& superClusRef : event.get(superClustersTokens_))
@@ -125,21 +131,38 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				viewSCs[i].scPhi() = superClusRef->position().phi();
 				viewSCs[i].scR() = superClusRef->position().r();
 				viewSCs[i].scEnergy() = superClusRef->energy();
+    
+				// Filling in a map with the whole object
+				superClusterRefMap_[i] = superClusRef;
+
 				++i;
 			}
+
+			// Printing the contents of the map to check if it's filled properly
+			// for (const auto& entry : superClusterRefMap_) {
+			// 		std::cout << "Index " << entry.first << ": " << std::endl;
+			// 		std::cout << "  theta: " << entry.second->seed()->position().theta();
+			// }
 
 			// This is so ugly :( 
 			// To figure out is there is another way to bulid this SoA
 			i = 0;
 			for (auto& initialSeedRef : event.get(initialSeedsToken_)) 
 			{	
+				// Filling in a map with the whole object
+    			seedRefMap_[i] = initialSeedRef;  
+
+				// Fill in the view
 				viewSeeds[i].nHits() = initialSeedRef.nHits();
+				viewSeeds[i].id() = i;		
 				viewSeeds[i].isMatched() = 0;		
 				viewSeeds[i].matchedScID() = -1;
 
 				auto const& recHit = *(initialSeedRef.recHits().begin() + 0);  
 				viewSeeds[i].detectorID().x() = recHit.geographicalId().subdetId() == PixelSubdetector::PixelBarrel ? 1: 0;
 				viewSeeds[i].isValid().x() = recHit.isValid();
+
+
 				viewSeeds[i].hitPosX().x() = recHit.globalPosition().x();
 				viewSeeds[i].hitPosY().x() = recHit.globalPosition().y();
 				viewSeeds[i].hitPosZ().x() = recHit.globalPosition().z();
@@ -198,14 +221,62 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			alpaka::memcpy(event.queue(), deviceProductSeeds.buffer(), hostProductSeeds.buffer());
 
 			// Print the SoA 
-			//algo_.printEleSeeds(event.queue(), deviceProductSeeds);
-			//algo_.printSCs(event.queue(), deviceProductSCs);
+			// algo_.printEleSeeds(event.queue(), deviceProductSeeds);
+			// algo_.printSCs(event.queue(), deviceProductSCs);
 
 			// Matching algorithm
 			algo_.matchSeeds(event.queue(), deviceProductSeeds, deviceProductSCs,vertex(0),vertex(1), vertex(2));
 
+			alpaka::memcpy(event.queue(), hostProductSeeds.buffer(), deviceProductSeeds.buffer());
+
+			auto& view = hostProductSeeds.view();
+			// for (int i = 0; i < view.metadata().size(); ++i) {
+			// 	if(view[i].isMatched()>0){
+			// 		std::cout << "Seed " << i << ":" << std::endl;
+			// 		std::cout << "  nHits: " << view[i].nHits() << std::endl;
+			// 		std::cout << "  isMatched: " << view[i].isMatched() << std::endl;
+			// 		std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
+
+			// 		// Print hit position details
+			// 		for (int j = 0; j < 3; ++j) {
+			// 			std::cout << "  Hit " << j << " position: "
+			// 					<< " x: " << view[i].hitPosX().x() << ", "
+			// 					<< " y: " << view[i].hitPosY().x() << ", "
+			// 					<< " z: " << view[i].hitPosZ().x() << std::endl;
+			// 		}
+			// 		std::cout << std::endl;
+			// 	}
+			// }
+
+			reco::ElectronSeedCollection eleSeeds{};
+
+			for (int i = 0; i < view.metadata().size(); ++i) {
+				if (view[i].isMatched() > 0) {
+					int matchedScID = view[i].matchedScID();
+					auto scIter = superClusterRefMap_.find(matchedScID);
+			 		std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
+
+					if (scIter != superClusterRefMap_.end()) {
+						const reco::SuperClusterRef& superClusRef = scIter->second;
+						auto seedIter = seedRefMap_.find(view[i].id());
+						if (seedIter != seedRefMap_.end()) {
+							const TrajectorySeed& matchedSeed = seedIter->second;
+							reco::ElectronSeed eleSeed(matchedSeed);
+							reco::ElectronSeed::CaloClusterRef caloClusRef(superClusRef);
+							eleSeed.setCaloCluster(caloClusRef);
+							eleSeeds.emplace_back(eleSeed);
+						}
+					} else {
+						std::cerr << "No SuperCluster found for SC ID " << matchedScID << std::endl;
+					}
+				}
+			}
+			std::cout << "New eleSeeds size " << eleSeeds.size() << std::endl;
+			superClusterRefMap_.clear();
+			seedRefMap_.clear();
+
 			// Shouldnt I get some sort of print out from the GPU?
-      		alpaka::wait(event.queue()); 
+      		//alpaka::wait(event.queue()); 
 
 
 			// For testing developments wrt legacy implementations

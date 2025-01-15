@@ -102,9 +102,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 										double vtx_y,
 										double vtx_z) const 
 		{
-
-			//const int32_t thread = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u];
-
 			Vector3f vertex = {vtx_x,vtx_y,vtx_z}; 
 
 			for (int32_t i : uniform_elements(acc,sizeEleSeeds)) 
@@ -122,7 +119,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				Vector3f surf2Position = {viewEleSeeds[i].surfPosX().y(),viewEleSeeds[i].surfPosY().y(),viewEleSeeds[i].surfPosZ().y()};
 				Vector3f surf2Rotation = {viewEleSeeds[i].surfRotX().y(),viewEleSeeds[i].surfRotY().y(),viewEleSeeds[i].surfRotZ().y()};
 
-				for(int32_t j : uniform_elements(acc,sizeSCs)) 
+				for(int32_t j=0; j<sizeSCs; ++j)
 				{
 					float x = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::cos(acc,viewSCs[j].scPhi());
 					float y = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::sin(acc,viewSCs[j].scPhi());
@@ -164,8 +161,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						double zVertex = getZVtxFromExtrapolation(vertex, hitPosition,positionSC);
 						Vector3f vertexUpdated(vertex(0),vertex(1), zVertex);
 
-						printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
-						printf("Vertex Z updated %lf \n",zVertex);
+						//printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
+						//printf("Vertex Z updated %lf \n",zVertex);
 
 						// Move to the second hit of the seed
 						if(!(viewEleSeeds[i].isValid().y()))
@@ -182,7 +179,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						propagatedMom*= momentum.norm();
 						if(!theSolExists)
 							continue;
-						printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
+						//printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
 						EleRelPointPairPortable::EleRelPointPair<Vector3f> pair2(hit2Position,propagatedPos,vertexUpdated);
 						dPhiMax = getCutValue(et, 0.003, 0., 0.);
 						dRZMax = getCutValue(et, 0.05, 30., -0.002);
@@ -190,7 +187,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						if(viewEleSeeds[i].detectorID().y() != 1)
 							dRZ = pair2.dPerp(); 
 						if ((dPhiMax >= 0 && std::abs(pair2.dPhi()) > dPhiMax) || (dRZMax >= 0 && std::abs(dRZ) > dRZMax))
-							continue;
+							continue;	
+						viewEleSeeds[i].matchedScID() = viewSCs[j].id();
+						viewEleSeeds[i].isMatched() = 1;
+
 					}
 				}
 			}

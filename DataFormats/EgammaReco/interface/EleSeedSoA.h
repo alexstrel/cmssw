@@ -22,7 +22,8 @@ namespace reco {
 		SOA_EIGEN_COLUMN(Eigen::Vector3d, detectorID),
 		SOA_EIGEN_COLUMN(Eigen::Vector3d, isValid),
 		SOA_COLUMN(int32_t, isMatched),
-		SOA_COLUMN(int32_t, matchedScID)
+		SOA_COLUMN(int32_t, matchedScID),
+		SOA_COLUMN(int32_t, id)
 	)
 	using EleSeedSoA = EleSeedLayout<>;
 }  // namespace reco
