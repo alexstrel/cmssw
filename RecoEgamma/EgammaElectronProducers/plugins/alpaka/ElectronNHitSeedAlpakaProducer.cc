@@ -89,21 +89,25 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 			PropagatorWithMaterial backwardPropagator_ = PropagatorWithMaterial(oppositeToMomentum, 0.000511, &magField);
 
+			std::vector<reco::SuperClusterRef> superClusterRefVec;
 
-			int i=0;
-	        for (auto& superClusRef : event.get(superClustersTokens_)) {
-				++i;
-			}
+			for (auto& superClusRef : event.get(superClustersTokens_)) 
+				superClusterRefVec.push_back(superClusRef);  
+	
+			int superClusterCollectionSize = superClusterRefVec.size();
 
-			reco::SuperclusterHostCollection hostProductSCs{i, event.queue()};
-			reco::SuperclusterDeviceCollection deviceProductSCs{i, event.queue()};
+			reco::SuperclusterHostCollection hostProductSCs{superClusterCollectionSize, event.queue()};
+			reco::SuperclusterDeviceCollection deviceProductSCs{superClusterCollectionSize, event.queue()};
 
-			i = 0; // To fix : Should be a smarter way to get the size of these 
+
+			std::vector<TrajectorySeed> seedRefVec;
 			for (auto& initialSeedRef : event.get(initialSeedsToken_)) 
-				++i;
+				seedRefVec.push_back(initialSeedRef);  
 
-			reco::EleSeedHostCollection hostProductSeeds{i, event.queue()};
-			reco::EleSeedDeviceCollection deviceProductSeeds{i, event.queue()};
+			int seedCollectionSize = seedRefVec.size();
+
+			reco::EleSeedHostCollection hostProductSeeds{seedCollectionSize, event.queue()};
+			reco::EleSeedDeviceCollection deviceProductSeeds{seedCollectionSize, event.queue()};
 
 			auto& viewSCs = hostProductSCs.view();
 			auto& viewSeeds = hostProductSeeds.view();
@@ -123,8 +127,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			std::map<int, reco::SuperClusterRef> superClusterRefMap_;
 			std::map<int, TrajectorySeed> seedRefMap_;
 
-			i = 0;
-	        for (auto& superClusRef : event.get(superClustersTokens_))
+			int i = 0;
+	        for (auto& superClusRef : superClusterRefVec)
 			{
 				viewSCs[i].id() =  i;
 				viewSCs[i].scSeedTheta() =  superClusRef->seed()->position().theta();
@@ -138,16 +142,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				++i;
 			}
 
-			// Printing the contents of the map to check if it's filled properly
-			// for (const auto& entry : superClusterRefMap_) {
-			// 		std::cout << "Index " << entry.first << ": " << std::endl;
-			// 		std::cout << "  theta: " << entry.second->seed()->position().theta();
-			// }
 
-			// This is so ugly :( 
 			// To figure out is there is another way to bulid this SoA
 			i = 0;
-			for (auto& initialSeedRef : event.get(initialSeedsToken_)) 
+			for (auto& initialSeedRef : seedRefVec) 
 			{	
 				// Filling in a map with the whole object
     			seedRefMap_[i] = initialSeedRef;  
@@ -248,32 +246,32 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			// 	}
 			// }
 
-			reco::ElectronSeedCollection eleSeeds{};
+			// reco::ElectronSeedCollection eleSeeds{};
 
-			for (int i = 0; i < view.metadata().size(); ++i) {
-				if (view[i].isMatched() > 0) {
-					int matchedScID = view[i].matchedScID();
-					auto scIter = superClusterRefMap_.find(matchedScID);
-			 		std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
+			// for (int i = 0; i < view.metadata().size(); ++i) {
+			// 	if (view[i].isMatched() > 0) {
+			// 		int matchedScID = view[i].matchedScID();
+			// 		auto scIter = superClusterRefMap_.find(matchedScID);
+			//  		std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
 
-					if (scIter != superClusterRefMap_.end()) {
-						const reco::SuperClusterRef& superClusRef = scIter->second;
-						auto seedIter = seedRefMap_.find(view[i].id());
-						if (seedIter != seedRefMap_.end()) {
-							const TrajectorySeed& matchedSeed = seedIter->second;
-							reco::ElectronSeed eleSeed(matchedSeed);
-							reco::ElectronSeed::CaloClusterRef caloClusRef(superClusRef);
-							eleSeed.setCaloCluster(caloClusRef);
-							eleSeeds.emplace_back(eleSeed);
-						}
-					} else {
-						std::cerr << "No SuperCluster found for SC ID " << matchedScID << std::endl;
-					}
-				}
-			}
-			std::cout << "New eleSeeds size " << eleSeeds.size() << std::endl;
-			superClusterRefMap_.clear();
-			seedRefMap_.clear();
+			// 		if (scIter != superClusterRefMap_.end()) {
+			// 			const reco::SuperClusterRef& superClusRef = scIter->second;
+			// 			auto seedIter = seedRefMap_.find(view[i].id());
+			// 			if (seedIter != seedRefMap_.end()) {
+			// 				const TrajectorySeed& matchedSeed = seedIter->second;
+			// 				reco::ElectronSeed eleSeed(matchedSeed);
+			// 				reco::ElectronSeed::CaloClusterRef caloClusRef(superClusRef);
+			// 				eleSeed.setCaloCluster(caloClusRef);
+			// 				eleSeeds.emplace_back(eleSeed);
+			// 			}
+			// 		} else {
+			// 			std::cerr << "No SuperCluster found for SC ID " << matchedScID << std::endl;
+			// 		}
+			// 	}
+			// }
+			// std::cout << "New eleSeeds size " << eleSeeds.size() << std::endl;
+			// superClusterRefMap_.clear();
+			// seedRefMap_.clear();
 
 			// Shouldnt I get some sort of print out from the GPU?
       		//alpaka::wait(event.queue()); 
