@@ -55,7 +55,7 @@
 
 #include "DataFormats/EgammaReco/interface/Plane.h"
 
-using Vector3f = Eigen::Matrix<double, 3, 1>;
+using Vector3d = Eigen::Matrix<double, 3, 1>;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -76,7 +76,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 			auto vprim_ = event.get(beamSpotToken_).position();
 			GlobalPoint vprim(vprim_.x(), vprim_.y(), vprim_.z());
-			Vector3f vertex{vprim.x(),vprim.y(),vprim.z()};
+			Vector3d vertex{vprim.x(),vprim.y(),vprim.z()};
 
 			// NEW EVENT 
 
@@ -86,7 +86,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			auto const& magField = iSetup.getData(magFieldToken_);
 			const TrackerGeometry* theG = &iSetup.getData(geomToken);
 
-
 			PropagatorWithMaterial backwardPropagator_ = PropagatorWithMaterial(oppositeToMomentum, 0.000511, &magField);
 
 			std::vector<reco::SuperClusterRef> superClusterRefVec;
@@ -94,24 +93,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			for (auto& superClusRef : event.get(superClustersTokens_)) 
 				superClusterRefVec.push_back(superClusRef);  
 	
-			int superClusterCollectionSize = superClusterRefVec.size();
-
+			int32_t superClusterCollectionSize = superClusterRefVec.size();
 			reco::SuperclusterHostCollection hostProductSCs{superClusterCollectionSize, event.queue()};
-			reco::SuperclusterDeviceCollection deviceProductSCs{superClusterCollectionSize, event.queue()};
-
 
 			std::vector<TrajectorySeed> seedRefVec;
 			for (auto& initialSeedRef : event.get(initialSeedsToken_)) 
 				seedRefVec.push_back(initialSeedRef);  
 
-			int seedCollectionSize = seedRefVec.size();
-
+			int32_t seedCollectionSize = seedRefVec.size();
 			reco::EleSeedHostCollection hostProductSeeds{seedCollectionSize, event.queue()};
-			reco::EleSeedDeviceCollection deviceProductSeeds{seedCollectionSize, event.queue()};
 
 			auto& viewSCs = hostProductSCs.view();
 			auto& viewSeeds = hostProductSeeds.view();
 
+			std::cout<<" -----> Collection sizes SCs: "<<superClusterCollectionSize << " Seeds " <<seedCollectionSize<<std::endl;
 			////////////////////////////////////////////////////////////////////
 			// Fill in SOAs
 			// Technically should separate in different producers that create the SoAs
@@ -124,10 +119,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			// In order to write out a reduced collection of matched seeds?
 			// Might want to create some sort of assiciation SoA
 
-			std::map<int, reco::SuperClusterRef> superClusterRefMap_;
-			std::map<int, TrajectorySeed> seedRefMap_;
+			// std::map<int, reco::SuperClusterRef> superClusterRefMap_;
+			// std::map<int, TrajectorySeed> seedRefMap_;
 
-			int i = 0;
+			int32_t i = 0;
 	        for (auto& superClusRef : superClusterRefVec)
 			{
 				viewSCs[i].id() =  i;
@@ -135,10 +130,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				viewSCs[i].scPhi() = superClusRef->position().phi();
 				viewSCs[i].scR() = superClusRef->position().r();
 				viewSCs[i].scEnergy() = superClusRef->energy();
-    
 				// Filling in a map with the whole object
-				superClusterRefMap_[i] = superClusRef;
-
+				// superClusterRefMap_[i] = superClusRef;
 				++i;
 			}
 
@@ -147,104 +140,87 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			i = 0;
 			for (auto& initialSeedRef : seedRefVec) 
 			{	
-				// Filling in a map with the whole object
-    			seedRefMap_[i] = initialSeedRef;  
-
-				// Fill in the view
 				viewSeeds[i].nHits() = initialSeedRef.nHits();
 				viewSeeds[i].id() = i;		
 				viewSeeds[i].isMatched() = 0;		
 				viewSeeds[i].matchedScID() = -1;
-
-				auto const& recHit = *(initialSeedRef.recHits().begin() + 0);  
-				viewSeeds[i].detectorID().x() = recHit.geographicalId().subdetId() == PixelSubdetector::PixelBarrel ? 1: 0;
-				viewSeeds[i].isValid().x() = recHit.isValid();
-
-
-				viewSeeds[i].hitPosX().x() = recHit.globalPosition().x();
-				viewSeeds[i].hitPosY().x() = recHit.globalPosition().y();
-				viewSeeds[i].hitPosZ().x() = recHit.globalPosition().z();
-				viewSeeds[i].surfPosX().x() = recHit.det()->surface().position().x();
-				viewSeeds[i].surfPosY().x() = recHit.det()->surface().position().y();
-				viewSeeds[i].surfPosZ().x() = recHit.det()->surface().position().z();
-				viewSeeds[i].surfRotX().x() = recHit.det()->surface().rotation().z().x();
-				viewSeeds[i].surfRotY().x() = recHit.det()->surface().rotation().z().y();
-				viewSeeds[i].surfRotZ().x() = recHit.det()->surface().rotation().z().z();
-
-				auto const& recHit1 = *(initialSeedRef.recHits().begin() + 1);  
-				viewSeeds[i].detectorID().y() = recHit1.geographicalId().subdetId() == PixelSubdetector::PixelBarrel ? 1: 0;
-				viewSeeds[i].isValid().y() = recHit1.isValid();
-				viewSeeds[i].hitPosX().y() = recHit1.globalPosition().x();
-				viewSeeds[i].hitPosY().y() = recHit1.globalPosition().y();
-				viewSeeds[i].hitPosZ().y() = recHit1.globalPosition().z();
-				viewSeeds[i].surfPosX().y() = recHit1.det()->surface().position().x();
-				viewSeeds[i].surfPosY().y() = recHit1.det()->surface().position().y();
-				viewSeeds[i].surfPosZ().y() = recHit1.det()->surface().position().z();
-				viewSeeds[i].surfRotX().y() = recHit1.det()->surface().rotation().z().x();
-				viewSeeds[i].surfRotY().y() = recHit1.det()->surface().rotation().z().y();
-				viewSeeds[i].surfRotZ().y() = recHit1.det()->surface().rotation().z().z();
-
-				if(initialSeedRef.nHits()>2){
-					auto const& recHit2 = *(initialSeedRef.recHits().begin() + 2);  
-					viewSeeds[i].detectorID().z() = recHit2.geographicalId().subdetId() == PixelSubdetector::PixelBarrel ? 1: 0;
-					viewSeeds[i].isValid().z() = recHit2.isValid();
-					viewSeeds[i].hitPosX().z() = recHit2.globalPosition().x();
-					viewSeeds[i].hitPosY().z() = recHit2.globalPosition().y();
-					viewSeeds[i].hitPosZ().z() = recHit2.globalPosition().z();
-					viewSeeds[i].surfPosX().z() = recHit2.det()->surface().position().x();
-					viewSeeds[i].surfPosY().z() = recHit2.det()->surface().position().y();
-					viewSeeds[i].surfPosZ().z() = recHit2.det()->surface().position().z();
-					viewSeeds[i].surfRotX().z() = recHit2.det()->surface().rotation().z().x();
-					viewSeeds[i].surfRotY().z() = recHit2.det()->surface().rotation().z().y();
-					viewSeeds[i].surfRotZ().z() = recHit2.det()->surface().rotation().z().z();		
+			
+				auto hitIt = initialSeedRef.recHits().begin();
+			
+				// Hit 0
+				const auto& recHit0 = *hitIt;
+				const auto& pos0 = recHit0.globalPosition();
+				const auto& surf0 = recHit0.det()->surface().position();
+				const auto& rot0 = recHit0.det()->surface().rotation().z();
+				viewSeeds[i].hit0detectorID()  = (recHit0.geographicalId().subdetId() == PixelSubdetector::PixelBarrel) ? 1 : 0;
+				viewSeeds[i].hit0isValid() = recHit0.isValid();
+				viewSeeds[i].hit0Pos() = Eigen::Vector3d(pos0.x(), pos0.y(), pos0.z());
+				viewSeeds[i].surf0Pos() = Eigen::Vector3d(surf0.x(), surf0.y(), surf0.z());
+				viewSeeds[i].surf0Rot() = Eigen::Vector3d(rot0.x(), rot0.y(), rot0.z());
+			
+				// Hit 1
+				++hitIt;
+				const auto& recHit1 = *hitIt;
+				const auto& pos1 = recHit1.globalPosition();
+				const auto& surf1 = recHit1.det()->surface().position();
+				const auto& rot1 = recHit1.det()->surface().rotation().z();
+				viewSeeds[i].hit1detectorID()  = (recHit1.geographicalId().subdetId() == PixelSubdetector::PixelBarrel) ? 1 : 0;
+				viewSeeds[i].hit1isValid() = recHit1.isValid();
+				viewSeeds[i].hit1Pos() = Eigen::Vector3d(pos1.x(), pos1.y(), pos1.z());
+				viewSeeds[i].surf1Pos() = Eigen::Vector3d(surf1.x(), surf1.y(), surf1.z());
+				viewSeeds[i].surf1Rot() = Eigen::Vector3d(rot1.x(), rot1.y(), rot1.z());
+			
+				// Hit 2
+				if (initialSeedRef.nHits() > 2) {
+					++hitIt;
+					const auto& recHit2 = *hitIt;
+					const auto& pos2 = recHit2.globalPosition();
+					const auto& surf2 = recHit2.det()->surface().position();
+					const auto& rot2 = recHit2.det()->surface().rotation().z();
+					viewSeeds[i].hit2detectorID()  = (recHit2.geographicalId().subdetId() == PixelSubdetector::PixelBarrel) ? 1 : 0;
+					viewSeeds[i].hit2isValid() = recHit2.isValid();
+					viewSeeds[i].hit2Pos() = Eigen::Vector3d(pos2.x(), pos2.y(), pos2.z());
+					viewSeeds[i].surf2Pos() = Eigen::Vector3d(surf2.x(), surf2.y(), surf2.z());
+					viewSeeds[i].surf2Rot() = Eigen::Vector3d(rot2.x(), rot2.y(), rot2.z());
+				} else {
+					// Zero initialization
+					viewSeeds[i].hit2Pos().setZero();
+					viewSeeds[i].surf2Pos().setZero();
+					viewSeeds[i].surf2Rot().setZero();
+					viewSeeds[i].hit2detectorID()  = 0;
+					viewSeeds[i].hit2isValid() = 0;
 				}
-				else{
-					viewSeeds[i].detectorID().z() = 0;
-					viewSeeds[i].isValid().z() = 0;
-					viewSeeds[i].hitPosX().z() = 0;
-					viewSeeds[i].hitPosY().z() = 0;
-					viewSeeds[i].hitPosZ().z() = 0;
-					viewSeeds[i].surfPosX().z() = 0;
-					viewSeeds[i].surfPosY().z() = 0;
-					viewSeeds[i].surfPosZ().z() = 0;
-					viewSeeds[i].surfRotX().z() = 0;
-					viewSeeds[i].surfRotY().z() = 0;
-					viewSeeds[i].surfRotZ().z() = 0;		
-				}
-				
+			
 				++i;
 			}
 
+			// Create device products & copy to device
+			reco::SuperclusterDeviceCollection deviceProductSCs{superClusterCollectionSize, event.queue()};
 			alpaka::memcpy(event.queue(), deviceProductSCs.buffer(), hostProductSCs.buffer());
+			reco::EleSeedDeviceCollection deviceProductSeeds{seedCollectionSize, event.queue()};
 			alpaka::memcpy(event.queue(), deviceProductSeeds.buffer(), hostProductSeeds.buffer());
 
 			// Print the SoA 
-			// algo_.printEleSeeds(event.queue(), deviceProductSeeds);
 			// algo_.printSCs(event.queue(), deviceProductSCs);
-
+			// algo_.printEleSeeds(event.queue(), deviceProductSeeds);
+			// alpaka::wait(event.queue()); 
 			// Matching algorithm
 			algo_.matchSeeds(event.queue(), deviceProductSeeds, deviceProductSCs,vertex(0),vertex(1), vertex(2));
-
+			alpaka::wait(event.queue()); 
 			alpaka::memcpy(event.queue(), hostProductSeeds.buffer(), deviceProductSeeds.buffer());
+			alpaka::wait(event.queue()); 
 
 			auto& view = hostProductSeeds.view();
-			// for (int i = 0; i < view.metadata().size(); ++i) {
-			// 	if(view[i].isMatched()>0){
-			// 		std::cout << "Seed " << i << ":" << std::endl;
-			// 		std::cout << "  nHits: " << view[i].nHits() << std::endl;
-			// 		std::cout << "  isMatched: " << view[i].isMatched() << std::endl;
-			// 		std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
-
-			// 		// Print hit position details
-			// 		for (int j = 0; j < 3; ++j) {
-			// 			std::cout << "  Hit " << j << " position: "
-			// 					<< " x: " << view[i].hitPosX().x() << ", "
-			// 					<< " y: " << view[i].hitPosY().x() << ", "
-			// 					<< " z: " << view[i].hitPosZ().x() << std::endl;
-			// 		}
-			// 		std::cout << std::endl;
-			// 	}
-			// }
+			std::cout<<"view.metadata().size() "<<view.metadata().size()<<std::endl;
+			
+			for (int i = 0; i < view.metadata().size(); ++i) {
+				if(view[i].isMatched()>0){
+					std::cout << "  Seed " << i << ":" << std::endl;
+					std::cout << "  nHits: " << view[i].nHits() << std::endl;
+					std::cout << "  isMatched: " << view[i].isMatched() << std::endl;
+					std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
+				}
+			}
 
 			// reco::ElectronSeedCollection eleSeeds{};
 
@@ -285,7 +261,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				float z = superClusRef->position().r() * cos(superClusRef->seed()->position().theta());
 				GlobalPoint center(x, y, z);
 				float theMagField = magField.inTesla(center).mag();
-				Vector3f position{x,y,z};
+				Vector3d position{x,y,z};
 				GlobalPoint sc(GlobalPoint::Polar(superClusRef->seed()->position().theta(),  //seed theta
                                                 superClusRef->position().phi(),    //supercluster phi
                                                 superClusRef->position().r()));    //supercluster r
@@ -296,10 +272,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					auto initialTrajState = TrajectoryStateOnSurface(freeTS, *PerpendicularBoundPlaneBuilder{}(freeTS.position(), freeTS.momentum()));
 
 					auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(position, vertex, superClusRef->energy(),charge,magneticFieldParabolicPortable::magneticFieldAtPoint(position));			
-					Vector3f testposition = {newfreeTS.position(0),newfreeTS.position(1),newfreeTS.position(2)};
-					Vector3f testmomentum = {newfreeTS.momentum(0),newfreeTS.momentum(1),newfreeTS.momentum(2)};
+					Vector3d testposition = {newfreeTS.position(0),newfreeTS.position(1),newfreeTS.position(2)};
+					Vector3d testmomentum = {newfreeTS.momentum(0),newfreeTS.momentum(1),newfreeTS.momentum(2)};
 
-					auto transverseCurvature = [](const Vector3f& p, int charge, const float& magneticFieldZ) -> float {
+					auto transverseCurvature = [](const Vector3d& p, int charge, const float& magneticFieldZ) -> float {
 							return -2.99792458e-3f * (charge / sqrt(p(0) * p(0) + p(1) * p(1))) * magneticFieldZ;  
 					};
 
@@ -319,16 +295,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						if(!state.isValid())      
 							++notValid_old;
 
-						Vector3f recHitpos{recHit.globalPosition().x(),recHit.globalPosition().y(),recHit.globalPosition().z()};
-						Vector3f surfPosition{recHit.det()->surface().position().x(),recHit.det()->surface().position().y(),recHit.det()->surface().position().z()};
-						Vector3f surfRotation{recHit.det()->surface().rotation().z().x(),recHit.det()->surface().rotation().z().y(),recHit.det()->surface().rotation().z().z()};
-						Vector3f x2{0,0,0};
-						Vector3f p2{0,0,0};
+						Vector3d recHitpos{recHit.globalPosition().x(),recHit.globalPosition().y(),recHit.globalPosition().z()};
+						Vector3d surfPosition{recHit.det()->surface().position().x(),recHit.det()->surface().position().y(),recHit.det()->surface().position().z()};
+						Vector3d surfRotation{recHit.det()->surface().rotation().z().x(),recHit.det()->surface().rotation().z().y(),recHit.det()->surface().rotation().z().z()};
+						Vector3d x2{0,0,0};
+						Vector3d p2{0,0,0};
 						double rho = 0.;
 						double s = 0.;					
 						bool theSolExists = false;
 
-						PlanePortable::Plane<Vector3f> plane{surfPosition,surfRotation};
+						PlanePortable::Plane<Vector3d> plane{surfPosition,surfRotation};
 						rho = transverseCurvature(testmomentum,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(position));
 
 						constexpr float small = 1.e-6;  // for orientation of planes
@@ -375,7 +351,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 							std::cout<<" Initial: "<< state.globalParameters().momentum()<<"   and new "<< p2(0) <<" "<< p2(1) << " "<< p2(2)<<std::endl;
 							std::cout<<" The path length is : "<< s << std::endl;
 							EleRelPointPair pointPair(recHit.globalPosition(), state.globalParameters().position(), vprim);
-							EleRelPointPairPortable::EleRelPointPair<Vector3f> pair(recHitpos,x2,vertex);
+							EleRelPointPairPortable::EleRelPointPair<Vector3d> pair(recHitpos,x2,vertex);
 							printf("Old point pair dZ %lf, dPerp %lf, and dPhi %lf\n",pointPair.dZ(),pointPair.dPerp(),pointPair.dPhi());
 							printf("New point pair dZ %lf, dPerp %lf, and dPhi %lf \n",pair.dZ(),pair.dPerp(),pair.dPhi());
 						}
