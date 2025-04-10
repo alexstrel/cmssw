@@ -109,18 +109,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			std::cout<<" -----> Collection sizes SCs: "<<superClusterCollectionSize << " Seeds " <<seedCollectionSize<<std::endl;
 			////////////////////////////////////////////////////////////////////
 			// Fill in SOAs
-			// Technically should separate in different producers that create the SoAs
+			// Technically should separate in different producers that create the SoAs ?
 			// Info on SoAs : https://github.com/cms-sw/cmssw/blob/master/DataFormats/SoATemplate/README.md
-
-
-			/////////////////////////////////////////////////////////////
-			// Can I use these maps for proper conversion back to legacy?
-			/////////////////////////////////////////////////////////////
-			// In order to write out a reduced collection of matched seeds?
-			// Might want to create some sort of assiciation SoA
-
-			// std::map<int, reco::SuperClusterRef> superClusterRefMap_;
-			// std::map<int, TrajectorySeed> seedRefMap_;
+			////////////////////////////////////////////////////////////////////
 
 			int32_t i = 0;
 	        for (auto& superClusRef : superClusterRefVec)
@@ -130,8 +121,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				viewSCs[i].scPhi() = superClusRef->position().phi();
 				viewSCs[i].scR() = superClusRef->position().r();
 				viewSCs[i].scEnergy() = superClusRef->energy();
-				// Filling in a map with the whole object
-				// superClusterRefMap_[i] = superClusRef;
 				++i;
 			}
 
@@ -221,157 +210,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
 				}
 			}
-
-			// reco::ElectronSeedCollection eleSeeds{};
-
-			// for (int i = 0; i < view.metadata().size(); ++i) {
-			// 	if (view[i].isMatched() > 0) {
-			// 		int matchedScID = view[i].matchedScID();
-			// 		auto scIter = superClusterRefMap_.find(matchedScID);
-			//  		std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
-
-			// 		if (scIter != superClusterRefMap_.end()) {
-			// 			const reco::SuperClusterRef& superClusRef = scIter->second;
-			// 			auto seedIter = seedRefMap_.find(view[i].id());
-			// 			if (seedIter != seedRefMap_.end()) {
-			// 				const TrajectorySeed& matchedSeed = seedIter->second;
-			// 				reco::ElectronSeed eleSeed(matchedSeed);
-			// 				reco::ElectronSeed::CaloClusterRef caloClusRef(superClusRef);
-			// 				eleSeed.setCaloCluster(caloClusRef);
-			// 				eleSeeds.emplace_back(eleSeed);
-			// 			}
-			// 		} else {
-			// 			std::cerr << "No SuperCluster found for SC ID " << matchedScID << std::endl;
-			// 		}
-			// 	}
-			// }
-			// std::cout << "New eleSeeds size " << eleSeeds.size() << std::endl;
-			// superClusterRefMap_.clear();
-			// seedRefMap_.clear();
-
-			// Shouldnt I get some sort of print out from the GPU?
-      		//alpaka::wait(event.queue()); 
-
-
-			// For testing developments wrt legacy implementations
-	        for (auto& superClusRef : event.get(superClustersTokens_)) 
-			{
-				float x = superClusRef->position().r() * sin(superClusRef->seed()->position().theta()) * cos(superClusRef->position().phi());
-				float y = superClusRef->position().r() * sin(superClusRef->seed()->position().theta()) * sin(superClusRef->position().phi());
-				float z = superClusRef->position().r() * cos(superClusRef->seed()->position().theta());
-				GlobalPoint center(x, y, z);
-				float theMagField = magField.inTesla(center).mag();
-				Vector3d position{x,y,z};
-				GlobalPoint sc(GlobalPoint::Polar(superClusRef->seed()->position().theta(),  //seed theta
-                                                superClusRef->position().phi(),    //supercluster phi
-                                                superClusRef->position().r()));    //supercluster r
-			
-				for (int charge : {1,-1}) 
-				{
-					auto freeTS = trackingTools::ftsFromVertexToPoint(magField, sc, vprim, superClusRef->energy(), 1);
-					auto initialTrajState = TrajectoryStateOnSurface(freeTS, *PerpendicularBoundPlaneBuilder{}(freeTS.position(), freeTS.momentum()));
-
-					auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(position, vertex, superClusRef->energy(),charge,magneticFieldParabolicPortable::magneticFieldAtPoint(position));			
-					Vector3d testposition = {newfreeTS.position(0),newfreeTS.position(1),newfreeTS.position(2)};
-					Vector3d testmomentum = {newfreeTS.momentum(0),newfreeTS.momentum(1),newfreeTS.momentum(2)};
-
-					auto transverseCurvature = [](const Vector3d& p, int charge, const float& magneticFieldZ) -> float {
-							return -2.99792458e-3f * (charge / sqrt(p(0) * p(0) + p(1) * p(1))) * magneticFieldZ;  
-					};
-
-					int notValid_old = 0;
-					int notValid_new = 0;
-					int seeds = 0;
-					for (auto& initialSeedRef : event.get(initialSeedsToken_)) 
-					{			
-						++seeds;
-						auto const& recHit = *(initialSeedRef.recHits().begin() + 0);  
-
-						if(!recHit.isValid())      
-							continue;
-
-						auto state = backwardPropagator_.propagate(initialTrajState, recHit.det()->surface());
-
-						if(!state.isValid())      
-							++notValid_old;
-
-						Vector3d recHitpos{recHit.globalPosition().x(),recHit.globalPosition().y(),recHit.globalPosition().z()};
-						Vector3d surfPosition{recHit.det()->surface().position().x(),recHit.det()->surface().position().y(),recHit.det()->surface().position().z()};
-						Vector3d surfRotation{recHit.det()->surface().rotation().z().x(),recHit.det()->surface().rotation().z().y(),recHit.det()->surface().rotation().z().z()};
-						Vector3d x2{0,0,0};
-						Vector3d p2{0,0,0};
-						double rho = 0.;
-						double s = 0.;					
-						bool theSolExists = false;
-
-						PlanePortable::Plane<Vector3d> plane{surfPosition,surfRotation};
-						rho = transverseCurvature(testmomentum,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(position));
-
-						constexpr float small = 1.e-6;  // for orientation of planes
-						auto u = plane.normalVector();
-						if (std::abs(u(2)) < small) {
-							// HelixBarrelPlaneCrossing,
-							Propagators::helixBarrelPlaneCrossing(testposition,testmomentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,x2,p2,s);
-						} 
-						else if ((std::abs(u(0)) < small) && (std::abs(u(1)) < small)) 
-						{
-							// forward plane HelixForwardPlaneCrossing
-							Propagators::helixForwardPlaneCrossing(testposition,testmomentum,rho,Propagators::oppositeToMomentum,plane,s,x2,p2,theSolExists);
-						} 
-						else {
-							// arbitrary plane HelixArbitraryPlaneCrossing
-							Propagators::helixBarrelPlaneCrossing(testposition,testmomentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,x2,p2,s);
-							//Propagators::helixArbitraryPlaneCrossing(testposition,testmomentum,rho,Propagators::oppositeToMomentum,plane,s,x2,p2,theSolExists); // Should check if there is a logic bug - giving similar results but also non valid solutions
-						}
-
-						if(!theSolExists)
-							++notValid_new;
-
-						if(!state.isValid())
-							continue;
-
-						if(!theSolExists)
-							continue;
-
-						p2.normalize(); 
-						p2*= testmomentum.norm();
-
-						if(false){
-							std::cout<<" New "<< rho <<"  and old "<<freeTS.transverseCurvature() <<std::endl;
-							std::cout<<" recHit.det()->surface().position() "<<recHit.det()->surface().position()<<" rotation? "<<recHit.det()->surface().rotation().z()<<std::endl;
-							std::cout<<" Print out legacy fts position "<< freeTS.position() <<"  and new implementation one : "<<testposition(0) <<" "<<testposition(1)<<" "<<testposition(2)<<std::endl;
-							std::cout<<" Print out legacy fts momentum "<< freeTS.momentum() <<"  and new implementation one : "<<testmomentum(0) <<" "<<testmomentum(1)<<" "<<testmomentum(2) <<std::endl;
-							std::cout<<" initialTrajState pos "<< initialTrajState.globalPosition()<<"  and momentum  "<<initialTrajState.globalMomentum()<<std::endl;
-							std::cout<<" surfPosition " <<surfPosition(0)<<" "<<surfPosition(1)<<" "<<surfPosition(2)<<std::endl;
-							std::cout<<" surfRotation " <<surfRotation(0)<<" "<<surfRotation(1)<<" "<<surfRotation(2)<<std::endl;
-							std::cout<<" pt = startingDir.head(2).norm() "<< testmomentum.head(2).norm() << " and the equivalent "<< initialTrajState.globalMomentum().perp() <<std::endl;
-							std::cout<<" test plane stuff  norm vec"<< plane.normalVector() << "recHit.det()->surface().normalVector "<<recHit.det()->surface().normalVector()<<std::endl;
-							std::cout<<" test plane stuff localZ "<< -plane.localZ(testposition) << "recHit.det()->surface().normalVector "<< -recHit.det()->surface().localZ(GlobalPoint(initialTrajState.globalPosition()))<<std::endl;
-							std::cout<<" Initial: "<< state.globalParameters().position()<<"   and new "<< x2(0) <<" "<< x2(1) << " "<< x2(2)<<std::endl;
-							std::cout<<" Initial: "<< state.globalParameters().momentum()<<"   and new "<< p2(0) <<" "<< p2(1) << " "<< p2(2)<<std::endl;
-							std::cout<<" The path length is : "<< s << std::endl;
-							EleRelPointPair pointPair(recHit.globalPosition(), state.globalParameters().position(), vprim);
-							EleRelPointPairPortable::EleRelPointPair<Vector3d> pair(recHitpos,x2,vertex);
-							printf("Old point pair dZ %lf, dPerp %lf, and dPhi %lf\n",pointPair.dZ(),pointPair.dPerp(),pointPair.dPhi());
-							printf("New point pair dZ %lf, dPerp %lf, and dPhi %lf \n",pair.dZ(),pair.dPerp(),pair.dPhi());
-						}
-
-						if(false){
-							std::cout<<" Initial: "<< state.globalParameters().position()<<"   and new "<< x2(0) <<" "<< x2(1) << " "<< x2(2)<<std::endl;
-							std::cout<<" Initial: "<< state.globalParameters().momentum()<<"   and new "<< p2(0) <<" "<< p2(1) << " "<< p2(2)<<std::endl;
-						}
-					}
-
-					if(false){
-						std::cout<<"Number of seeds: "<<seeds<<" Propagation notValid_old "<< notValid_old << "  notValid_new " <<notValid_new<<std::endl;
-						printf("Print out legacy fts position %f and new fts position  and %lf \n",freeTS.position().x(), testposition(0));
-						printf("For SC i=%d Energy is :%f , theta is :%f,  r is : %f \n",i,superClusRef->energy(),superClusRef->seed()->position().theta(),superClusRef->position().r()) ;
-						printf(" view %lf ", viewSCs[i].scR());
-						printf("Magnetic field full  = %f and the parabolic approximation %f ", theMagField, magneticFieldParabolicPortable::magneticFieldAtPoint(position));
-					}
-				}
-			}
-
 			event.emplace(deviceToken_, std::move(deviceProductSeeds));
 		}
 
