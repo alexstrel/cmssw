@@ -93,29 +93,26 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		double& s) 
 		{
 
-		const double sraightLineCutoff = 1.e-7;
-
 		double pt = startingDir.head(2).norm();
 		double ipabs = 1. / startingDir.norm();
 		double sinTheta = pt * ipabs;
 		double cosTheta = startingDir(2) * ipabs;
 
-		// === TO FIX SHOULD ADD STRAIGHT LINE CASE === //
-		//bool useStraightLine;
-		if (fabs(rho) < sraightLineCutoff && fabs(rho) * startingPos.head(2).norm() < sraightLineCutoff) {
-			//useStraightLine = true;
-			// Add implementation
-			//StraightLinePlaneCrossing slc(startingPos, startingDir, propDir);
-			//auto pl = slc.pathLength(plane);
-			//if (pl.first) {
-			//	theSolExists = true;
-			//	s = pl.second;
-			//	position = slc.position(s);
-			//	direction = startingDir;
-			//} else {
+		const PlanePortable::Plane<Vector3f> plane{surfPosition,surfRotation};
+
+		const double straightLineCutoff = 1.e-7;
+		if (fabs(rho) < straightLineCutoff  &&  fabs(rho) * startingPos.head(2).norm() < straightLineCutoff) {
+			// calculate path length
+			const auto pz = plane.distanceFromPlaneVector(startingDir);
+			s = plane.localZclamped(startingPos) / pz;
+			if (s != 0) {
+				theSolExists = true;
+				position = startingPos + s * startingDir.normalized();
+				direction = startingDir;
+			} else {
 				theSolExists = false;
-			//}
-			//return; // all needed data members have been set
+			}
+			return; // all needed data members have been set
 		}
 
 		double o = 1. / (pt * rho);
@@ -124,7 +121,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 		// This is default when there curvature is non zero
 
-		PlanePortable::Plane<Vector3f> plane{surfPosition,surfRotation};
 		Vector3f n = plane.normalVector();
 		double distToPlane = -plane.localZ(startingPos);
 		double nx = n(0);

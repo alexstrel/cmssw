@@ -237,4 +237,3 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/MakerMacros.h"
 DEFINE_FWK_ALPAKA_MODULE(ElectronNHitSeedAlpakaProducer);
-
