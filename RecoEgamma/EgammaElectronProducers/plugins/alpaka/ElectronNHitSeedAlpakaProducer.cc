@@ -42,18 +42,17 @@
 
 // Additional includes for testing / comparing implementations
 #include "PixelMatchingAlgo.h"
-#include "RecoEgamma/EgammaElectronAlgos/interface/ElectronUtilities.h"
-#include "TrackingTools/MaterialEffects/interface/PropagatorWithMaterial.h"
-#include "DataFormats/GeometryCommonDetAlgo/interface/PerpendicularBoundPlaneBuilder.h"
-#include "TrackingTools/TrajectoryState/interface/ftsFromVertexToPoint.h"
-#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/ftsFromVertexToPointPortable.h"
-#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixBarrelPlaneCrossingByCircle.h"
-#include "DataFormats/EgammaReco/interface/EleRelPointPairPortable.h"
-#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing.h"
-#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing2Order.h"
-#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixForwardPlaneCrossing.h"
-
-#include "DataFormats/EgammaReco/interface/Plane.h"
+//#include "RecoEgamma/EgammaElectronAlgos/interface/ElectronUtilities.h"
+//#include "TrackingTools/MaterialEffects/interface/PropagatorWithMaterial.h"
+//#include "DataFormats/GeometryCommonDetAlgo/interface/PerpendicularBoundPlaneBuilder.h"
+//#include "TrackingTools/TrajectoryState/interface/ftsFromVertexToPoint.h"
+//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/ftsFromVertexToPointPortable.h"
+//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixBarrelPlaneCrossingByCircle.h"
+//#include "DataFormats/EgammaReco/interface/EleRelPointPairPortable.h"
+//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing.h"
+//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing2Order.h"
+//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixForwardPlaneCrossing.h"
+//#include "DataFormats/EgammaReco/interface/Plane.h"
 
 using Vector3d = Eigen::Matrix<double, 3, 1>;
 
@@ -79,14 +78,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			Vector3d vertex{vprim.x(),vprim.y(),vprim.z()};
 
 			// NEW EVENT 
-
 			std::cout<<" -----> NEW EVENT with vprim : "<<vprim_<<std::endl;
-
 			// Get MagField ESProduct for comparing & Geom ESProduct 
-			auto const& magField = iSetup.getData(magFieldToken_);
-			const TrackerGeometry* theG = &iSetup.getData(geomToken);
-
-			PropagatorWithMaterial backwardPropagator_ = PropagatorWithMaterial(oppositeToMomentum, 0.000511, &magField);
+			// auto const& magField = iSetup.getData(magFieldToken_);
+			// const TrackerGeometry* theG = &iSetup.getData(geomToken);
+			// PropagatorWithMaterial backwardPropagator_ = PropagatorWithMaterial(oppositeToMomentum, 0.000511, &magField);
 
 			std::vector<reco::SuperClusterRef> superClusterRefVec;
 
@@ -200,7 +196,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			alpaka::wait(event.queue()); 
 
 			auto& view = hostProductSeeds.view();
-			std::cout<<"view.metadata().size() "<<view.metadata().size()<<std::endl;
+			// std::cout<<"view.metadata().size() "<<view.metadata().size()<<std::endl;
 			
 			for (int i = 0; i < view.metadata().size(); ++i) {
 				if(view[i].isMatched()>0){

@@ -6,7 +6,7 @@
 #define RecoEgamma_EgammaElectronAlgos_interface_alpaka_helixArbitraryPlaneCrossing2Order_h
 
 #include <Eigen/Dense>
-#include "DataFormats/EgammaReco/interface/Plane.h"
+#include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 #include <cmath>
 #include <cfloat>
 

@@ -16,10 +16,12 @@
 
 #include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixBarrelPlaneCrossingByCircle.h"
 #include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/ftsFromVertexToPointPortable.h"
+#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing.h"
+#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixForwardPlaneCrossing.h"
 
 #include "PixelMatchingAlgo.h"
 #include "DataFormats/EgammaReco/interface/EleRelPointPairPortable.h"
-
+#include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 
 using Vector3d = Eigen::Matrix<double, 3, 1>;
 
@@ -154,17 +156,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					float et = viewSCs[j].scEnergy() * alpaka::math::sin(acc, viewSCs[j].scSeedTheta());
 					Vector3d positionSC = {x,y,z};
 
-					// printf("position %lf %lf %lf",positionSC.x(),positionSC.y(),positionSC.z());
-
 					for (int charge : {1,-1}) 
 					{
 						auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(positionSC,vertex, viewSCs[j].scEnergy(),charge,magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC));									
 						Vector3d position = {newfreeTS.position(0),newfreeTS.position(1),newfreeTS.position(2)};
 						Vector3d momentum = {newfreeTS.momentum(0),newfreeTS.momentum(1),newfreeTS.momentum(2)};
 						
-						printf("position %lf %lf %lf",position.x(),position.y(),position.z());
-						printf("momentum %lf %lf %lf",momentum.x(),momentum.y(),momentum.z());
-
 						auto transverseCurvature = [](const Vector3d& p, int charge, const float& magneticFieldZ) -> float {
    			 				return -2.99792458e-3f * (charge / sqrt(p(0) * p(0) + p(1) * p(1))) * magneticFieldZ;  
 						};
@@ -174,8 +171,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						Vector3d propagatedPos = {0,0,0};
 						Vector3d propagatedMom = {0,0,0}; 
 						double rho = transverseCurvature(momentum,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC));
-						// printf("rho %lf", rho);
-						Propagators::helixBarrelPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
+
+						PlanePortable::Plane<Vector3d> plane{surfPosition,surfRotation};
+						constexpr float small = 1.e-6; 
+						auto u = plane.normalVector();
+						if (std::abs(u(2)) < small) {
+							Propagators::helixBarrelPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
+						} 
+						else if ((std::abs(u(0)) < small) && (std::abs(u(1)) < small)) 
+						{
+							Propagators::helixForwardPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,plane,s,propagatedPos,propagatedMom,theSolExists);
+						} 
+						else {
+							Propagators::helixBarrelPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
+							// Propagators::helixArbitraryPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,plane,s,propagatedPos,propagatedMom,theSolExists);
+						}
+						
 						if(!theSolExists)
 							continue;
 						// Momentum should be renormalized - might want to add this in propagator ?
@@ -193,7 +204,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 							continue;
 						double zVertex = getZVtxFromExtrapolation(vertex, hitPosition,positionSC);
 						Vector3d vertexUpdated(vertex(0),vertex(1), zVertex);
-						printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
+						// printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
 
 						// Move to the second hit of the seed
 						if(!(eleSeed.hit1isValid()))
@@ -205,14 +216,28 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						theSolExists = false; 
 						propagatedPos = {0,0,0};
 						propagatedMom = {0,0,0}; 
-						Propagators::helixBarrelPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
+						PlanePortable::Plane<Vector3d> plane2{surf2Position,surf2Rotation};
+						u = plane2.normalVector();
+
+						if (std::abs(u(2)) < small) {
+							Propagators::helixBarrelPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
+						}
+						else if ((std::abs(u(0)) < small) && (std::abs(u(1)) < small)) 
+						{
+							Propagators::helixForwardPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,plane2,s,propagatedPos,propagatedMom,theSolExists);
+						} 
+						else {
+							Propagators::helixBarrelPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
+							// Propagators::helixArbitraryPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,plane2,s,propagatedPos,propagatedMom,theSolExists);
+						}								
+
 						propagatedMom.normalize(); 
 						propagatedMom*= momentum.norm();
 
 						if(!theSolExists)
 							continue;
 						
-						printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
+						// printf("Position : (%lf,%lf,%lf) and direction : (%lf,%lf,%lf) and path length : %lf \n",propagatedPos(0),propagatedPos(1),propagatedPos(2),propagatedMom(0),propagatedMom(1),propagatedMom(2),s);
 						
 						EleRelPointPairPortable::EleRelPointPair<Vector3d> pair2(hit2Position,propagatedPos,vertexUpdated);
 						dPhiMax = getCutValue(et, 0.003, 0., 0.);

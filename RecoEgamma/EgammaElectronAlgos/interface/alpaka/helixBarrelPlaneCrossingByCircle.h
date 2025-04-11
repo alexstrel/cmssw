@@ -9,7 +9,7 @@
 #include <cmath>
 #include <Eigen/Dense>
 
-#include "DataFormats/EgammaReco/interface/Plane.h"
+#include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 
 using Vector3f = Eigen::Matrix<double, 3, 1>;
 

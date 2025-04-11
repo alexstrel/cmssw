@@ -6,7 +6,7 @@
 #define RecoEgamma_EgammaElectronAlgos_interface_alpaka_helixForwardPlaneCrossing_h
 
 #include <Eigen/Dense>
-#include "DataFormats/EgammaReco/interface/Plane.h"
+#include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 #include <cmath>
 #include <cfloat>
 #include <vdt/vdtMath.h>
@@ -24,7 +24,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             if (s != cachedS) {
                 cachedS = s;
                 cachedDPhi = cachedS * rho * sinTheta;
-                vdt::fast_sincos(cachedDPhi, cachedSDPhi, cachedCDPhi);
+                //vdt::fast_sincos(cachedDPhi, cachedSDPhi, cachedCDPhi);
+                cachedSDPhi = std::sin(cachedDPhi);
+                cachedCDPhi = std::cos(cachedDPhi);
             }
 
             if (std::abs(cachedDPhi) > 1.e-4) {
@@ -47,7 +49,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             if (s != cachedS) {
                 cachedS = s;
                 cachedDPhi = cachedS * rho * sinTheta;
-                vdt::fast_sincos(cachedDPhi, cachedSDPhi, cachedCDPhi);
+                //vdt::fast_sincos(cachedDPhi, cachedSDPhi, cachedCDPhi);
+                cachedSDPhi = std::sin(cachedDPhi);
+                cachedCDPhi = std::cos(cachedDPhi);
             }
 
             if (std::abs(cachedDPhi) > 1.e-4) {

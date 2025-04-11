@@ -14,7 +14,7 @@
 #include <atomic>
 #include <vdt/vdtMath.h> 
 
-#include "DataFormats/EgammaReco/interface/Plane.h"
+#include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 #include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing2Order.h"
 
 using Vector3f = Eigen::Matrix<double, 3, 1>;
@@ -33,7 +33,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             if(s != theCachedS) {
                 theCachedS = s;
                 theCachedDPhi = theCachedS * rho * sinTheta;
-                vdt::fast_sincos(theCachedDPhi, theCachedSDPhi, theCachedCDPhi);
+                //vdt::fast_sincos(theCachedDPhi, theCachedSDPhi, theCachedCDPhi);
+                theCachedSDPhi = std::sin(theCachedDPhi);
+                theCachedCDPhi = std::cos(theCachedDPhi);
             }
 
             if (std::abs(theCachedDPhi) > 1.e-4) {
@@ -62,7 +64,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             if(s != theCachedS) { // very very unlikely!
                 theCachedS = s;
                 theCachedDPhi = theCachedS * rho * sinTheta;
-                vdt::fast_sincos(theCachedDPhi, theCachedSDPhi, theCachedCDPhi);
+                //vdt::fast_sincos(theCachedDPhi, theCachedSDPhi, theCachedCDPhi);
+                theCachedSDPhi = std::sin(theCachedDPhi);
+                theCachedCDPhi = std::cos(theCachedDPhi);
             }
 
             if (std::abs(theCachedDPhi) > 1.e-4) {
