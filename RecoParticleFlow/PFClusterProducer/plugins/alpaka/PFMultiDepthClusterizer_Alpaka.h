@@ -4,6 +4,9 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+// Alpaka includes
+#include <alpaka/alpaka.hpp>
+
 #include "DataFormats/ParticleFlowReco/interface/alpaka/PFRecHitDeviceCollection.h"
 #include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
@@ -16,6 +19,9 @@
 #include "RecoParticleFlow/PFClusterProducer/interface/PFCPositionCalculatorBase.h"
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFClusterSoAProducerKernel.h"
 #include "RecoParticleFlow/PFRecHitProducer/interface/PFRecHitTopologyRecord.h"
+
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
 
 #include "HeterogeneousCore/AlpakaMath/interface/deltaPhi.h"
 
@@ -33,25 +39,27 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     class PFMultiDepthClusterizer_Alpaka {
         public:
-            PFMultiDepthClusterizer_Alpaka(Queue& queue, const edm::ParameterSet& conf) :   nSigmaEta_(cms::alpakatools::make_device_buffer<double>(queue)),
-                                                                                            nSigmaPhi_(cms::alpakatools::make_device_buffer<double>(queue)) { 
-                const double _nSigmaEta = pow(conf.getParameter<double>("nSigmaEta"), 2);
-                const double _nSigmaPhi = pow(conf.getParameter<double>("nSigmaPhi"), 2); 
+            PFMultiDepthClusterizer_Alpaka(Queue& queue, const edm::ParameterSet& conf, const int nClusters_) : nSigma_(cms::alpakatools::make_device_buffer<double[]>(queue,2)), nClusters(nClusters_) {
+		//
+		auto    _nSigma     = cms::alpakatools::make_host_buffer<double[]>(queue, 2);
+                double *nSigma_data = _nSigma.data();
+		//
+	        nSigma_data[0] = pow(conf.getParameter<double>("nSigmaEta"), 2);
+	        nSigma_data[1] = pow(conf.getParameter<double>("nSigmaPhi"), 2);	
                 //
-                alpaka::memcpy(queue, nSigmaEta_, &_nSigmaEta, sizeof(double));
-                alpaka::memcpy(queue, nSigmaPhi_, &_nSigmaPhi, sizeof(double)); 
+		alpaka::memcpy(queue, nSigma_, _nSigma);
             }
       
             PFMultiDepthClusterizer_Alpaka(const PFMultiDepthClusterizer_Alpaka&)            = delete;
             PFMultiDepthClusterizer_Alpaka& operator=(const PFMultiDepthClusterizer_Alpaka&) = delete;
 
-            void clusterize(Queue& queue, 
-                            reco::PFMultiDepthClusteringVarsDeviceCollection& mdpfClusteringVars, 
-                            const reco::PFRecHitDeviceCollection& pfRecHits);
+            void apply(Queue& queue, 
+                       reco::PFMultiDepthClusteringVarsDeviceCollection& mdpfClusteringVars, 
+                       const reco::PFRecHitDeviceCollection& pfRecHits);
 
         private:     
-            cms::alpakatools::device_buffer<Device, double> nSigmaEta_; 
-            cms::alpakatools::device_buffer<Device, double> nSigmaPhi_; 
+	    cms::alpakatools::device_buffer<Device, double[]> nSigma_;
+	    const int nClusters;
     };
 }
 
