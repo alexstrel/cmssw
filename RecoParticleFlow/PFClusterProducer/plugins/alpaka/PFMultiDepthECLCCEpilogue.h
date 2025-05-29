@@ -1,6 +1,16 @@
 #ifndef PFClusterProducer_plugins_alpaka_PFMultiDepthECLCCEpilogue_h
 #define PFClusterProducer_plugins_alpaka_PFMultiDepthECLCCEpilogue_h
 
+#include "HeterogeneousCore/AlpakaInterface/interface/config.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
+
+#include "HeterogeneousCore/AlpakaMath/interface/deltaPhi.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusterizerHelper.h"
+
 /**
  * @file PFMultiDepthECLCCEpilogue.h
  * @brief Warp-based postprocessing kernel for multi-depth particle flow clustering (ECL-CC Epilogue).
@@ -27,34 +37,9 @@
  *
  */
 
-#include "HeterogeneousCore/AlpakaMath/interface/deltaPhi.h"
-#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
-#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
-#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
-
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using namespace cms::alpakatools;
-  
-  // Get least significant (set 1) bit index:
-  template< typename TAcc >
-  ALPAKA_FN_HOST_ACC inline int get_ls1b_idx(TAcc const& acc, const unsigned int x) {
-    const int pos = static_cast<int>(alpaka::ffs(acc, x));
-    return pos - 1;
-  }
-  // Erase least significant set 1 bit in the bit mask:
-  template< typename TAcc >
-  ALPAKA_FN_HOST_ACC inline unsigned int erase_ls1b(TAcc const& acc, const unsigned int x) {
-    return (x & (x-1));
-  }
-
-  // Get most significant (set 1) bit index:
-  template< typename TAcc >
-  ALPAKA_FN_HOST_ACC inline int get_ms1b_idx(TAcc const& acc, const unsigned int x) {
-    constexpr unsigned int size = sizeof(unsigned int)-1; 
-    const int pos = size - cms::alpakatools::clz(acc, x);
-    return pos - 1;
-  }
 
 /**
  * @class ECLCCEpilogueKernel
@@ -84,49 +69,50 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       ALPAKA_FN_ACC void operator()(TAcc const& acc,
                                     reco::PFMultiDepthClusteringVarsDeviceCollection::View pfClusteringVars,
                                     const reco::PFRecHitDeviceCollection::ConstView pfRecHits
-                                    ) {
+                                    ) const {
         static_assert(max_w_items <= 32, 
                       "ECLCCEpilogueKernel: Maximum number of supported warps per block is 32, "
                       "assuming one warp per 32 threads." );
         constexpr unsigned int max_w_extent = 32;                   
+	//
+        const unsigned int nVertices = pfClusteringVars.size();
         //
-        const int nVertices = pfClusteringVars.size();
-        //
-        const int nBlocks = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u]; //
+        const unsigned int nBlocks = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u]; //
         //
         const unsigned int w_extent = alpaka::warp::getSize(acc);  
         const unsigned int w_items  = alpaka::math::min(acc, nBlocks / w_extent, max_w_items ); 
         //
-        auto& intern_connected_comp_masks(alpaka::declareSharedVar<VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));
-        auto& extern_connected_comp_masks(alpaka::declareSharedVar<VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));
+        auto& intern_connected_comp_masks(alpaka::declareSharedVar<::cms::alpakatools::VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));
+        auto& extern_connected_comp_masks(alpaka::declareSharedVar<::cms::alpakatools::VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));
         //
-        auto& component_roots(alpaka::declareSharedVar<VecArray<int, max_w_items * max_w_extent + 1>, __COUNTER__>(acc));
-        auto& connected_comp_buffer(alpaka::declareSharedVar<VecArray<int, max_w_items * max_w_extent+1>, __COUNTER__>(acc));
+        auto& component_roots(alpaka::declareSharedVar<::cms::alpakatools::VecArray<int, max_w_items * max_w_extent + 1>, __COUNTER__>(acc));
+        auto& connected_comp_buffer(alpaka::declareSharedVar<::cms::alpakatools::VecArray<int, max_w_items * max_w_extent+1>, __COUNTER__>(acc));
         // 
         auto& connected_comp_offsets = connected_comp_buffer; 
         auto& connected_comp_sizes   = connected_comp_buffer;
         //
         auto& comp_offsets = component_roots; 
         
-        auto& component_cluster_seeds(alpaka::declareSharedVar<VecArray<float, max_w_items * max_w_extent>, __COUNTER__>(acc));
-        auto& component_cluster_energies(alpaka::declareSharedVar<VecArray<float, max_w_items * max_w_extent>, __COUNTER__>(acc)); 
+        auto& component_cluster_seeds(alpaka::declareSharedVar<::cms::alpakatools::VecArray<float, max_w_items * max_w_extent>, __COUNTER__>(acc));
+        auto& component_cluster_energies(alpaka::declareSharedVar<::cms::alpakatools::VecArray<float, max_w_items * max_w_extent>, __COUNTER__>(acc)); 
         
-        auto& component_vertex_rhf_offsets(alpaka::declareSharedVar<VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));
-        auto& component_vertex_rhf_sizes(alpaka::declareSharedVar<VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));  
+        auto& component_vertex_rhf_offsets(alpaka::declareSharedVar<::cms::alpakatools::VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));
+        auto& component_vertex_rhf_sizes(alpaka::declareSharedVar<::cms::alpakatools::VecArray<int, max_w_items * max_w_extent>, __COUNTER__>(acc));  
         //
         auto& connected_comp_vertices = component_vertex_rhf_offsets;
         auto& connected_comp_pos      = component_vertex_rhf_sizes;
         //
-        auto& subdomain_offsets(alpaka::declareSharedVar<VecArray<unsigned int, max_w_items>, __COUNTER__>(acc));
+        auto& subdomain_offsets(alpaka::declareSharedVar<::cms::alpakatools::VecArray<unsigned int, max_w_items>, __COUNTER__>(acc));
         //
         // Setup all shared mem buffers:
         //
-        for ( auto group : uniform_groups(acc) ) {//loop over thread blocks
+        for ( auto group : ::cms::alpakatools::uniform_groups(acc) ) {//loop over thread blocks
           // Skip inactive groups:
           if(group != 0) continue;
           // Init shared_buffer   
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
-            // Reset shared memory buffers to zero:
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
+            const auto warp_idx   = idx.local / w_extent;
+	    // Reset shared memory buffers to zero:
             component_roots[ idx.local ]       = -1;
             connected_comp_buffer[ idx.local ] = 0;
             //
@@ -144,7 +130,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           // Identify all neigbors:
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             //
             const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
             // Skip inactive lanes:
@@ -152,10 +138,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             //
             const auto vertex_idx = idx.local; 
             //
-            const auto warp_idx   = idx.local / w_extent;
+            //const auto warp_idx   = idx.local / w_extent;
             const auto lane_idx   = idx.local % w_extent;
             //
-            const auto rep_idx = pfClusteringVars[vertex_idx].mdpf_topoId();  
+            const unsigned int rep_idx = pfClusteringVars[vertex_idx].mdpf_topoId();  
             //
             component_roots[vertex_idx] = rep_idx;
             //
@@ -195,20 +181,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
-            //
-            const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
+
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             // Skip inactive lanes:
             if(idx.local >= nVertices) continue;
             //
             const auto vertex_idx = idx.local; 
             //
-            const auto warp_idx   = idx.local / w_extent;
-            const auto lane_idx   = idx.local % w_extent;
+            //const auto warp_idx   = idx.local / w_extent;
+            //const auto lane_idx   = idx.local % w_extent;
             //
             const unsigned int component_mask = extern_connected_comp_masks[vertex_idx];
             //
-            const unsigned int component_size = alpaka::popcount(acc, component_mask);
+            const int component_size = alpaka::popcount(acc, component_mask);
             //
             if(component_size == 0) continue;
             //
@@ -218,7 +203,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) {         
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) {         
             //
             const auto active_lanes_mask = alpaka::warp::ballot(acc, true);
             // 
@@ -249,7 +234,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) {
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) {
             //
             const auto active_lanes_mask = alpaka::warp::ballot(acc, true); 
             //
@@ -267,7 +252,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             //
             const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
             // Skip inactive lanes:
@@ -277,7 +262,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             const auto lane_idx   = idx.local % w_extent; 
             //
             const unsigned warp_offset = lane_idx == 0 and warp_idx > 0 ? subdomain_offsets[warp_idx] : 0;
-            const unsigned lane_offset = connected_comp_offsets[idx.local]; // -1 for child vertices
+            const int lane_offset = connected_comp_offsets[idx.local]; // -1 for child vertices
             //  
             warp::syncWarpThreads_mask(acc, active_lanes_mask);
             // We need to exclude void lanes (all ones that correponds to offset -1):
@@ -304,7 +289,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             //
             unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local <= nVertices);
             // Skip inactive lanes:
@@ -318,7 +303,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               // Zero out all bits <= lid
               const auto zeroed_lowbit_mask = custom_mask & (active_mask << (lid+1));
               // Just in case if the mask is exactly zero (may happen!):
-              return zeroed_lowbit_mask == 0x0 ? lid : get_ls1b(acc, zeroed_lowbit_mask);  // Count 1s below next to current lane
+              return zeroed_lowbit_mask == 0x0 ? lid : get_ls1b_idx(acc, zeroed_lowbit_mask);  // Count 1s below next to current lane
             };           
             // Determin actual warp-level work dimension: it coincides with w_extent for all warps 
             // except (potentially!) the last one:
@@ -326,10 +311,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             //
             const auto warp_idx   = idx.local / w_extent;
             const auto lane_idx   = idx.local % w_extent;
-            const auto lane_mask  = (1 << lane_idx);
+            //const auto lane_mask  = (1 << lane_idx);
             //
             // Get local coordinate:
-            const unsigned int begin = connected_comp_offsets[idx.local];
+            const int begin = connected_comp_offsets[idx.local];
             //
             const auto valid_offsets_mask = warp::ballot_mask(acc, active_lanes_mask, begin != -1);
             //
@@ -358,11 +343,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             const int cluster_rhf_offset = is_valid_lane(valid_vertex_mask, lane_idx) ? component_vertex_rhf_sizes[idx.local] : 0; 
         
             unsigned int src_rhf_global_offset = 0;
-            //
-            unsigned int counter = 0;
         
             // Initialize valid iterative lane index:
-            int iter_lane_idx         = first_valid_lane_idx;
+            unsigned int iter_lane_idx         = first_valid_lane_idx;
             // Broadcast first valid cluster rhfrac size among the rest of the lanes:
             warp::syncWarpThreads_mask(acc, active_lanes_mask);
             
@@ -372,7 +355,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             // Start iterations untill valid vertex mask will be empty:
             while (iter_lane_idx <= last_valid_lane_idx) {
 
-              unsigned int src_rhf_local_offset  = lane_id + src_rhf_consumed_size; 
+              unsigned int src_rhf_local_offset  = lane_idx + src_rhf_consumed_size; 
 
               unsigned int src_lane_idx = iter_lane_idx;
 
@@ -390,7 +373,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               unsigned int accum_work_extent = 0;
 
               // We need to decide whether to broadcast the current cluster RH fraction offset.
-              // The criterion for broadcasting is that the leftover size is zero—
+              // The criterion for broadcasting is that the leftover size is zero
               // meaning the offset was not already broadcasted in a previous iteration.
               bool do_broadcast = (src_rhf_leftover_size == 0);
 
@@ -415,7 +398,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                     // 
                     warp::syncWarpThreads_mask(acc, active_lanes_mask);
                     //
-                    src_rhf_leftover_size = warp::shfl_mask( acc, active_lanes_mask, current_cluster_rhf_size, iter_lane_idx, w_extent );
+                    src_rhf_leftover_size = warp::shfl_mask( acc, active_lanes_mask, cluster_rhf_size, iter_lane_idx, w_extent );
                     //              
                   } else {
                     // otherwise subtracted consumed portion from total rh fraction size:
@@ -449,12 +432,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                   //
                   warp::syncWarpThreads_mask(acc, active_lanes_mask);
                   //
-                  src_rhf_leftover_size = warp::shfl_mask( acc, active_lanes_mask, current_cluster_rhf_size, iter_lane_idx, w_extent );
+                  src_rhf_leftover_size = warp::shfl_mask( acc, active_lanes_mask, cluster_rhf_size, iter_lane_idx, w_extent );
                   //              
                   are_all_active_lanes_got_job = ( accum_work_extent == warp_work_extent ); 
                 } else { //iter_lane_idx == last_valid_lane_idx
                   //
-                  active_lanes_mask = active_lanes_mask | ??;
+                  //active_lanes_mask = active_lanes_mask | ??;
                   //
                   are_all_active_lanes_got_job = true;
                 }// all active lanes got job 
@@ -466,7 +449,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               //
               warp::syncWarpThreads_mask(acc, active_lanes_mask);
               //
-              const unsigned int new_src_rhf_global_offset = warp::shfl_mask( acc, broadcast_mask, current_cluster_rhf_offset, src_lane_idx, w_extent);
+              const unsigned int new_src_rhf_global_offset = warp::shfl_mask( acc, broadcast_mask, cluster_rhf_offset, src_lane_idx, w_extent);
               //
               warp::syncWarpThreads_mask(acc, active_lanes_mask);
               // Update global offset if necessary:
@@ -477,7 +460,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               const auto detIdx  =  pfRecHits[src_rhf_global_offset+src_rhf_local_offset].detId();
               const auto seedIdx =  is_master_lane ? component_cluster_seeds[idx.local] : 0;
               warp::syncWarpThreads_mask(acc, active_lanes_mask);
-              const int seedIdx_ = warp::shfl_mask( acc, active_lanes_mask, seedIdx, src_lane_idx, w_extent );
+              const unsigned int seedIdx_ = warp::shfl_mask( acc, active_lanes_mask, seedIdx, src_lane_idx, w_extent );
 
               warp::syncWarpThreads_mask(acc, active_lanes_mask);
               const auto result_mask = warp::ballot_mask(acc, active_lanes_mask, detIdx == seedIdx_); 
@@ -495,7 +478,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             // Reset shared memory buffers to zero:
             connected_comp_vertices[ idx.local ] = 0;
             connected_comp_pos[ idx.local ] = 0;
@@ -504,7 +487,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);          
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             //
             unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
             // Skip inactive lanes:
@@ -531,7 +514,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             //
             const auto component_root_mask = warp::ballot_mask(acc, active_lanes_mask, is_component_root);            
 
-            if (is_root_lane(root_lanes_mask, lane_idx) == false) continue;
+            if (is_root_lane(component_root_mask, lane_idx) == false) continue;
 
             const unsigned begin = connected_comp_offsets[idx.local];
             //
@@ -559,7 +542,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           alpaka::syncBlockThreads(acc);
           //
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             //
             unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
             // Skip inactive lanes:
@@ -573,13 +556,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             const auto warp_idx   = idx.local / w_extent;
             // Get local coordinate:
-            const unsigned int outer_connected_component_mask = outer_connected_component_masks[idx.local];
+            const unsigned int extern_connected_comp_mask = extern_connected_comp_masks[idx.local];
  
-            const auto nnz = alpaka::popcount(acc, outer_connected_component_mask);
+            const auto nnz = alpaka::popcount(acc, extern_connected_comp_mask);
  
             warp::syncWarpThreads_mask(acc, active_lanes_mask);
-
-            const auto outer_mask = warp::ballot_mask(acc, active_lanes_mask, nnz > 0);
+            //const auto outer_mask = warp::ballot_mask(acc, active_lanes_mask, nnz > 0);
  
             if (nnz == 0) continue; // skip inactive lanes
             //
@@ -588,7 +570,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             unsigned int connected_vertex_pos = alpaka::atomicAdd(acc, &connected_comp_pos[component_root_idx], nnz, alpaka::hierarchy::Threads{});
  
             for (unsigned lid = 0; lid < warp_work_extent; ++lid) {
-              const auto target_lane_idx = (outer_connected_component_mask >> lid) & 1;// number of target lanes is equal to nnz
+              const auto target_lane_idx = (extern_connected_comp_mask >> lid) & 1;// number of target lanes is equal to nnz
               if (target_lane_idx != 0) {
                 const unsigned int connected_vertex_idx = lid + warp_idx * w_extent;
                 connected_comp_vertices[connected_vertex_pos++] = connected_vertex_idx;
@@ -598,7 +580,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       
           alpaka::syncBlockThreads(acc);
 
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             //
             const auto warp_idx   = idx.local / w_extent;
             //
@@ -611,7 +593,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             };
             //
             auto get_logical_lane_idx = [&](const unsigned int mask, const unsigned int lane_idx) {
-              // Zero out all bits ≥ lane_id
+              // Zero out all bits lane_id
               const auto lane_mask = mask & ((1 << lane_idx) - 1);
               return alpaka::popcount(acc, lane_mask);  // Count 1s below current lane
             };
@@ -620,11 +602,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             //
             unsigned int inc = 0;
 
-            for (int i = 0; i < w_items; i++){
+            for (unsigned int i = 0; i < w_items; i++){
               const auto j = lane_idx+i * w_extent;
               const auto offset = j < nVertices ? connected_comp_offsets[j] : -1;
               //
-              warp::syncWarpThreads(acc);
+              warp::syncWarpThreads_mask(acc, full_mask);
               const auto valid_offset_mask = alpaka::warp::ballot(acc, offset != -1);
 
               if (valid_offset_mask == 0x0) continue;
@@ -641,8 +623,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       
           alpaka::syncBlockThreads(acc);          
 
-          for( auto idx : uniform_group_elements(acc, group, round_up_by(nVertices, w_extent)) ) { 
-            unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
+          for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             // Skip inactive lanes:
             if(idx.local >= nVertices) continue;
             //
@@ -655,7 +636,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             if(idx.local == 0) pfClusteringVars.mdpf_nTopos() = comp_offsets[nVertices];
           }             
-
         }                                        
       }
   };

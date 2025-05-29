@@ -10,6 +10,9 @@
  * warp-exclusive sum computations.
  */
 
+#include "HeterogeneousCore/AlpakaInterface/interface/config.h"
+
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -26,9 +29,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
  * @return Index of least significant 1 bit (0-based). (or -1 if x == 0).
  */
   template< typename TAcc >
-  ALPAKA_FN_HOST_ACC inline int get_ls1b_idx(TAcc const& acc, const unsigned int x) {
-    const int pos = static_cast<int>(alpaka::ffs(acc, x));
-    return pos - 1;
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE unsigned int get_ls1b_idx(TAcc const& acc, const int x) {
+    const int pos = alpaka::ffs(acc, x);
+    return static_cast<unsigned int>(pos - 1);
   }
 
 /**
@@ -43,7 +46,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
  */
   
   template< typename TAcc >
-  ALPAKA_FN_HOST_ACC inline unsigned int erase_ls1b(TAcc const& acc, const unsigned int x) {
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE unsigned int erase_ls1b(TAcc const& acc, const unsigned int x) {
     return (x & (x-1));
   }
 
@@ -59,7 +62,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
  */
 
   template< typename TAcc >
-  ALPAKA_FN_HOST_ACC inline int get_ms1b_idx(TAcc const& acc, const unsigned int x) {
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE unsigned int get_ms1b_idx(TAcc const& acc, const unsigned int x) {
     constexpr unsigned int size = sizeof(unsigned int)-1;
     const int pos = size - cms::alpakatools::clz(acc, x);
     return pos - 1;
@@ -80,7 +83,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
  */
 
   template <typename TAcc, bool accum = true, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-  ALPAKA_FN_ACC inline unsigned int warp_exclusive_sum(TAcc const& acc, const unsigned int mask, unsigned int val, const unsigned int lane_idx) {
+  ALPAKA_FN_ACC ALPAKA_FN_INLINE unsigned int warp_exclusive_sum(TAcc const& acc, const unsigned int mask, unsigned int val, const unsigned int lane_idx) {
     if ( mask == 0x0 ) return 0;
 
     const unsigned int w_extent = alpaka::warp::getSize(acc);
@@ -88,7 +91,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     unsigned int local_offset = 0;
     //
     CMS_UNROLL_LOOP
-    for (int j = 1; j < w_extent; j *= 2) {
+    for (unsigned int j = 1; j < w_extent; j *= 2) {
       const auto n = warp::shfl_up_mask(acc, mask, val, j, w_extent);
       if (lane_idx >= j) local_offset += n;
     }
@@ -99,8 +102,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
  	return local_offset;
     } else {
     	// Compute the lowest and the highest valid lane index in the mask:
-    	const auto low_lane_idx  = get_ls1b_idx(acc, mask);
-    	const auto high_lane_idx = get_ms1b_idx(acc, mask);
+    	const unsigned low_lane_idx  = get_ls1b_idx(acc, mask);
+    	const unsigned high_lane_idx = get_ms1b_idx(acc, mask);
 
     	// send last lane value (total tile offset) to lane idx = low_lane_idx:
     	const unsigned active_mask = 1 | (1 << high_lane_idx);
