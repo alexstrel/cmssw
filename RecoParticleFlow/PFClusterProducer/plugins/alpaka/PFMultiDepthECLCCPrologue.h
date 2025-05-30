@@ -194,7 +194,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             // We need to sync threads in the warp, 
             warp::syncWarpThreads_mask(acc, active_lanes_mask);
             // Fetch other (possible) warp-local neighbors 
-            const unsigned int local_neigh_mask = inner_neigh_masks[ dst_vertex_idx ];
+            const unsigned int local_neigh_mask = inner_neigh_masks[ dst_vertex_idx ];//dst_vertex_idx is in fact idx.local
             // update neighbor number:
             neigh_num += alpaka::popcount(acc, local_neigh_mask);
             //
@@ -214,18 +214,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             // Skip inactive lanes:
             if(idx.local >= nVertices) continue;
             // we assume here that idx.local and idx.global have same range:
-            const auto dst_vertex_idx = idx.local; //idx.global
+            const auto dst_vertex_idx = idx.local; 
             //  
-            const unsigned int neigh_mask = inner_neigh_masks[ dst_vertex_idx ];
+            const unsigned int outer_neigh_mask = outer_neigh_masks[ dst_vertex_idx ];
             //
-            const unsigned int neigh_num = alpaka::popcount(acc, neigh_mask);
-            // Do warp-local accumulation:
-            if ( neigh_num == 0 ) continue;
+            const unsigned int outer_neigh_num = alpaka::popcount(acc, outer_neigh_mask);
+            // 
+            if ( outer_neigh_num == 0 ) continue;
 
             const unsigned int src_vertex_idx = base_neighbor[dst_vertex_idx];
             //
-            alpaka::atomicAdd(acc, &nlist_offsets[src_vertex_idx], neigh_num, alpaka::hierarchy::Threads{});
-
+            alpaka::atomicAdd(acc, &nlist_offsets[src_vertex_idx], outer_neigh_num, alpaka::hierarchy::Threads{});
           }
 
           alpaka::syncBlockThreads(acc);

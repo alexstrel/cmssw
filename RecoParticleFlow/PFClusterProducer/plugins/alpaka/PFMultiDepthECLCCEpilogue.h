@@ -169,11 +169,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             // Store internal/external component masks in the shared memory
             if ( master_lane_idx == lane_idx ) {
               if (is_warp_local_representative) { 
-                // no race condition here since the operation warp-local
+                // no race condition : each lane works with unique representative (or idle)
                 connected_comp_sizes[ rep_idx ] = component_size;
                 intern_connected_comp_masks[ rep_idx ] = component_mask;
               } else { 
-                // no race condition                  
+                // no race condition : by construction each lane load to a unique location                 
                 extern_connected_comp_masks[ vertex_idx ] = component_mask;
               }
             }   
@@ -291,9 +291,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           //
           for( auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent)) ) { 
             //
-            unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local <= nVertices);
+            unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
             // Skip inactive lanes:
-            if(idx.local > nVertices) continue;
+            if(idx.local >= nVertices) continue;
             //
             auto is_valid_lane  = [](const unsigned int mask, const unsigned int lid) -> bool { 
               return ((mask >> lid) & 1); 
@@ -339,8 +339,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             const unsigned int first_valid_lane_idx = get_ls1b_idx(acc, valid_vertex_mask);
             const unsigned int last_valid_lane_idx  = get_ms1b_idx(acc, valid_vertex_mask);
             //
-            const int cluster_rhf_size   = is_valid_lane(valid_vertex_mask, lane_idx) ? component_vertex_rhf_sizes[idx.local] : 0;
-            const int cluster_rhf_offset = is_valid_lane(valid_vertex_mask, lane_idx) ? component_vertex_rhf_sizes[idx.local] : 0; 
+            const int cluster_rhf_size   = is_valid_lane(valid_vertex_mask, lane_idx) ? component_vertex_rhf_sizes[idx.local  ] : 0;
+            const int cluster_rhf_offset = is_valid_lane(valid_vertex_mask, lane_idx) ? component_vertex_rhf_offsets[idx.local] : 0; 
         
             unsigned int src_rhf_global_offset = 0;
         
@@ -354,7 +354,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             // Start iterations untill valid vertex mask will be empty:
             while (iter_lane_idx <= last_valid_lane_idx) {
-
+#if 0
               unsigned int src_rhf_local_offset  = lane_idx + src_rhf_consumed_size; 
 
               unsigned int src_lane_idx = iter_lane_idx;
@@ -442,7 +442,35 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                   are_all_active_lanes_got_job = true;
                 }// all active lanes got job 
               } // warp extent is filled with work
+#else
+              unsigned int src_rhf_local_offset  = lane_idx + src_rhf_consumed_size; 
 
+              unsigned int src_lane_idx = iter_lane_idx;
+
+	      bool do_broadcast = true;
+
+              if ( src_rhf_leftover_size > warp_work_extent ) {
+		src_rhf_leftover_size -= warp_work_extent;
+                src_rhf_consumed_size += warp_work_extent;
+              } else {
+                //
+                if (lane_idx > src_rhf_leftover_size) {
+                  do_broadcast = false;
+                }
+		// Determin the next valid vertex:
+                // 1. Erase ls1b in the current iterative mask:
+                valid_vertex_mask = erase_ls1b(acc, valid_vertex_mask); 
+                // 2. Compute lowest index of the new ls1b:
+                iter_lane_idx = get_ls1b_idx(acc, valid_vertex_mask);
+                
+		warp::syncWarpThreads_mask(acc, active_lanes_mask);
+                // Since this is for the next iteration, one need to check that it's still valid:
+                if (valid_vertex_mask != 0) { 
+                  src_rhf_leftover_size = warp::shfl_mask( acc, active_lanes_mask, cluster_rhf_size, iter_lane_idx, w_extent );
+                }
+                src_rhf_consumed_size = 0;
+	      }
+#endif
               warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
               const unsigned int broadcast_mask = warp::ballot_mask(acc, active_lanes_mask, do_broadcast);
@@ -561,7 +589,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             const auto nnz = alpaka::popcount(acc, extern_connected_comp_mask);
  
             warp::syncWarpThreads_mask(acc, active_lanes_mask);
-            //const auto outer_mask = warp::ballot_mask(acc, active_lanes_mask, nnz > 0);
  
             if (nnz == 0) continue; // skip inactive lanes
             //
