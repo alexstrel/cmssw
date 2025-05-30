@@ -119,7 +119,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                 ECLCCPrologueKernel<max_w_items>{},
                                 mdpfClusteringEdgeVars.view(),
                                 mdpfClusteringVars.view());
-#if 1
         } else if (nClusters < 512) {
             constexpr unsigned int max_w_items = 16;                     
             alpaka::exec<Acc1D>(queue,
@@ -134,7 +133,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                 ECLCCPrologueKernel<max_w_items>{},
                                 mdpfClusteringEdgeVars.view(),
                                 mdpfClusteringVars.view());
-#endif
         }
         // Create and launch ECL-CC algorithm:
                             
@@ -193,7 +191,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                 ECLCCEpilogueKernel<max_w_items>{},
                                 mdpfClusteringVars.view(),
                                 pfRecHits.view());
-#if 1
         } else if (nClusters < 512) {
             constexpr unsigned int max_w_items = 16;                                          
             alpaka::exec<Acc1D>(queue,
@@ -208,7 +205,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                 ECLCCEpilogueKernel<max_w_items>{},
                                 mdpfClusteringVars.view(),
                                 pfRecHits.view());
-#endif
         }
 	
     }
