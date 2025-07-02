@@ -39,20 +39,10 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaServices/interface/alpaka/AlpakaService.h"
 #include "HeterogeneousCore/AlpakaCore/interface/alpaka/global/EDProducer.h"
+#include "HeterogeneousCore/AlpakaCore/interface/alpaka/stream/SynchronizingEDProducer.h"
 
 // Additional includes for testing / comparing implementations
 #include "PixelMatchingAlgo.h"
-//#include "RecoEgamma/EgammaElectronAlgos/interface/ElectronUtilities.h"
-//#include "TrackingTools/MaterialEffects/interface/PropagatorWithMaterial.h"
-//#include "DataFormats/GeometryCommonDetAlgo/interface/PerpendicularBoundPlaneBuilder.h"
-//#include "TrackingTools/TrajectoryState/interface/ftsFromVertexToPoint.h"
-//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/ftsFromVertexToPointPortable.h"
-//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixBarrelPlaneCrossingByCircle.h"
-//#include "DataFormats/EgammaReco/interface/EleRelPointPairPortable.h"
-//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing.h"
-//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixArbitraryPlaneCrossing2Order.h"
-//#include "RecoEgamma/EgammaElectronAlgos/interface/alpaka/helixForwardPlaneCrossing.h"
-//#include "DataFormats/EgammaReco/interface/Plane.h"
 
 using Vector3d = Eigen::Matrix<double, 3, 1>;
 
@@ -60,7 +50,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	class ElectronNHitSeedAlpakaProducer : public global::EDProducer<> {
 	public:
-		ElectronNHitSeedAlpakaProducer(const edm::ParameterSet& pset): 
+		ElectronNHitSeedAlpakaProducer(const edm::ParameterSet& pset):
 			deviceToken_{produces()},
 			size_{pset.getParameter<int32_t>("size")},
 			initialSeedsToken_(consumes(pset.getParameter<edm::InputTag>("initialSeeds"))),
@@ -71,30 +61,31 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				superClustersTokens_ = consumes(pset.getParameter<edm::InputTag>("superClusters"));
 			}
 
-		void produce(edm::StreamID sid, device::Event& event, device::EventSetup const& iSetup) const override {
+      void produce(edm::StreamID sid, device::Event& event, device::EventSetup const& iSetup) const override {
+		//void produce(device::Event& event, device::EventSetup const& iSetup) const override {
 
 			auto vprim_ = event.get(beamSpotToken_).position();
 			GlobalPoint vprim(vprim_.x(), vprim_.y(), vprim_.z());
 			Vector3d vertex{vprim.x(),vprim.y(),vprim.z()};
 
-			// NEW EVENT 
-			std::cout<<" -----> NEW EVENT with vprim : "<<vprim_<<std::endl;
-			// Get MagField ESProduct for comparing & Geom ESProduct 
+			// NEW EVENT
+			std::cout<<" -----> NEW EVENT <------- "<<std::endl;
+			// Get MagField ESProduct for comparing & Geom ESProduct
 			// auto const& magField = iSetup.getData(magFieldToken_);
 			// const TrackerGeometry* theG = &iSetup.getData(geomToken);
 			// PropagatorWithMaterial backwardPropagator_ = PropagatorWithMaterial(oppositeToMomentum, 0.000511, &magField);
 
 			std::vector<reco::SuperClusterRef> superClusterRefVec;
 
-			for (auto& superClusRef : event.get(superClustersTokens_)) 
-				superClusterRefVec.push_back(superClusRef);  
-	
+			for (auto& superClusRef : event.get(superClustersTokens_))
+				superClusterRefVec.push_back(superClusRef);
+
 			int32_t superClusterCollectionSize = superClusterRefVec.size();
 			reco::SuperclusterHostCollection hostProductSCs{superClusterCollectionSize, event.queue()};
 
 			std::vector<TrajectorySeed> seedRefVec;
-			for (auto& initialSeedRef : event.get(initialSeedsToken_)) 
-				seedRefVec.push_back(initialSeedRef);  
+			for (auto& initialSeedRef : event.get(initialSeedsToken_))
+				seedRefVec.push_back(initialSeedRef);
 
 			int32_t seedCollectionSize = seedRefVec.size();
 			reco::EleSeedHostCollection hostProductSeeds{seedCollectionSize, event.queue()};
@@ -102,7 +93,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			auto& viewSCs = hostProductSCs.view();
 			auto& viewSeeds = hostProductSeeds.view();
 
-			std::cout<<" -----> Collection sizes SCs: "<<superClusterCollectionSize << " Seeds " <<seedCollectionSize<<std::endl;
+			std::cout<<" -----> Collection sizes SCs: "<<superClusterCollectionSize << " & Seeds " <<seedCollectionSize<<std::endl;
+
 			////////////////////////////////////////////////////////////////////
 			// Fill in SOAs
 			// Technically should separate in different producers that create the SoAs ?
@@ -110,7 +102,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			////////////////////////////////////////////////////////////////////
 
 			int32_t i = 0;
-	        for (auto& superClusRef : superClusterRefVec)
+			for (auto& superClusRef : superClusterRefVec)
 			{
 				viewSCs[i].id() =  i;
 				viewSCs[i].scSeedTheta() =  superClusRef->seed()->position().theta();
@@ -123,15 +115,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 			// To figure out is there is another way to bulid this SoA
 			i = 0;
-			for (auto& initialSeedRef : seedRefVec) 
-			{	
+			for (auto& initialSeedRef : seedRefVec)
+			{
 				viewSeeds[i].nHits() = initialSeedRef.nHits();
-				viewSeeds[i].id() = i;		
-				viewSeeds[i].isMatched() = 0;		
+				viewSeeds[i].id() = i;
+				viewSeeds[i].isMatched() = 0;
 				viewSeeds[i].matchedScID() = -1;
-			
+
 				auto hitIt = initialSeedRef.recHits().begin();
-			
+
 				// Hit 0
 				const auto& recHit0 = *hitIt;
 				const auto& pos0 = recHit0.globalPosition();
@@ -142,7 +134,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				viewSeeds[i].hit0Pos() = Eigen::Vector3d(pos0.x(), pos0.y(), pos0.z());
 				viewSeeds[i].surf0Pos() = Eigen::Vector3d(surf0.x(), surf0.y(), surf0.z());
 				viewSeeds[i].surf0Rot() = Eigen::Vector3d(rot0.x(), rot0.y(), rot0.z());
-			
+
 				// Hit 1
 				++hitIt;
 				const auto& recHit1 = *hitIt;
@@ -154,7 +146,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				viewSeeds[i].hit1Pos() = Eigen::Vector3d(pos1.x(), pos1.y(), pos1.z());
 				viewSeeds[i].surf1Pos() = Eigen::Vector3d(surf1.x(), surf1.y(), surf1.z());
 				viewSeeds[i].surf1Rot() = Eigen::Vector3d(rot1.x(), rot1.y(), rot1.z());
-			
+
 				// Hit 2
 				if (initialSeedRef.nHits() > 2) {
 					++hitIt;
@@ -175,37 +167,36 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					viewSeeds[i].hit2detectorID()  = 0;
 					viewSeeds[i].hit2isValid() = 0;
 				}
-			
 				++i;
 			}
 
 			// Create device products & copy to device
 			reco::SuperclusterDeviceCollection deviceProductSCs{superClusterCollectionSize, event.queue()};
-			alpaka::memcpy(event.queue(), deviceProductSCs.buffer(), hostProductSCs.buffer());
 			reco::EleSeedDeviceCollection deviceProductSeeds{seedCollectionSize, event.queue()};
+			alpaka::memcpy(event.queue(), deviceProductSCs.buffer(), hostProductSCs.buffer());
 			alpaka::memcpy(event.queue(), deviceProductSeeds.buffer(), hostProductSeeds.buffer());
+			// alpaka::wait(event.queue());
 
-			// Print the SoA 
-			// algo_.printSCs(event.queue(), deviceProductSCs);
-			// algo_.printEleSeeds(event.queue(), deviceProductSeeds);
-			// alpaka::wait(event.queue()); 
+			// Print the SoA
+			//algo_.printSCs(event.queue(), deviceProductSCs);
+			//algo_.printEleSeeds(event.queue(), deviceProductSeeds);
+
 			// Matching algorithm
 			algo_.matchSeeds(event.queue(), deviceProductSeeds, deviceProductSCs,vertex(0),vertex(1), vertex(2));
-			alpaka::wait(event.queue()); 
-			alpaka::memcpy(event.queue(), hostProductSeeds.buffer(), deviceProductSeeds.buffer());
-			alpaka::wait(event.queue()); 
+			//alpaka::wait(event.queue());
+			//alpaka::memcpy(event.queue(), hostProductSeeds.buffer(), deviceProductSeeds.buffer());
+			//alpaka::wait(event.queue());
 
-			auto& view = hostProductSeeds.view();
-			// std::cout<<"view.metadata().size() "<<view.metadata().size()<<std::endl;
-			
-			for (int i = 0; i < view.metadata().size(); ++i) {
-				if(view[i].isMatched()>0){
-					std::cout << "  Seed " << i << ":" << std::endl;
-					std::cout << "  nHits: " << view[i].nHits() << std::endl;
-					std::cout << "  isMatched: " << view[i].isMatched() << std::endl;
-					std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
-				}
-			}
+			// auto& view = hostProductSeeds.view();
+
+			// for (int i = 0; i < view.metadata().size(); ++i) {
+			// 	if(view[i].isMatched()>0){
+			// 		std::cout << "  Seed " << i << ":" << std::endl;
+			// 		std::cout << "  nHits: " << view[i].nHits() << std::endl;
+			// 		std::cout << "  isMatched: " << view[i].isMatched() << std::endl;
+			// 		std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
+			// 	}
+			// }
 			event.emplace(deviceToken_, std::move(deviceProductSeeds));
 		}
 
