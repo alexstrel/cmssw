@@ -30,31 +30,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	    template <typename TAcc>
             ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE static T dPerp(TAcc const& acc) const {
-		    T relP1_2dnorm2{0};
-		    T relP2_2dnorm2{0};
+		    const T relP1_2dnorm = relP1.template partial_norm<Tacc, 2>();
+		    const T relP2_2dnorm = relP2.template partial_norm<Tacc, 2>();
 
-                    CMS_UNROLL_LOOP
-		    for ( unsigned int i = 0; i < (N-1); i++ ) {
-                      const T relp1_i = relP1[i];
-                      const T relp2_i = relP2[i];		      
-
-		      relP1_2dnorm2 += relp1_i*relp1_i;
-	     	      relP2_2dnorm2 += relp2_i*relp2_i;		      
-		    }
-
-		    return (alpaka::math::sqrt(acc, relP1_2dnorm2) - alpaka::math::sqrt(acc,relP2_2dnorm2)); 
+		    return (relP1_2dnorm - relP2_2dnorm); 
 	    }
 
             
             // Helper function to compute relative position
             constexpr Vec3 relativePosition(const Vec3& point, const Vec3& origin) {
-		Vec3 res;
-                CMS_UNROLL_LOOP
-		for (unsigned int i = 0; i < N; i++) {
-		  res[i] = point(i) - origin(i);	
-		}
-
-                return res;
+                return cms::alpakatools::xmy(point - origin);
             }
 
             // Calculate  relative eta

@@ -40,27 +40,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         ) {
 	    using T = Vec3::value_t;	
             // Calculate the difference between measurement and vertex positions
-            Vec3 xdiff; //= xmeas - xvert;
+            const Vec3 xdiff = cms::alpakatools::xmy(xmeas, xvert) ; //= xmeas - xvert;
 
             // Normalize xdiff and scale by momentum to get the momentum vector
-	    T xdiff_norm2{0};
+	    const auto xdiff_norm2 = xdiff.norm2();
 
-	    for (unsigned int i = 0; i < 3; i++){
-	      xdiff[i]     = xmeas[i] - xvert[i];
-              xdiff_norm2 += xdiff[i] * xdiff[i];
-	    }
+            // Normalize xdiff and scale by momentum to get the momentum vector:
+	    const T scale = momentum / alpaka::math::sqrt(acc, xdiff_norm2);
 
-            // Normalize xdiff and scale by momentum to get the momentum vector
-            Vec3 mom;
-
-            const T scale = momentum / alpaka::math::sqrt(acc, xdiff_norm2);	    
-
-            for (unsigned int i = 0; i < 3; i++){
-              mom[i] = xdiff[i] * scale;
-            }	    
+            const Vec3 mom = cms::alpakatools::ax(scale, xdiff);
 
             // Transverse momentum (perpendicular to the z-axis)
-            const T pt = alpaka::math::sqrt(acc, mom[0] * mom[0] + mom[1] * mom[1]);
+            const T pt = mom.template partial_norm<TAcc, 2>(acc);
             const T pz = mom[2];
 
             const T pxOld = mom[0];
@@ -70,15 +61,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             const T curv = (BInTesla * 0.29979 * 0.01) / pt;
 
             // Calculate the sine and cosine of the rotation angle
-            const T sa = 0.5 * alpaka::math::sqrt(acc, xdiff[0] * xdiff[0] + xdiff[1] * xdiff[1]) * curv * float(charge);
+            const T sa = 0.5 * xdiff.template partial_norm<TAcc, 2>(acc) * curv * float(charge);
             const T ca = alpaka::math::sqrt(acc,1. - sa * sa);
 
             // Rotate momentum vector in the xy-plane
             const T pxNew = ca * pxOld + sa * pyOld;
             const T pyNew = -sa * pxOld + ca * pyOld;
 	    //
-            Vec3 pNew; 
-	    pNew[0] = pxNew, pNew[1] = pyNew, pNew[2] = pz; 
+            const Vec3 pNew(pxNew,pyNew,pz); 
 
             return FreeTrajectoryState<Vec3>(pNew, xmeas, charge);
         }

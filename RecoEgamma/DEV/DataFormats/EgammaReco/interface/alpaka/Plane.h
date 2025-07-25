@@ -34,14 +34,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	    template <typename TAcc>
 	    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T pos_norm(TAcc const& acc) const {
-		T res{0.};
-
-		CMS_UNROLL_LOOP
-                for (unsigned int i = 0; i < N; i++){
-                  res[i] += position[i] * position[i];
-                }
-
-                return alpaka::math::sqrt(acc, res);
+                return position.norm();
             }
 
             // Returns the normal vector of the plane
@@ -68,12 +61,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             // Fast access to distance from plane for a vector
             constexpr inline T distanceFromPlaneVector(const Vec3& gv) const {
-		T res = static_cast<T>(0.);
-                CMS_UNROLL_LOOP		
-	        for (unsigned int i = 0; i < N; i++){
-	          res += rotation[i] * gv[i];		
-		}	
-                return res;
+                return cms::alpakatools::dot(rotation, gv);
             }
         };
 
