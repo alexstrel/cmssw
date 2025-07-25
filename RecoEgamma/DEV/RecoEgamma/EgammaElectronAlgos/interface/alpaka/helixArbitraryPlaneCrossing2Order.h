@@ -59,8 +59,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE bool solutionByDirection(	TAcc const& acc,
 											double &path,//0	
 											const double dS1,
-											const double dS2,
-											const PropagationDirection propDir) {
+											const double dS2 ) {
 
 				bool valid = false;
 
