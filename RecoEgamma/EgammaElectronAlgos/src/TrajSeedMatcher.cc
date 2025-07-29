@@ -178,6 +178,7 @@ std::vector<TrajSeedMatcher::SeedWithInfo> TrajSeedMatcher::operator()(const Glo
     int nrValidLayers = std::max(nrValidLayersNeg, nrValidLayersPos);
     size_t nrHitsRequired = getNrHitsRequired(nrValidLayers);
     bool matchCountPasses;
+    //std::cout<<"Number of valid layers : "<< nrValidLayers <<std::endl;
     if (cfg_.requireExactMatchCount) {
       // If the input seed collection is not cross-cleaned, an exact match is necessary to
       // prevent redundant seeds.

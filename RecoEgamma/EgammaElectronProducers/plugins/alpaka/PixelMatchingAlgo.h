@@ -1,14 +1,14 @@
 #ifndef RecoEgamma_EgammaElectronProducers_plugins_alpaka_PixelMatchingAlgo_h
 #define RecoEgamma_EgammaElectronProducers_plugins_alpaka_PixelMatchingAlgo_h
 
-#include <Eigen/Core>
 
 #include "DataFormats/PortableTestObjects/interface/alpaka/TestDeviceCollection.h"
 #include "DataFormats/EgammaReco/interface/alpaka/EleSeedDeviceCollection.h"
 #include "DataFormats/EgammaReco/interface/alpaka/SuperclusterDeviceCollection.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
+#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
 
-using Vector3f = Eigen::Matrix<double, 3, 1>;
+using Vector3d = cms::alpakatools::VecArray<double, 3>;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 

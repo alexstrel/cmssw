@@ -77,7 +77,7 @@ void ElectronSeedConverter::produce(edm::StreamID, edm::Event& event, const edm:
         if (view[i].isMatched() > 0) {
             int matchedScID = view[i].matchedScID();
             auto scIter = superClusterRefMap_.find(matchedScID);
-            std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
+            // std::cout << "  matchedScID: " << view[i].matchedScID() << std::endl;
 
             if (scIter != superClusterRefMap_.end()) {
                 const reco::SuperClusterRef& superClusRef = scIter->second;

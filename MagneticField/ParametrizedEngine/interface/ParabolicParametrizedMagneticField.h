@@ -22,17 +22,17 @@ namespace magneticFieldParabolicPortable {
 
   template <typename Vec3>
   constexpr float Kr(Vec3 const& vec) {
-    return Parameters::a * (vec(0) * vec(0) + vec(1) * vec(1)) + 1.f;
+    return Parameters::a * (vec[0] * vec[0] + vec[1] * vec[1]) + 1.f;
   }
 
   template <typename Vec3>
   constexpr float B0Z(Vec3 const& vec) {
-    return Parameters::b0 * vec(2) * vec(2) + Parameters::b1 * vec(2) + Parameters::c1;
+    return Parameters::b0 * vec[2] * vec[2] + Parameters::b1 * vec[2] + Parameters::c1;
   }
 
   template <typename Vec3>
   constexpr bool isValid(Vec3 const& vec) {
-    return ((vec(0) * vec(0) + vec(1) * vec(1)) < Parameters::max_radius2 && fabs(vec(2)) < Parameters::max_z);
+    return ((vec[0] * vec[0] + vec[1] * vec[1]) < Parameters::max_radius2 && fabs(vec[2]) < Parameters::max_z);
   }
 
   template <typename Vec3>

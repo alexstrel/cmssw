@@ -4,7 +4,6 @@
 #endif
 
 #include <alpaka/alpaka.hpp>
-#include <Eigen/Core>
 
 #include "DataFormats/EgammaReco/interface/alpaka/EleSeedDeviceCollection.h"
 #include "DataFormats/EgammaReco/interface/alpaka/SuperclusterDeviceCollection.h"
@@ -23,27 +22,30 @@
 #include "DataFormats/EgammaReco/interface/alpaka/EleRelPointPairPortable.h"
 #include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 
-using Vector3d = Eigen::Matrix<double, 3, 1>;
-
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using namespace cms::alpakatools;
 
-	ALPAKA_FN_ACC ALPAKA_FN_INLINE float getZVtxFromExtrapolation(const Vector3d& primeVtxPos,
-											const Vector3d& hitPos,
-											const Vector3d& candPos) {
-		auto sq = [](float x) { return x * x; };
-		auto calRDiff = [sq](const Vector3d& p1, const Vector3d& p2) {
-			return sqrt(sq(p2(0) - p1(0)) + sq(p2(1) - p1(1)));
+        template<typename TAcc, typename T>
+	ALPAKA_FN_ACC ALPAKA_FN_INLINE T getZVtxFromExtrapolation(TAcc const& acc,
+								  const Vec3d& primeVtxPos,
+								  const Vec3d& hitPos,
+								  const Vec3d& candPos) {
+		auto sq = [](T x) { return x * x; };
+
+		auto calRDiff2 = [sq](const Vec3d& p1, const Vec3d& p2) {
+		  return sq(p2[0] - p1[0]) + sq(p2[1] - p1[1]);
 		};
-		const double r1Diff = calRDiff(primeVtxPos, hitPos);
-		const double r2Diff = calRDiff(hitPos, candPos);
-		float zvtx = hitPos(2) - r1Diff * (candPos(2) - hitPos(2)) / r2Diff;
+		const T r1Diff = alpaka::math::sqrt(acc, calRDiff2(primeVtxPos, hitPos));
+		const T r2Diff = alpaka::math::sqrt(acc, calRDiff2(hitPos, candPos));
+
+		T zvtx = hitPos[2] - r1Diff * (candPos[2] - hitPos[2]) / r2Diff;
 		return zvtx;
 	}
 
-	ALPAKA_FN_ACC ALPAKA_FN_INLINE float getCutValue(float et, float highEt, float highEtThres, float lowEtGrad) {
-		return highEt + std::min(0.f, et - highEtThres) * lowEtGrad;
+	template<typename TAcc, typename T>
+	ALPAKA_FN_ACC ALPAKA_FN_INLINE T getCutValue(TAcc const& acc, const T et, const T highEt, const T highEtThres, const T lowEtGrad) {
+		return highEt + alpaka::math::min(acc, static_cast<T>(0.), et - highEtThres) * lowEtGrad;
 	}
 
 	//--- Kernel for printing the SC SoA
@@ -57,6 +59,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			//const int32_t thread = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u];
 			for (int32_t i : uniform_elements(acc, size)) 
 			{
+#if 0
 				if(i>=size)
 				    break;
 
@@ -70,6 +73,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				Vector3d position{x,y,z};
 				printf("  Value of perp2 %lf \n",x*x+y*y);
 				printf("Calculate the magnetic field with the parabolic approximation at the SC position : %f\n",magneticFieldParabolicPortable::magneticFieldAtPoint(position));
+#endif			
 			}
 		}
 	};
@@ -120,18 +124,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	public:
 		template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
 		ALPAKA_FN_ACC void operator()(TAcc const& acc,
-										reco::EleSeedDeviceCollection::View viewEleSeeds,
-										int32_t sizeEleSeeds,
-										reco::SuperclusterDeviceCollection::View viewSCs,
-										int32_t sizeSCs,
-										double vtx_x,
-										double vtx_y,
-										double vtx_z) const 
+					      reco::EleSeedDeviceCollection::View viewEleSeeds,
+					      const int32_t sizeEleSeeds,
+					      reco::SuperclusterDeviceCollection::View viewSCs,
+					      const int32_t sizeSCs,
+					      const double vtx_x,
+					      const double vtx_y,
+					      const double vtx_z) const 
 		{
 
-			Vector3d vertex = {vtx_x,vtx_y,vtx_z}; 
+			const Vec3d vertex(vtx_x,vtx_y,vtx_z); 
 
-			for (int32_t i : uniform_elements(acc,sizeEleSeeds)) 
+			for (int i : uniform_elements(acc,sizeEleSeeds)) 
 			{
 				if(i>=sizeEleSeeds)
 					break;
@@ -142,130 +146,135 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					continue;
 
 				// Access first hit information
-				Vector3d hitPosition  = {eleSeed.hit0Pos().x(),eleSeed.hit0Pos().y(),eleSeed.hit0Pos().z()};
-				Vector3d surfPosition = {eleSeed.surf0Pos().x(),eleSeed.surf0Pos().y(),eleSeed.surf0Pos().z()};
-				Vector3d surfRotation = {eleSeed.surf0Rot().x(),eleSeed.surf0Rot().y(),eleSeed.surf0Rot().z()};
+				Vec3d hitPosition(eleSeed.hit0Pos().x(),eleSeed.hit0Pos().y(),eleSeed.hit0Pos().z());
+				Vec3d surfPosition(eleSeed.surf0Pos().x(),eleSeed.surf0Pos().y(),eleSeed.surf0Pos().z());
+				Vec3d surfRotation(eleSeed.surf0Rot().x(),eleSeed.surf0Rot().y(),eleSeed.surf0Rot().z());
 
-				Vector3d hit2Position  = {eleSeed.hit1Pos().x(),eleSeed.hit1Pos().y(),eleSeed.hit1Pos().z()};
-				Vector3d surf2Position = {eleSeed.surf1Pos().x(),eleSeed.surf1Pos().y(),eleSeed.surf1Pos().z()};
-				Vector3d surf2Rotation = {eleSeed.surf1Rot().x(),eleSeed.surf1Rot().y(),eleSeed.surf1Rot().z()};
+				Vec3d hit2Position(eleSeed.hit1Pos().x(),eleSeed.hit1Pos().y(),eleSeed.hit1Pos().z());
+				Vec3d surf2Position(eleSeed.surf1Pos().x(),eleSeed.surf1Pos().y(),eleSeed.surf1Pos().z());
+				Vec3d surf2Rotation(eleSeed.surf1Rot().x(),eleSeed.surf1Rot().y(),eleSeed.surf1Rot().z());
 
-				for(int32_t j=0; j<sizeSCs; ++j)
+				for(int j = 0; j < sizeSCs; ++j)
 				{
 
-					if(j>=sizeSCs)
-						break;
+					if(j >= sizeSCs) break;
 
-			 		float x = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::cos(acc,viewSCs[j].scPhi());				
-					float y = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::sin(acc,viewSCs[j].scPhi());
-			 		float z = viewSCs[j].scR() * alpaka::math::cos(acc,viewSCs[j].scSeedTheta());
-			 		float et = viewSCs[j].scEnergy() * alpaka::math::sin(acc, viewSCs[j].scSeedTheta());
-					float e = viewSCs[j].scEnergy();
-			 		Vector3d positionSC = {x,y,z};
+			 		const double x = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::cos(acc,viewSCs[j].scPhi());				
+					const double y = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::sin(acc,viewSCs[j].scPhi());
+			 		const double  z = viewSCs[j].scR() * alpaka::math::cos(acc,viewSCs[j].scSeedTheta());
+			 		
+					const float et = viewSCs[j].scEnergy() * alpaka::math::sin(acc, viewSCs[j].scSeedTheta());
+					const float e = viewSCs[j].scEnergy();
+
+			 		Vec3d positionSC(x,y,z);
 	
 			 		for (int charge : {1,-1}) 
 			 		{
-			 			auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(positionSC,vertex, e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC));	
+						const float c = (charge == 1 ? -2.99792458e-3f : +2.99792458e-3f);
+
+			 			auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(acc,positionSC,vertex,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC));	
 												
-			 			Vector3d position = {newfreeTS.position(0),newfreeTS.position(1),newfreeTS.position(2)};
-			 			Vector3d momentum = {newfreeTS.momentum(0),newfreeTS.momentum(1),newfreeTS.momentum(2)};
-						
-			 			auto transverseCurvature = [](const Vector3d& p, int charge, const float& magneticFieldZ) -> float {
-   			  				return -2.99792458e-3f * (charge / sqrt(p(0) * p(0) + p(1) * p(1))) * magneticFieldZ;  
-			 			};
+			 			const Vec3d position(newfreeTS.get_position());
+			 			const Vec3d momentum(newfreeTS.get_momentum());
 
 			 			double s=0; 
 			 			bool theSolExists = false; 
-			 			Vector3d propagatedPos = {0,0,0};
-			 			Vector3d propagatedMom = {0,0,0}; 
-			 			double rho = transverseCurvature(momentum,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC));
+
+			 			Vec3d propagatedPos(0);
+			 			Vec3d propagatedMom(0);
+
+			 			double rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC)) /  momentum.partial_norm<TAcc, 2>(acc);
 					
-			 			PlanePortable::Plane<Vector3d> plane{surfPosition,surfRotation};
+			 			PlanePortable::Plane<typename Vec3d::value_type> plane(surfPosition,surfRotation);
+
 			 			constexpr float small = 1.e-6; 
+
 			 			auto u = plane.normalVector();
-			 			if (std::abs(u(2)) < small) {
-			 				Propagators::helixBarrelPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
+			 			if (alpaka::math::abs(acc,u[2]) < small) {
+			 				Propagators::helixBarrelPlaneCrossing<TAcc, Propagators::PropagationDirection::oppositeToMomentum>(acc,position,momentum,rho,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
 			 			} 
-						else if ((std::abs(u(0)) < small) && (std::abs(u(1)) < small)) 
+						else if ((alpaka::math::abs(acc, u[0]) < small) && (alpaka::math::abs(acc, u[1]) < small)) 
 			 			{
 			 				//Propagators::helixForwardPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,plane,s,propagatedPos,propagatedMom,theSolExists);
-			 				Propagators::helixBarrelPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
+			 				Propagators::helixBarrelPlaneCrossing<TAcc, Propagators::PropagationDirection::oppositeToMomentum>(acc,position,momentum,rho,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
 
 			 			} 
 			 			else {
-			 				Propagators::helixBarrelPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
+			 				Propagators::helixBarrelPlaneCrossing<TAcc, Propagators::PropagationDirection::oppositeToMomentum>(acc,position,momentum,rho,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
 			 				// Propagators::helixArbitraryPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,plane,s,propagatedPos,propagatedMom,theSolExists);
 			 			}
 	
-						if(!theSolExists)
-							continue;
+						if(!theSolExists) continue;
 
 						// Momentum should be renormalized - might want to add this in propagator ?
-						propagatedMom.normalize(); 
-						propagatedMom*= momentum.norm();
+						const double scale = momentum.norm(acc) / propagatedMom.norm(acc);
+
+						propagatedMom *= scale; 
 
 						// Construct relative point-pair struct for applying quality cuts
-						EleRelPointPairPortable::EleRelPointPair<Vector3d> pair(hitPosition,propagatedPos,vertex);
-						float dPhiMax = getCutValue(et, 0.05, 20., -0.002);
-						float dRZMax = getCutValue(et, 9999., 0., 0);
-						float dRZ = pair.dZ();
+						EleRelPointPairPortable::EleRelPointPair<typename Vec3d::value_type> pair(hitPosition,propagatedPos,vertex);
 
-						if(eleSeed.hit0detectorID() != 1)
-							dRZ = pair.dPerp(); 
+						const float dPhiMax = getCutValue(acc, et, 0.05f, 20.f, -0.002f);
+						const float dRZMax  = getCutValue(acc, et, 9999.f, 0.f, 0.f);
+						const float dRZ     = eleSeed.hit0detectorID() ? pair.dPerp(acc) : pair.dZ();
 
-						if ((dPhiMax >= 0 && std::abs(pair.dPhi()) > dPhiMax) || (dRZMax >= 0 && std::abs(dRZ) > dRZMax))
+						if ((dPhiMax >= 0 && alpaka::math::abs(acc, pair.dPhi(acc)) > dPhiMax) || (dRZMax >= 0 && alpaka::math::abs(acc,dRZ) > dRZMax))
 							continue;
-						double zVertex = getZVtxFromExtrapolation(vertex, hitPosition,positionSC);
-						Vector3d vertexUpdated(vertex(0),vertex(1), zVertex);
+						
+						const double zVertex = getZVtxFromExtrapolation<TAcc, typename Vec3d::value_type>(acc, vertex, hitPosition,positionSC);
+						Vec3d vertexUpdated(vertex[0],vertex[1], zVertex);
 					
 						// Move to the second hit of the seed
 						if(!(eleSeed.hit1isValid()))
 							continue;	
 
-						auto firstMatchFreeTraj = ftsFromVertexToPointPortable::ftsFromVertexToPoint(hitPosition,vertexUpdated,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(hitPosition));									
-						Vector3d position2 = {firstMatchFreeTraj.position(0),firstMatchFreeTraj.position(1),firstMatchFreeTraj.position(2)};
-						Vector3d momentum2 = {firstMatchFreeTraj.momentum(0),firstMatchFreeTraj.momentum(1),firstMatchFreeTraj.momentum(2)};
-						rho = transverseCurvature(momentum2,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(hitPosition));
+						auto firstMatchFreeTraj = ftsFromVertexToPointPortable::ftsFromVertexToPoint(acc, hitPosition,vertexUpdated,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(hitPosition));									
+						Vec3d position2(firstMatchFreeTraj.get_position());
+						Vec3d momentum2(firstMatchFreeTraj.get_momentum());
+						
+						rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(hitPosition)) /  momentum2.partial_norm<TAcc, 2>(acc);
+						
 						theSolExists = false; 
-						propagatedPos = {0,0,0};
-						propagatedMom = {0,0,0}; 
+						propagatedPos = Vec3d(0);
+						propagatedMom = Vec3d(0); 
 
-			 			PlanePortable::Plane<Vector3d> plane2{surf2Position,surf2Rotation};
+			 			PlanePortable::Plane<typename Vec3d::value_type> plane2(surf2Position,surf2Rotation);
 			 			u = plane2.normalVector();
 
-			 			if (std::abs(u(2)) < small) {
-			 				Propagators::helixBarrelPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
+			 			if (alpaka::math::abs(acc, u[2]) < small) {
+			 				Propagators::helixBarrelPlaneCrossing<TAcc, Propagators::PropagationDirection::alongMomentum>(acc,position2,momentum2,rho,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
 			 			}
-			 			else if ((std::abs(u(0)) < small) && (std::abs(u(1)) < small)) 
+			 			else if ((alpaka::math::abs(acc, u[0]) < small) && (alpaka::math::abs(acc,u[1]) < small)) 
 			 			{
-			 				Propagators::helixBarrelPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
+			 				Propagators::helixBarrelPlaneCrossing<TAcc, Propagators::PropagationDirection::alongMomentum>(acc,position2,momentum2,rho,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
 							// Propagators::helixForwardPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,plane2,s,propagatedPos,propagatedMom,theSolExists);
 			 			} 
 			 			else {
-			 				Propagators::helixBarrelPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
+			 				Propagators::helixBarrelPlaneCrossing<TAcc, Propagators::PropagationDirection::alongMomentum>(acc, position2,momentum2,rho,surf2Position,surf2Rotation,theSolExists,propagatedPos,propagatedMom,s);
 			 				// Propagators::helixArbitraryPlaneCrossing(position2,momentum2,rho,Propagators::alongMomentum,plane2,s,propagatedPos,propagatedMom,theSolExists);
 			 			}								
 
-						propagatedMom.normalize(); 
-						propagatedMom*= momentum.norm();
+						const double scale2 = momentum.norm(acc) / propagatedMom.norm(acc);
+						propagatedMom *= scale2;
+
+						//propagatedMom.normalize(); 
+						//propagatedMom*= momentum.norm();
 
 						if(!theSolExists)
 							continue;
 								
-						EleRelPointPairPortable::EleRelPointPair<Vector3d> pair2(hit2Position,propagatedPos,vertexUpdated);
-						dPhiMax = getCutValue(et, 0.003, 0., 0.);
-						dRZMax = getCutValue(et, 0.05, 30., -0.002);
-						dRZ = pair2.dZ();
+						EleRelPointPairPortable::EleRelPointPair<typename Vec3d::value_type> pair2(hit2Position,propagatedPos,vertexUpdated);
 
-						if(eleSeed.hit1detectorID()!= 1)
-							dRZ = pair2.dPerp(); 
+						const float dPhiMax2 = getCutValue(acc, et, 0.003f, 0.f, 0.f);
+						const float dRZMax2  = getCutValue(acc, et, 0.05f, 30.f, -0.002f);
+						const float dRZ2     = eleSeed.hit1detectorID()!= 1 ? pair2.dPerp(acc) : pair2.dZ();
 
 					
-						if ((dPhiMax >= 0 && std::abs(pair2.dPhi()) > dPhiMax) || (dRZMax >= 0 && std::abs(dRZ) > dRZMax))
+						if ((dPhiMax2 >= 0 && alpaka::math::abs(acc,pair2.dPhi(acc)) > dPhiMax2) || (dRZMax2 >= 0 && alpaka::math::abs(acc,dRZ2) > dRZMax2))
 							continue;	
 
-						eleSeed.matchedScID() = viewSCs[j].id();
-						eleSeed.isMatched() = 1;
+						eleSeed.matchedScID() = static_cast<int16_t>(viewSCs[j].id());
+						eleSeed.isMatched()   = static_cast<int16_t>(1);
 
 					}
 				}

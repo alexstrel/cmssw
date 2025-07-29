@@ -7,107 +7,99 @@
 
 #include <iostream>
 #include <cmath>
-#include <Eigen/Dense>
 
 #include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 
-using Vector3f = Eigen::Matrix<double, 3, 1>;
+#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
 
+using Vec3d = cms::alpakatools::VecArray<double, 3>;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	namespace Propagators {
 
-		enum PropagationDirection { alongMomentum, oppositeToMomentum, anyDirection };
+		enum class PropagationDirection { alongMomentum, oppositeToMomentum, anyDirection, invalidDirection };
 
-		struct QuadEquationSolver {
-
-			double first;
-			double second;
-			bool hasSolution;
-
-			ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE QuadEquationSolver(double A, double B, double C) {
-				double D = B * B - 4 * A * C;
-				if (D < 0)
-					hasSolution = false;
-				else {
-					hasSolution = true;
-					auto q = -0.5 * (B + std::copysign(std::sqrt(D), B));
-					first = q / A;
-					second = C / q;
-				}
-			}
-		};
-
-		ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE Vector3f chooseSolution(
-			const Vector3f& d1,
-			const Vector3f& d2,
-			const Vector3f& startingPos,
-			const Vector3f& startingDir,
-			PropagationDirection propDir,
+		template<PropagationDirection propDir>
+		constexpr Vec3d chooseSolution(
+			const Vec3d& d1,
+			const Vec3d& d2,
+			const Vec3d& startingPos,
+			const Vec3d& startingDir,
 			int& theActualDir,
 			bool& theSolExists) {
 
-			Vector3f theD;
+			Vec3d theD;
 
-			auto momProj1 = startingDir(0) * d1(0) + startingDir(1) * d1(1);
-			auto momProj2 = startingDir(0) * d2(0) + startingDir(1) * d2(1);
+			const double momProj1 = startingDir[0] * d1[0] + startingDir[1] * d1[1];
+			const double momProj2 = startingDir[0] * d2[0] + startingDir[1] * d2[1];
 
-			if (propDir == anyDirection) {
-				theSolExists = true;
-				if (d1.squaredNorm() < d2.squaredNorm()) {
-					theD = d1;
-					theActualDir = (momProj1 > 0) ? 1 : -1;
-				} else {
-					theD = d2;
-					theActualDir = (momProj2 > 0) ? 1 : -1;
-				}
+			const double d1_norm2 = d1[0]*d1[0] + d1[1]*d1[1] + d1[2]*d1[2];
+                        const double d2_norm2 = d2[0]*d2[0] + d2[1]*d2[1] + d2[2]*d2[2];
+
+			const bool selection_flag = d1_norm2 < d2_norm2;
+
+			theSolExists = true;
+
+			if constexpr (propDir == PropagationDirection::anyDirection) {
+			  if (selection_flag) {
+			    theD = d1;
+			    theActualDir = (momProj1 > 0) ? 1 : -1;
+			  } else {
+			    theD = d2;
+			    theActualDir = (momProj2 > 0) ? 1 : -1;
+			  }
 			} else {
-				double propSign = (propDir == alongMomentum) ? 1 : -1;
-				if (momProj1 * momProj2 < 0) {
-					theSolExists = true;
-					theD = (momProj1 * propSign > 0) ? d1 : d2;
-					theActualDir = propSign;
-				} else if (momProj1 * propSign > 0) {
-					theSolExists = true;
-					theD = (d1.squaredNorm() < d2.squaredNorm()) ? d1 : d2;
-					theActualDir = propSign;
-				} else {
-					theSolExists = false;
-				}
+			  constexpr double propSign = (propDir == PropagationDirection::alongMomentum) ? 1 : -1;
+			  if (momProj1 * momProj2 < 0) {
+			    theD = (momProj1 * propSign > 0) ? d1 : d2;
+			    theActualDir = propSign;
+			  } else if (momProj1 * propSign > 0) {
+			    theD = selection_flag ? d1 : d2;
+			    theActualDir = propSign;
+			  } else {
+			    theSolExists = false;
+			  }
 			}
 
 			return theD;
 		}
 
-		ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE void helixBarrelPlaneCrossing(
-		const Vector3f& startingPos,
-		const Vector3f& startingDir,
-		double rho,
-		PropagationDirection propDir,
-		Vector3f& surfPosition,
-		Vector3f& surfRotation,            
-		bool& theSolExists,
-		Vector3f& position,
-		Vector3f& direction,
-		double& s) 
-		{
+		template<typename TAcc, PropagationDirection propDir>
+		ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE void helixBarrelPlaneCrossing( TAcc const& acc,
+										const Vec3d& startingPos,
+										const Vec3d& startingDir,
+										const double rho,
+										Vec3d& surfPosition,
+										Vec3d& surfRotation,            
+										bool& theSolExists,
+										Vec3d& position,
+										Vec3d& direction,
+										double& s) {
 
-		double pt = startingDir.head(2).norm();
-		double ipabs = 1. / startingDir.norm();
-		double sinTheta = pt * ipabs;
-		double cosTheta = startingDir(2) * ipabs;
+		const PlanePortable::Plane<typename Vec3d::value_type> plane(surfPosition,surfRotation);
 
-		const PlanePortable::Plane<Vector3f> plane{surfPosition,surfRotation};
+		constexpr double straightLineCutoff = 1.e-7;
 
-		const double straightLineCutoff = 1.e-7;
-		if (fabs(rho) < straightLineCutoff  &&  fabs(rho) * startingPos.head(2).norm() < straightLineCutoff) {
+		const double abs_rho = alpaka::math::abs(acc, rho);
+		const double startingDir_2dnorm = startingPos.partial_norm<TAcc, 2>(acc);//alpaka::math::sqrt(acc, startingPos[0]*startingPos[0]+startingPos[1]*startingPos[1]);
+
+		auto compute_position = [&] (const double s) -> Vec3d {
+        		const double norm  = startingDir.norm(acc);//alpaka::math::sqrt(acc, startingDir[0] * startingDir[0] + startingDir[1] * startingDir[1] + startingDir[2] * startingDir[2]);
+        		const double scale = norm > 0. ? s / norm : 0.;//that is, for "zero" vector this will be identity operation
+
+        		return cms::alpakatools::axpy(scale, startingDir, startingPos);
+                };
+
+		if (abs_rho < straightLineCutoff  &&  abs_rho * startingDir_2dnorm < straightLineCutoff) {
 			// calculate path length
 			const auto pz = plane.distanceFromPlaneVector(startingDir);
-			s = plane.localZclamped(startingPos) / pz;
+
+			s = plane.localZclamped(acc, startingPos) / pz;
+
 			if (s != 0) {
 				theSolExists = true;
-				position = startingPos + s * startingDir.normalized();
+				position = compute_position(s);
 				direction = startingDir;
 			} else {
 				theSolExists = false;
@@ -115,18 +107,23 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			return; // all needed data members have been set
 		}
 
-		double o = 1. / (pt * rho);
-		double theXCenter = startingPos(0) - startingDir(1) * o;
-		double theYCenter = startingPos(1) + startingDir(0) * o;
+                const double pt = startingDir.partial_norm<TAcc, 2>(acc); 		
+
+		const double o = 1. / (pt * rho);
+		const double theXCenter = startingPos[0] - startingDir[1] * o;
+		const double theYCenter = startingPos[1] + startingDir[0] * o;
 
 		// This is default when there curvature is non zero
 
-		Vector3f n = plane.normalVector();
-		double distToPlane = -plane.localZ(startingPos);
-		double nx = n(0);
-		double ny = n(1);
-		double distCx = startingPos(0) - theXCenter;
-		double distCy = startingPos(1) - theYCenter;
+		const Vec3d n = plane.normalVector();
+
+		const double distToPlane = -plane.localZ(startingPos);
+
+		const double nx = n[0];
+		const double ny = n[1];
+
+		const double distCx = startingPos[0] - theXCenter;
+		const double distCy = startingPos[1] - theYCenter;
 
 		double nfac, dfac;
 		double A, B, C;
@@ -149,52 +146,64 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		B -= nfac * dfac;
 		B *= 2; // the rest of B
 		A = 1. + nfac * nfac;
+                
+		// Check solution existence first:
+                const double D = B * B - 4 * A * C;
 
-		QuadEquationSolver eq(A, B, C);
-		if (!eq.hasSolution) {
-			theSolExists = false;
-			return;
+		if (D < 0) {
+		  theSolExists = false;
+	          return;	  
 		}
 
-		Vector3f d1, d2;
+		const double Q = (-0.5 * (B + alpaka::math::copysign(acc, alpaka::math::sqrt(acc, D), B)));
+
+		const double first = Q/A;
+		const double second= C/Q;
+
+		Vec3d d1, d2;
+
 		if (solveForX) {
-			d1 = Vector3f(eq.first, dfac - nfac * eq.first, 0.0);
-			d2 = Vector3f(eq.second, dfac - nfac * eq.second, 0.0);
+		  d1 = Vec3d(first, dfac - nfac * first, 0.0);
+		  d2 = Vec3d(second, dfac - nfac * second, 0.0);
 		} else {
-			d1 = Vector3f(dfac - nfac * eq.first, eq.first, 0.0);
-			d2 = Vector3f(dfac - nfac * eq.second, eq.second, 0.0);
+		  d1 = Vec3d(dfac - nfac * first, first, 0.0);
+		  d2 = Vec3d(dfac - nfac * second, second, 0.0);
 		}
 
-		Vector3f theD;
-		int theActualDir;
-		theD = chooseSolution(d1, d2, startingPos, startingDir, propDir, theActualDir, theSolExists);
-		if (!theSolExists)
-			return;
+		Vec3d theD;
 
-		auto dMag = theD.norm();
-		double sinAlpha = 0.5 * dMag * rho;
-		if (std::abs(sinAlpha) > 1.0)
-			 sinAlpha = std::copysign(1.0, sinAlpha);
+		int theActualDir;
+
+		theD = chooseSolution<propDir>(d1, d2, startingPos, startingDir, theActualDir, theSolExists);
+		
+		if (!theSolExists) return;
+
+		const double scaled_dMag_rho = 0.5 * theD.norm(acc) * rho;// theD.norm()
+
+		double sinAlpha = scaled_dMag_rho;
+
+                const double ipabs = 1. / startingDir.norm(acc);
+
+                const double sinTheta = pt * ipabs;
+                const double cosTheta = startingDir[2] * ipabs;
+
+		if (alpaka::math::abs(acc, sinAlpha) > 1.0) sinAlpha = alpaka::math::copysign(acc, 1.0, sinAlpha);
 		// Path length
-		s = theActualDir * 2.0 * std::asin(sinAlpha) / (rho * sinTheta);
+		s = theActualDir * 2.0 * alpaka::math::asin(acc, sinAlpha) / (rho * sinTheta);
 
 		// Position
-		position = Vector3f(startingPos(0) + theD(0), startingPos(1) + theD(1), startingPos(2) + s * cosTheta);
+		position = Vec3d(startingPos[0] + theD[0], startingPos[1] + theD[1], startingPos[2] + s * cosTheta);
 
 		// Direction
-		double sinPhi, cosPhi;
-    	double tmp = 0.5 * dMag * rho;
-		if (s < 0) 
-			tmp = -tmp;
- 	    sinPhi = 1. - (tmp * tmp);
-		if (sinPhi < 0)
-			sinPhi = 0.;
-		sinPhi = 2.0 * tmp * sqrt(sinPhi);
-		cosPhi = 1.0 - 2.0 * (tmp * tmp);
+    	        const double tmp = s >= 0 ? scaled_dMag_rho : -scaled_dMag_rho;
+		const double tmp2= tmp*tmp;
 
-		direction = Vector3f(startingDir(0) * cosPhi - startingDir(1) * sinPhi,
-							  startingDir(0) * sinPhi + startingDir(1) * cosPhi,
-							  startingDir(2));
+ 	        const double sinPhi = (1. < tmp2) ? 0. :  2.0 * tmp * alpaka::math::sqrt(acc, 1. - tmp2);
+		const double cosPhi = 1.0 - 2.0 * tmp2;
+
+		direction = Vec3d(startingDir[0] * cosPhi - startingDir[1] * sinPhi,
+				  startingDir[0] * sinPhi + startingDir[1] * cosPhi,
+				  startingDir[2]);
 		}
 
 	} // namespace Propagators
