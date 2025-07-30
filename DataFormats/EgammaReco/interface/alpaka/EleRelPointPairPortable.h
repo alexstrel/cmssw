@@ -1,55 +1,75 @@
 #ifndef DataFormats_EgammaReco_interface_alpaka_EleRelPointPairPortable_h
 #define DataFormats_EgammaReco_interface_alpaka_EleRelPointPairPortable_h
 
-#include <Eigen/Dense>
 #include <cmath>
-#include <algorithm>
+//#include <algorithm>
+#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     namespace EleRelPointPairPortable {
 
-        template <typename Vec3>
-        struct EleRelPointPair {
-            Vec3 relP1; // Relative point 1
-            Vec3 relP2; // Relative point 2
+        template <typename T = double>
+        class EleRelPointPair {
+
+	  public: 
+	    using Vec3 = cms::alpakatools::VecArray<T, 3>; 
 
             // Constructor to compute relative points
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE EleRelPointPair(const Vec3& p1, const Vec3& p2, const Vec3& origin)
+            constexpr EleRelPointPair(const Vec3& p1, const Vec3& p2, const Vec3& origin)
                 : relP1(relativePosition(p1, origin)), relP2(relativePosition(p2, origin)) {}
 
             // Calculate differences
             //constexpr auto dEta() const { return relative_eta(relP1, relP2); }
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto dZ() const { return (relP1.z() - relP2.z()); }
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto dPerp() const { return (relP1.head(2).norm() - relP2.head(2).norm()); }
+            constexpr inline T dZ() const { return (relP1[2] - relP2[2]); }
+
+	    template <typename TAcc>
+            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T dPerp(TAcc const& acc) const {
+		    const T relP1_2dnorm = relP1.template partial_norm<TAcc, 2>(acc);
+		    const T relP2_2dnorm = relP2.template partial_norm<TAcc, 2>(acc);
+
+		    return (relP1_2dnorm - relP2_2dnorm); 
+	    }
 
             
             // Helper function to compute relative position
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE Vec3 relativePosition(const Vec3& point, const Vec3& origin) {
-                return Vec3(point(0) - origin(0), point(1) - origin(1), point(2) - origin(2));
+            constexpr Vec3 relativePosition(const Vec3& point, const Vec3& origin) const {
+                return cms::alpakatools::xmy(point, origin);
             }
 
-            // Calculate relative eta
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE static double relative_eta(const Vec3& p, const Vec3& origin) {
-                return (p - origin).eta();
+            // Calculate  relative eta
+	    template <typename TAcc>
+            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T relative_eta(TAcc const& acc, const Vec3& p, const Vec3& origin) const {
+
+		const T tmp  = cms::alpakatools::diff2(p, origin);
+                const T pdiff = alpaka::math::sqrt(acc,tmp);
+		const T z     = p[2] - origin[2];
+
+	        return 0.5 * alpaka::math::log(acc, (pdiff + z) / (pdiff - z) );
             }
 
             // Calculate relative phi
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE static double relative_phi(const Vec3& p1, const Vec3& p2) {
-                auto phi = std::atan2(p1(1),p1(0)) - std::atan2(p2(1),p2(0));
-                return reduceRange(phi);
+	    template <typename TAcc>
+            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T relative_phi(TAcc const& acc, const Vec3& p1, const Vec3& p2) const {
+                const T phi = alpaka::math::atan2(acc, p1[1],p1[0]) - alpaka::math::atan2(acc, p2[1],p2[0]);
+                return reduceRange(acc, phi);
             }
             
             // Normalize phi to the range [-pi, pi]
-            template <typename T>
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE static constexpr T reduceRange(T x) {
+            template <typename TAcc>
+            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T reduceRange(TAcc const& acc, const T x) const {
                 constexpr T o2pi = 1. / (2. * M_PI);
-                if (std::abs(x) <= T(M_PI))
+                if (alpaka::math::abs(acc, x) <= T(M_PI))
                     return x;
-                return x - std::floor(x * o2pi + (x < 0 ? -0.5 : 0.5)) * 2. * M_PI;
+                return x - alpaka::math::floor(acc, x * o2pi + (x < 0 ? -0.5 : 0.5)) * 2. * M_PI;
             }
 
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto dPhi() const { return relative_phi(relP1, relP2); }
+	    template <typename TAcc>
+            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE auto dPhi(TAcc const& acc) const { return relative_phi(acc, relP1, relP2); }
+
+	  private:
+            Vec3 relP1; // Relative point 1
+            Vec3 relP2; // Relative point 2
 
         };
 

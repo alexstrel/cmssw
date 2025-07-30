@@ -2,45 +2,66 @@
 #define DataFormats_EgammaReco_interface_alpaka_Plane_h
 
 #include <cmath>
-#include <Eigen/Core>  
+#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     namespace PlanePortable {
 
-        template <typename Vec3>
-        struct Plane {
-            Vec3 position;
-            Vec3 rotation; // z coordinate of rotation matrix
+        template <typename T = double>
+        class Plane {
+          public:		
+	    using Vec3 = cms::alpakatools::VecArray<T, 3>;
 
             // Constructor
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE  Plane(Vec3 pos, Vec3 rot) : position(pos), rotation(rot) {}
+            constexpr  Plane(Vec3& pos, Vec3& rot) : position(pos), rotation(rot) {}
 
             // Returns the position of the plane
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE  Vec3 pos() const {
+            constexpr inline Vec3 pos() const {
                 return position;
             }
 
+           // Returns a specific component of the position of the plane
+            constexpr inline T pos(const unsigned int x) const {
+                return position[x];
+            }
+
+	    template <typename TAcc>
+	    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T pos_norm(TAcc const& acc) const {
+                return position.norm();
+            }
+
             // Returns the normal vector of the plane
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE  Vec3 normalVector() const {
+            constexpr  inline Vec3 normalVector() const {
                 return rotation;
             }
 
             // Fast access to distance from plane for a point
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE  float localZ(const Vec3& vp) const {
-                return normalVector().dot(vp - position);
+            constexpr inline T localZ(const Vec3& vp) const {
+		T diff_dot = static_cast<T>(0.);
+                CMS_UNROLL_LOOP
+		for (unsigned int i = 0; i < 3; i++){
+		  diff_dot += rotation[i] * (vp[i] - position[i]);	
+		}
+                return diff_dot;
             }
 
             // Clamped distance from plane for a point
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE  float localZclamped(const Vec3& vp) const {
-                auto d = localZ(vp);
-                return std::abs(d) > 1e-7f ? d : 0;
+	    template <typename TAcc>
+            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T localZclamped(TAcc const& acc, const Vec3& vp) const {
+                const T d = localZ(vp);
+                return alpaka::math::abs(acc, d) > 1e-7f ? d : 0;
             }
 
             // Fast access to distance from plane for a vector
-            ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE  float distanceFromPlaneVector(const Vec3& gv) const {
-                return normalVector().dot(gv);
+            constexpr inline T distanceFromPlaneVector(const Vec3& gv) const {
+                return cms::alpakatools::dot(rotation, gv);
             }
+
+	  private:
+
+	    Vec3 position;
+            Vec3 rotation; // z coordinate of rotation matrix  
         };
 
     }  // namespace PlanePortable
