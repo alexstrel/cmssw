@@ -5,7 +5,6 @@
 #ifndef RecoEgamma_EgammaElectronAlgos_interface_alpaka_helixForwardPlaneCrossing_h
 #define RecoEgamma_EgammaElectronAlgos_interface_alpaka_helixForwardPlaneCrossing_h
 
-#include <Eigen/Dense>
 #include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 #include <cmath>
 #include <cfloat>
