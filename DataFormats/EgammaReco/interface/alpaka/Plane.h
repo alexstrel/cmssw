@@ -14,7 +14,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	    using Vec3 = cms::alpakatools::VecArray<T, 3>;
 
             // Constructor
-            constexpr  Plane(Vec3& pos, Vec3& rot) : position(pos), rotation(rot) {}
+            constexpr  Plane(const Vec3& pos, const Vec3& rot) : position(pos), rotation(rot) {}
 
             // Returns the position of the plane
             constexpr inline Vec3 pos() const {
@@ -28,7 +28,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	    template <typename TAcc>
 	    ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T pos_norm(TAcc const& acc) const {
-                return position.norm();
+                return position.norm(acc);
             }
 
             // Returns the normal vector of the plane
@@ -38,7 +38,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             // Fast access to distance from plane for a point
             constexpr inline T localZ(const Vec3& vp) const {
-		T diff_dot = static_cast<T>(0.);
+		T diff_dot{0};
                 CMS_UNROLL_LOOP
 		for (unsigned int i = 0; i < 3; i++){
 		  diff_dot += rotation[i] * (vp[i] - position[i]);	
