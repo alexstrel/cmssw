@@ -8,8 +8,6 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
 
-using Vector3d = cms::alpakatools::VecArray<double, 3>;
-
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   class PixelMatchingAlgo {
