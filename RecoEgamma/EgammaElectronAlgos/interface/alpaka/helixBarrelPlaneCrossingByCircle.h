@@ -84,26 +84,24 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		const double abs_rho = alpaka::math::abs(acc, rho);
 		const double startingDir_2dnorm = startingPos.partial_norm<TAcc, 2>(acc);
 
-		ALPAKA_FN_ACC auto compute_position = [&] (const double s) -> Vec3d {
-        		const double norm  = startingDir.norm(acc);
-        		const double scale = norm > 0. ? s / norm : 0.;
-        		return cms::alpakatools::axpy(scale, startingDir, startingPos);
-                };
-
 		if (abs_rho < straightLineCutoff  &&  abs_rho * startingDir_2dnorm < straightLineCutoff) {
-			// calculate path length
-			const auto pz = plane.distanceFromPlaneVector(startingDir);
+		  // calculate path length
+		  const auto pz = plane.distanceFromPlaneVector(startingDir);
 
-			s = plane.localZclamped(acc, startingPos) / pz;
+		  s = plane.localZclamped(acc, startingPos) / pz;
 
-			if (s != 0) {
-				theSolExists = true;
-				position = compute_position(s);
-				direction = startingDir;
-			} else {
-				theSolExists = false;
-			}
-			return; // all needed data members have been set
+		  if (s != 0) {
+		    theSolExists = true;
+
+		    const double norm  = startingDir.norm(acc);
+		    const double scale = norm > 0. ? s / norm : 0.;
+		    position  = cms::alpakatools::axpy(scale, startingDir, startingPos);
+		    direction = startingDir;
+
+		  } else {
+		    theSolExists = false;
+		  }
+		  return; // all needed data members have been set
 		}
 
                 const double pt = startingDir.partial_norm<TAcc, 2>(acc); 		
@@ -129,17 +127,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		bool solveForX;
 
 		if (fabs(nx) > fabs(ny)) {
-			solveForX = false;
-			nfac = ny / nx;
-			dfac = distToPlane / nx;
-			B = distCy - nfac * distCx; // only part of B
-			C = (2. * distCx + dfac) * dfac;
+		  solveForX = false;
+		  nfac = ny / nx;
+		  dfac = distToPlane / nx;
+		  B = distCy - nfac * distCx; // only part of B
+		  C = (2. * distCx + dfac) * dfac;
 		} else {
-			solveForX = true;
-			nfac = nx / ny;
-			dfac = distToPlane / ny;
-			B = distCx - nfac * distCy; // only part of B
-			C = (2. * distCy + dfac) * dfac;
+		  solveForX = true;
+		  nfac = nx / ny;
+		  dfac = distToPlane / ny;
+		  B = distCx - nfac * distCy; // only part of B
+		  C = (2. * distCy + dfac) * dfac;
 		}
 
 		B -= nfac * dfac;

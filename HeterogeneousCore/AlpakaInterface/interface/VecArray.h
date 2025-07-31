@@ -101,14 +101,16 @@ namespace cms::alpakatools {
     VecArray(VecArray<T, maxSize> &&) = default;
 
     constexpr VecArray(const T &value) {
+      m_size = maxSize;
+
       CMS_UNROLL_LOOP
-      for (int i = 0; i < m_size; i++) {
+      for (int i = 0; i < maxSize; i++) {
         m_data[i] = value;
       }
     }
 
     template<typename... U, typename = std::enable_if_t<(sizeof...(U) == maxSize) && (std::conjunction_v<std::is_same<T, U>...>)>>
-    constexpr VecArray(U... args) : m_data{ args... } {}
+    constexpr VecArray(U... args) : m_data{ args... }, m_size(maxSize) /*m_size(sizeof...(U))*/ {}
 
     VecArray<T, maxSize> &operator=(const VecArray<T, maxSize> &) = default;
     VecArray<T, maxSize> &operator=(VecArray<T, maxSize> &&) = default;
@@ -132,7 +134,7 @@ namespace cms::alpakatools {
     inline constexpr T norm2() const {
       T res{0};	    
       CMS_UNROLL_LOOP
-      for (int i = 0; i < m_size; i++) {
+      for (int i = 0; i < maxSize; i++) {
         res += m_data[i]*m_data[i];
       }
       return res;
@@ -154,7 +156,7 @@ namespace cms::alpakatools {
     
     inline constexpr VecArray<T, maxSize>& operator*=(const T& scale) {
       CMS_UNROLL_LOOP
-      for (int i = 0; i < m_size; ++i) {
+      for (int i = 0; i < maxSize; ++i) {
         m_data[i] *= scale;
       }
       return *this;
@@ -162,7 +164,7 @@ namespace cms::alpakatools {
 
     inline constexpr VecArray<T, maxSize>& operator+=(const VecArray<T, maxSize>& rhs) {
       CMS_UNROLL_LOOP
-      for (int i = 0; i < m_size; ++i) {
+      for (int i = 0; i < maxSize; ++i) {
         m_data[i] += rhs[i];
       }
       return *this;
@@ -189,7 +191,7 @@ namespace cms::alpakatools {
       if (nrm == 0.) return;
 
       CMS_UNROLL_LOOP
-      for (int i = 0; i < m_size; i++) {
+      for (int i = 0; i < maxSize; i++) {
         m_data[i] /= nrm;
       }
     }
