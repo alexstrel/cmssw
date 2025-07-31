@@ -25,7 +25,7 @@ struct MagneticFieldKernel {
     for (auto index : cms::alpakatools::uniform_elements(acc, size)) {
       out[index](0) = 0;
       out[index](1) = 0;
-      out[index](2) = magneticFieldAtPoint(in[index]);
+      out[index](2) = magneticFieldAtPoint(acc, in[index]);
     }
   }
 };
@@ -58,9 +58,9 @@ int main() {
           file.read((char*)&by, sizeof(float)) && file.read((char*)&bz, sizeof(float))))
       break;
 
-    const auto point = Vector3f(px, py, pz);
-    if (!isValid(point))
-      continue;
+    const bool is_valid_point  = ((px * px + py * py) < Parameters::max_radius2 && fabs(pz) < Parameters::max_z);    
+
+    if (!is_valid_point) continue;
 
     points.push_back(Vector3f(px, py, pz));
     referenceB_vec.push_back(GlobalVector(bx, by, bz));

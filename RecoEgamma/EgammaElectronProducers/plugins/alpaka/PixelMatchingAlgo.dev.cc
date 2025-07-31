@@ -56,10 +56,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 									reco::SuperclusterDeviceCollection::View view,
 									int32_t size) const 
 		{
+#if 0
 			//const int32_t thread = alpaka::getIdx<alpaka::Grid, alpaka::Threads>(acc)[0u];
 			for (int32_t i : uniform_elements(acc, size)) 
 			{
-#if 0
+
 				if(i>=size)
 				    break;
 
@@ -72,9 +73,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				printf("x: %lf,  y: %lf,  z %lf ",x,z,y);
 				Vector3d position{x,y,z};
 				printf("  Value of perp2 %lf \n",x*x+y*y);
-				printf("Calculate the magnetic field with the parabolic approximation at the SC position : %f\n",magneticFieldParabolicPortable::magneticFieldAtPoint(position));
-#endif			
+				printf("Calculate the magnetic field with the parabolic approximation at the SC position : %f\n",magneticFieldParabolicPortable::magneticFieldAtPoint(acc, position));			
 			}
+#endif
 		}
 	};
 
@@ -172,7 +173,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			 		{
 						const float c = (charge == 1 ? -2.99792458e-3f : +2.99792458e-3f);
 
-			 			auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(acc,positionSC,vertex,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC));	
+			 			auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(acc,positionSC,vertex,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(acc, positionSC));	
 												
 			 			const Vec3d position(newfreeTS.get_position());
 			 			const Vec3d momentum(newfreeTS.get_momentum());
@@ -183,7 +184,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			 			Vec3d propagatedPos(0);
 			 			Vec3d propagatedMom(0);
 
-			 			double rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(positionSC)) /  momentum.partial_norm<TAcc, 2>(acc);
+			 			double rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(acc, positionSC)) /  momentum.partial_norm<TAcc, 2>(acc);
 					
 			 			PlanePortable::Plane<typename Vec3d::value_type> plane(surfPosition,surfRotation);
 
@@ -228,11 +229,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						if(!(eleSeed.hit1isValid()))
 							continue;	
 
-						auto firstMatchFreeTraj = ftsFromVertexToPointPortable::ftsFromVertexToPoint(acc, hitPosition,vertexUpdated,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(hitPosition));									
+						auto firstMatchFreeTraj = ftsFromVertexToPointPortable::ftsFromVertexToPoint(acc, hitPosition,vertexUpdated,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(acc, hitPosition));									
 						Vec3d position2(firstMatchFreeTraj.get_position());
 						Vec3d momentum2(firstMatchFreeTraj.get_momentum());
 						
-						rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(hitPosition)) /  momentum2.partial_norm<TAcc, 2>(acc);
+						rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(acc, hitPosition)) /  momentum2.partial_norm<TAcc, 2>(acc);
 						
 						theSolExists = false; 
 						propagatedPos = Vec3d(0);
@@ -308,7 +309,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 		if(groups<1)
 			return;
-
 		auto workDiv = make_workdiv<Acc1D>(groups, items);
 		alpaka::exec<Acc1D>(queue, workDiv, SeedToSuperClusterMatcher{},collection.view(),collection->metadata().size(),collectionSCs.view(),collectionSCs->metadata().size(),vtx_X, vtx_Y,vtx_Z);
 	}
