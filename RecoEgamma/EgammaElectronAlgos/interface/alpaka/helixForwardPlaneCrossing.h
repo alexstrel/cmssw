@@ -15,7 +15,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     namespace Propagators {
 
         constexpr Vec3d positionInHelix(const bool select,
-					const double s, 
 					const Vec3d& point, 
 					const double rho,
                                         const double cosPhi0, 
@@ -30,7 +29,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                 const double o = 1.0 / rho;
                 return Vec3d(point[0] + (-sinPhi0 * (1.0 - cachedCDPhi) + cosPhi0 * cachedSDPhi) * o,
                              point[1] + (cosPhi0 * (1.0 - cachedCDPhi) + sinPhi0 * cachedSDPhi) * o,
-                             point[2] + s * cosTheta);
+                             point[2] + cachedS * cosTheta);
             } else {
                 const double st = cachedS * sinTheta;
                 return Vec3d(point[0] + (cosPhi0 - st * 0.5 * rho * sinPhi0) * st,
@@ -40,12 +39,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         }
 
         constexpr Vec3d directionInHelix(const bool select,
-					 const double s, 
 					 const double rho,
                                          const double cosPhi0, 
 					 const double sinPhi0, 
 					 const double cosTheta,
 					 const double sinTheta,
+					 const double cachedS,
 					 const double cachedSDPhi, 
 					 const double cachedCDPhi) 
         {
@@ -54,7 +53,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                              sinPhi0 * cachedCDPhi + cosPhi0 * cachedSDPhi,
                              cosTheta / sinTheta);
             } else {
-                const double dph = s * rho * sinTheta;
+                const double dph = cachedS * rho * sinTheta;
                 return Vec3d(cosPhi0 - (sinPhi0 + 0.5 * cosPhi0 * dph) * dph,
                              sinPhi0 + (cosPhi0 - 0.5 * sinPhi0 * dph) * dph,
                              cosTheta / sinTheta);
@@ -71,8 +70,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             							            Vec3d& position,
             								    Vec3d& dir,
             								    bool& solExists) {
-            double cachedS = 0.; 
-            double cachedDPhi = 0.;
+            double cachedS     = 0.; 
+            double cachedDPhi  = 0.;
             double cachedSDPhi = 0.;
             double cachedCDPhi = 1.;
 
@@ -102,16 +101,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             } 
 
             if (pathLength != cachedS) {
-              cachedS = pathLength;
-              cachedDPhi = cachedS * curvature * sinTheta;
+              cachedS     = pathLength;
+              cachedDPhi  = cachedS * curvature * sinTheta;
               cachedSDPhi = alpaka::math::sin(acc,cachedDPhi);
               cachedCDPhi = alpaka::math::cos(acc,cachedDPhi);
             }
 
 	    const bool cachedDPhi_flag = alpaka::math::abs(acc, cachedDPhi) > 1.e-4;
 
-            position = positionInHelix(cachedDPhi_flag, pathLength, point, curvature, cosPhi0, sinPhi0, cosTheta, sinTheta, cachedS, cachedSDPhi, cachedCDPhi);
-            dir      = directionInHelix(cachedDPhi_flag, pathLength, curvature, cosPhi0, sinPhi0, cosTheta, sinTheta, cachedSDPhi, cachedCDPhi);
+            position = positionInHelix(cachedDPhi_flag, point, curvature, cosPhi0, sinPhi0, cosTheta, sinTheta, cachedS, cachedSDPhi, cachedCDPhi);
+            dir      = directionInHelix(cachedDPhi_flag, curvature, cosPhi0, sinPhi0, cosTheta, sinTheta, cachedS, cachedSDPhi, cachedCDPhi);
             
 	    solExists = true;
         }

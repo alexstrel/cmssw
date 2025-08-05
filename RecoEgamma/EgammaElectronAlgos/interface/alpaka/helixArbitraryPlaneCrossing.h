@@ -185,10 +185,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             auto currentPropDir = propDir;
             auto newDir = pathLength2O >= 0 ?  PropagationDirection::alongMomentum : PropagationDirection::oppositeToMomentum;
 
-            if (currentPropDir == PropagationDirection::anyDirection) {
+            if constexpr (propDir == PropagationDirection::anyDirection) {
                 currentPropDir = newDir;
             } else {
-                if (newDir != currentPropDir) {
+                if (newDir != propDir) {
                     solExists = false;
                     return;
                 }

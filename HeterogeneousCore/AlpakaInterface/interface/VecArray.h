@@ -96,7 +96,8 @@ namespace cms::alpakatools {
         return T();
     }
 
-    VecArray() = default;
+    constexpr VecArray() : m_size(maxSize) {};
+
     VecArray(const VecArray<T, maxSize> &) = default;
     VecArray(VecArray<T, maxSize> &&) = default;
 

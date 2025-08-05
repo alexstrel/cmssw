@@ -29,40 +29,34 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			int& theActualDir,
 			bool& theSolExists) {
 
-			Vec3d theD;
+		  const double momProj1 = startingDir[0] * d1[0] + startingDir[1] * d1[1];
+		  const double momProj2 = startingDir[0] * d2[0] + startingDir[1] * d2[1];
 
-			const double momProj1 = startingDir[0] * d1[0] + startingDir[1] * d1[1];
-			const double momProj2 = startingDir[0] * d2[0] + startingDir[1] * d2[1];
+		  const bool selection_flag = d1.norm2() < d2.norm2();
 
-			const double d1_norm2 = d1[0]*d1[0] + d1[1]*d1[1] + d1[2]*d1[2];
-                        const double d2_norm2 = d2[0]*d2[0] + d2[1]*d2[1] + d2[2]*d2[2];
+		  theSolExists = true;
 
-			const bool selection_flag = d1_norm2 < d2_norm2;
+		  if constexpr (propDir == PropagationDirection::anyDirection) {
+		    if (selection_flag) {
+		      theActualDir = (momProj1 > 0) ? 1 : -1;
+		      return d1;
+	            } else {
+		      theActualDir = (momProj2 > 0) ? 1 : -1;
+		      return d2;
+	            }
+		  } else {
+		    constexpr double propSign = (propDir == PropagationDirection::alongMomentum) ? 1 : -1;
+		    theActualDir = propSign;
+		    if (momProj1 * momProj2 < 0) {
+		      return (momProj1 * propSign > 0) ? d1 : d2;
+	            } else if (momProj1 * propSign > 0) {
+		      return selection_flag ? d1 : d2;
+	            } 
+		  }
 
-			theSolExists = true;
+		  theSolExists = false;
 
-			if constexpr (propDir == PropagationDirection::anyDirection) {
-			  if (selection_flag) {
-			    theD = d1;
-			    theActualDir = (momProj1 > 0) ? 1 : -1;
-			  } else {
-			    theD = d2;
-			    theActualDir = (momProj2 > 0) ? 1 : -1;
-			  }
-			} else {
-			  constexpr double propSign = (propDir == PropagationDirection::alongMomentum) ? 1 : -1;
-			  if (momProj1 * momProj2 < 0) {
-			    theD = (momProj1 * propSign > 0) ? d1 : d2;
-			    theActualDir = propSign;
-			  } else if (momProj1 * propSign > 0) {
-			    theD = selection_flag ? d1 : d2;
-			    theActualDir = propSign;
-			  } else {
-			    theSolExists = false;
-			  }
-			}
-
-			return theD;
+		  return Vec3d(0.);
 		}
 
 		template<typename TAcc, PropagationDirection propDir>
@@ -107,8 +101,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                 const double pt = startingDir.partial_norm<TAcc, 2>(acc); 		
 
 		const double o = 1. / (pt * rho);
-		const double theXCenter = startingPos[0] - startingDir[1] * o;
-		const double theYCenter = startingPos[1] + startingDir[0] * o;
+                const double distCx =  startingDir[1] * o;
+		const double distCy = -startingDir[0] * o;
 
 		// This is default when there curvature is non zero
 
@@ -118,9 +112,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 		const double nx = n[0];
 		const double ny = n[1];
-
-		const double distCx = startingPos[0] - theXCenter;
-		const double distCy = startingPos[1] - theYCenter;
 
 		double nfac, dfac;
 		double A, B, C;
@@ -152,7 +143,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	          return;	  
 		}
 
-		const double Q = (-0.5 * (B + alpaka::math::copysign(acc, alpaka::math::sqrt(acc, D), B)));
+		const double Q = -0.5 * (B + alpaka::math::copysign(acc, alpaka::math::sqrt(acc, D), B));
 
 		const double first = Q/A;
 		const double second= C/Q;
@@ -167,11 +158,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		  d2 = Vec3d(dfac - nfac * second, second, 0.0);
 		}
 
-		Vec3d theD;
-
 		int theActualDir;
 
-		theD = chooseSolution<propDir>(d1, d2, startingPos, startingDir, theActualDir, theSolExists);
+		const Vec3d theD = chooseSolution<propDir>(d1, d2, startingPos, startingDir, theActualDir, theSolExists);
 		
 		if (!theSolExists) return;
 

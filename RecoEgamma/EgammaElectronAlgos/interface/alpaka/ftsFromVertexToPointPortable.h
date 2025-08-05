@@ -39,11 +39,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             const float BInTesla        // Magnetic field (in Tesla)
         ) {
 	    using T = Vec3::value_t;	
+	    //
             // Calculate the difference between measurement and vertex positions
             const Vec3 xdiff = cms::alpakatools::xmy(xmeas, xvert) ; //= xmeas - xvert;
 
             // Normalize xdiff and scale by momentum to get the momentum vector
-	    const auto xdiff_norm = xdiff.norm(acc);
+	    const T xdiff_norm = xdiff.norm(acc);
 
             // Normalize xdiff and scale by momentum to get the momentum vector:
 	    const T scale = momentum / xdiff_norm;

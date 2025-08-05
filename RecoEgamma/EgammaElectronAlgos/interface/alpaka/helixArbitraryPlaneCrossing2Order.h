@@ -29,13 +29,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 								const double sinThetaI) {
 				const double st = s / sinThetaI;
 
-				Vec3d res;
-
-				res[0] = x0 + (cosPhi0 - (st * 0.5 * theRho) * sinPhi0) * st;
-				res[1] = y0 + (sinPhi0 + (st * 0.5 * theRho) * cosPhi0) * st;
-				res[2] = z0 + st * cosTheta * sinThetaI;
-
-				return res;
+				return Vec3d(	x0 + (cosPhi0 - (st * 0.5 * theRho) * sinPhi0) * st,
+						y0 + (sinPhi0 + (st * 0.5 * theRho) * cosPhi0) * st,
+						z0 + st * cosTheta * sinThetaI );
 			}
 
 			constexpr inline Vec3d directionInDouble(const double theRho,
@@ -46,13 +42,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 								const double sinThetaI) {
 				const double dph = s * theRho / sinThetaI;
 
-				Vec3d res;
-
-				res[0] = cosPhi0 - (sinPhi0 + 0.5 * dph * cosPhi0) * dph;
-				res[1] = sinPhi0 + (cosPhi0 - 0.5 * dph * sinPhi0) * dph;
-				res[2] = cosTheta * sinThetaI;
-
-				return res;
+				return Vec3d( 	cosPhi0 - (sinPhi0 + 0.5 * dph * cosPhi0) * dph,
+						sinPhi0 + (cosPhi0 - 0.5 * dph * sinPhi0) * dph,
+						cosTheta * sinThetaI );
 			}
 
 			template<typename TAcc, PropagationDirection propDir>
@@ -64,29 +56,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				bool valid = false;
 
 				if constexpr (propDir == PropagationDirection::anyDirection) {
-					valid = true;
-					path = alpaka::math::min(acc, dS1, dS2);
+				  valid = true;
+				  path = alpaka::math::min(acc, dS1, dS2);
 				} else {
-					constexpr double propSign = (propDir == PropagationDirection::alongMomentum) ? 1. : -1.;
+				  constexpr double propSign = (propDir == PropagationDirection::alongMomentum) ? 1. : -1.;
 
-					double s1(propSign * dS1);
-					double s2(propSign * dS2);
+				  const double s1 = (propSign * (dS1 <= dS2 ? dS1 : dS2));
+				  const double s2 = (propSign * (dS1 <= dS2 ? dS2 : dS1));
 
-					path = 0.;
+				  path = 0.;
 
-					if (s1 > s2){
-						//std::swap(s1, s2);
-						const double tmp = s1;
-						s1 = s2;
-						s2 = tmp;
-					}
-					if ((s1 < 0) & (s2 >= 0)) {
-						valid = true;
-						path = propSign * s2;
-					} else if (s1 >= 0) {
-						valid = true;
-						path = propSign * s1;
-					}
+				  if ( s1 >= 0 || ((s1 < 0) && (s2 >= 0))) {
+				    valid = true;
+				    path =  propSign * (s1 >= 0 ? s1 : s2);
+				  } 
 				}
 
 				if(!(alpaka::math::isfinite(acc, path))) valid = false;
