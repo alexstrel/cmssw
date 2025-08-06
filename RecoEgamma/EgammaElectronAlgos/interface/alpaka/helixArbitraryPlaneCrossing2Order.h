@@ -64,12 +64,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				  const double s1 = (propSign * (dS1 <= dS2 ? dS1 : dS2));
 				  const double s2 = (propSign * (dS1 <= dS2 ? dS2 : dS1));
 
-				  path = 0.;
-
-				  if ( s1 >= 0 || ((s1 < 0) && (s2 >= 0))) {
-				    valid = true;
-				    path =  propSign * (s1 >= 0 ? s1 : s2);
-				  } 
+				  valid  = ( s1 >= 0 || ((s1 < 0) && (s2 >= 0)));
+				  path   = valid ? propSign * (s1 >= 0 ? s1 : s2) : 0.;
 				}
 
 				if(!(alpaka::math::isfinite(acc, path))) valid = false;

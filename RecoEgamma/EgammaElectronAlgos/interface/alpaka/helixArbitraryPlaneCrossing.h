@@ -38,30 +38,35 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 									double& theCachedSDPhi, 
 									double& theCachedCDPhi) 
         {
-	    Vec3d res;
-
             if(s != theCachedS) {
-                theCachedS = s;
-                theCachedDPhi = theCachedS * rho * sinTheta;
+                theCachedS     = s;
+                theCachedDPhi  = theCachedS * rho * sinTheta;
                 theCachedSDPhi = alpaka::math::sin(acc, theCachedDPhi);
                 theCachedCDPhi = alpaka::math::cos(acc, theCachedDPhi);
             }
 
-            if (std::abs(theCachedDPhi) > 1.e-4) {
+            if (alpaka::math::abs(acc, theCachedDPhi) > 1.e-4) {
                 // "standard" helix formula
-                const double o = 1. / rho;
-                res[0] = point[0] + (-sinPhi0 * (1.0 - theCachedCDPhi) + cosPhi0 * theCachedSDPhi) * o;
-                res[1] = point[1] + (cosPhi0 * (1.0 - theCachedCDPhi) + sinPhi0 * theCachedSDPhi) * o;
-                res[2] = point[2] + s * cosTheta;
+                const double cosxinv_rho = cosPhi0 / rho;
+		const double sinxinv_rho = sinPhi0 / rho;
+
+		const double x = (1.0 - theCachedCDPhi);
+
+                return Vec3d( point[0] + (-sinxinv_rho * x + cosxinv_rho * theCachedSDPhi),
+                	      point[1] + ( cosxinv_rho * x + sinxinv_rho * theCachedSDPhi),
+                	      point[2] + s * cosTheta );
             }        
             else {
                 const double st = theCachedS / sinThetaI;
-                res[0] = point[0]  + (cosPhi0 - (st * 0.5 * rho) * sinPhi0) * st;
-                res[1] = point[1] + (sinPhi0 + (st * 0.5 * rho) * cosPhi0) * st;
-                res[2] = point[2] + st * cosTheta * sinThetaI;
-            }
 
-	    return res;
+		const double sinst = st * sinPhi0;
+		const double cosst = st * cosPhi0;
+		const double x  = (st * 0.5 * rho);
+
+                return Vec3d( point[0] + (cosst - x * sinst),
+                	      point[1] + (sinst + x * cosst),
+                	      point[2] + cosTheta * theCachedS );
+            }
         }
 
 
@@ -79,8 +84,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 									double& theCachedDPhi, 
 									double& theCachedSDPhi, 
 									double& theCachedCDPhi){
-		Vec3d res;	    
-            	//
             	// Calculate delta phi (if not already available)
             	//
             	if(s != theCachedS) { // very very unlikely!
@@ -93,17 +96,21 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             	if (alpaka::math::abs(acc, theCachedDPhi) > 1.e-4) {
                 // full helix formula
-                  res[0] = cosPhi0 * theCachedCDPhi - sinPhi0 * theCachedSDPhi;
-                  res[1] = sinPhi0 * theCachedCDPhi + cosPhi0 * theCachedSDPhi;
-                  res[2] = cosTheta / sinTheta;
+                  return Vec3d( cosPhi0 * theCachedCDPhi - sinPhi0 * theCachedSDPhi,
+                   		sinPhi0 * theCachedCDPhi + cosPhi0 * theCachedSDPhi,
+                  		cosTheta / sinTheta) ;
             	} else {
                 // 2nd order
                   const double dph = s * rho / sinThetaI;
-                  res[0] = cosPhi0 - (sinPhi0 + 0.5 * dph * cosPhi0) * dph;
-                  res[1] = sinPhi0 + (cosPhi0 - 0.5 * dph * sinPhi0) * dph;
-                  res[2] = cosTheta * sinThetaI;
+
+		  const double sindph = dph * sinPhi0;
+		  const double cosdph = dph * cosPhi0;
+                  const double dph_div2 = 0.5 * dph;
+
+                  return Vec3d ( cosPhi0 - (sindph + dph_div2 * cosdph),
+                                 sinPhi0 + (cosdph - dph_div2 * sindph),
+                                 cosTheta * sinThetaI );
                }
-	       return res;	
         }
 
 	template<typename TAcc>
@@ -115,7 +122,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             return alpaka::math::abs(acc, dz) > maxDist;
         }
 
-	template<typename TAcc, PropagationDirection propDir>
+	template<typename TAcc, PropagationDirection propDir, int maxIterations = 20>
         ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE void helixArbitraryPlaneCrossing(
 	    TAcc const& acc,		
             const Vec3d& point,
@@ -132,9 +139,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             double theCachedSDPhi = 0.;
             double theCachedCDPhi = 1.;
 
-            constexpr int maxIterations = 20;
-
-            const double maxNumDz = theNumericalPrecision * plane.pos_norm(acc);
+            const double maxNumDz    = theNumericalPrecision * plane.pos_norm(acc);
             const double safeMaxDist = (theMaxDistToPlane > maxNumDz) ? theMaxDistToPlane : maxNumDz;
 
             const double px = direction[0];
@@ -175,7 +180,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			
             if (!validPath2O) {
                 solExists = false;
-                pathLength = pathLength2O;
+                pathLength = pathLength2O;//?
                 return;
             }
 
