@@ -4,6 +4,7 @@
 #include <iostream>
 #include <limits>
 #include <random>
+#include <type_traits>
 
 #include <alpaka/alpaka.hpp>
 
@@ -70,17 +71,17 @@ struct AxpyNorm : public blas::TransformReduceFunctor<reduce_t, Transformer, Red
   //constexpr int flops() const { return 4; }   //! flops per element
 }; 
 
-template<typename TAcc, typename TDevAcc, typename TransfromReducer>
+template<typename TAcc, typename TDevAcc, typename TransformReducer>
 class AxpyNormProductKernel
 {
   public:
   
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, TransfromReducer tr) const 
+    ALPAKA_FN_ACC auto operator()(TAcc const& acc, TransformReducer const *tr) const 
         -> void
     {
         // Thread/Block idx 
 	auto const batch_idx = static_cast<uint32_t>( alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0] );//the slowest index
-        tr.apply(acc, batch_idx);
+        tr->apply(acc, batch_idx);
     }
 
 };
@@ -241,15 +242,17 @@ int main() {
                                                                    nSrc, false > (devAcc, computeQueue, a, a, xAcc, yAcc, yAcc, xAcc, reduce_bufs);
 
 
-    AxpyNormProductKernel<Acc3D, decltype(devAcc), decltype(msrc_axpyNorm_functor)> axpyNormProduct;
+    AxpyNormProductKernel<Acc3D, decltype(devAcc), std::remove_cvref_t<decltype(msrc_axpyNorm_functor)>> axpyNormProduct;
 
     alpaka::WorkDivMembers<Dim3D, Idx> workDiv{grid_size, block_size, Vec3D::ones()};
+
+    auto msrc_axpyNorm_functor_ptr = &msrc_axpyNorm_functor;
 
     alpaka::exec<Acc3D>(
         computeQueue,
         workDiv,
         axpyNormProduct,
-        msrc_axpyNorm_functor
+        msrc_axpyNorm_functor_ptr
         );
 
     // Copy device -> host

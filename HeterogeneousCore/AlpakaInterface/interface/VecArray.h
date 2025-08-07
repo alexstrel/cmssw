@@ -95,16 +95,22 @@ namespace cms::alpakatools {
         return T();
     }
 
-    VecArray() = default;
+    constexpr VecArray() : m_size(maxSize) {};
+    
     VecArray(const VecArray<T, maxSize> &) = default;
     VecArray(VecArray<T, maxSize> &&) = default;
 
     ALPAKA_FN_ACC VecArray(const T &value) {
+      m_size = maxSize;
+
       CMS_UNROLL_LOOP
-      for (int i = 0; i < m_size; i++) {
+      for (int i = 0; i < maxSize; i++) {
         m_data[i] = value;
       }
     }
+
+    template<typename... U, typename = std::enable_if_t<(sizeof...(U) == maxSize) && (std::conjunction_v<std::is_same<T, U>...>)>>
+    constexpr VecArray(U... args) : m_data{ args... }, m_size(sizeof...(U)) {}
 
     VecArray<T, maxSize> &operator=(const VecArray<T, maxSize> &) = default;
     VecArray<T, maxSize> &operator=(VecArray<T, maxSize> &&) = default;
