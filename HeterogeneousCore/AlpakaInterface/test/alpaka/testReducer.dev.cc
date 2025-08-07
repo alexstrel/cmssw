@@ -76,7 +76,7 @@ class AxpyNormProductKernel
 {
   public:
   
-    ALPAKA_FN_ACC auto operator()(TAcc const& acc, TransformReducer const *tr) const 
+    ALPAKA_FN_ACC auto operator()(TAcc const& acc, TransformReducer* tr) const 
         -> void
     {
         // Thread/Block idx 
