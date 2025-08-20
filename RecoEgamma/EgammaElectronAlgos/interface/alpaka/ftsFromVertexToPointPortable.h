@@ -3,45 +3,44 @@
 
 #include <cmath>
 
-#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
+#include <DataFormats/EgammaReco/interface/alpaka/Phys3DVector.h>
 
-using Vec3d = cms::alpakatools::VecArray<double, 3>;
+using Vec3d = cms::alpakatools::math::Phys3DVector<double>;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     namespace ftsFromVertexToPointPortable {
 
         // FreeTrajectoryState template structure
-        template <typename Vec3 = Vec3d >
         class FreeTrajectoryState {
 	  private:
-            Vec3 momentum;  // 3D momentum vector
-            Vec3 position;  // 3D position vector
+            Vec3d momentum;  // 3D momentum vector
+            Vec3d position;  // 3D position vector
             const int charge;     // Particle charge
           public:
             // Constructor
-            constexpr FreeTrajectoryState(const Vec3& p, const Vec3& pos, const int q) 
+            constexpr FreeTrajectoryState(const Vec3d& p, const Vec3d& pos, const int q) 
                 : momentum(p), position(pos), charge(q) {}
 
-	    constexpr Vec3 get_momentum() const {return momentum;}
-	    constexpr Vec3 get_position() const {return position;}
-	    constexpr Vec3 get_charge() const {return charge;}
+	    constexpr Vec3d get_momentum() const {return momentum;}
+	    constexpr Vec3d get_position() const {return position;}
+	    constexpr int get_charge() const {return charge;}
         };
 
         // Function to calculate the FreeTrajectoryState from vertex to point
-        template <typename TAcc, typename Vec3 = Vec3d>
-        ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE FreeTrajectoryState<Vec3> ftsFromVertexToPoint(
+        template <typename TAcc>
+        ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE FreeTrajectoryState ftsFromVertexToPoint(
 	    TAcc const& acc,
-            const Vec3& xmeas,    // Measured point
-            const Vec3& xvert,    // Vertex point
+            const Vec3d& xmeas,    // Measured point
+            const Vec3d& xvert,    // Vertex point
             const float momentum,       // Magnitude of momentum
             const int charge,           // Charge of the particle
             const float BInTesla        // Magnetic field (in Tesla)
         ) {
-	    using T = Vec3::value_t;	
+	    using T = Vec3d::value_type;	
 	    //
             // Calculate the difference between measurement and vertex positions
-            const Vec3 xdiff = cms::alpakatools::xmy(xmeas, xvert) ; //= xmeas - xvert;
+            const Vec3d xdiff = cms::alpakatools::math::xmy(xmeas, xvert) ; //= xmeas - xvert;
 
             // Normalize xdiff and scale by momentum to get the momentum vector
 	    const T xdiff_norm = xdiff.norm(acc);
@@ -49,10 +48,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             // Normalize xdiff and scale by momentum to get the momentum vector:
 	    const T scale = momentum / xdiff_norm;
 
-            const Vec3 mom = cms::alpakatools::ax(scale, xdiff);
+            const Vec3d mom = cms::alpakatools::math::ax(scale, xdiff);
 
             // Transverse momentum (perpendicular to the z-axis)
-            const T pt = mom.template partial_norm<TAcc, 2>(acc);
+            const T pt = mom.partial_norm(acc);
             const T pz = mom[2];
 
             const T pxOld = mom[0];
@@ -62,16 +61,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             const T curv = (BInTesla * 0.29979 * 0.01) / pt;
 
             // Calculate the sine and cosine of the rotation angle
-            const T sa = 0.5 * xdiff.template partial_norm<TAcc, 2>(acc) * curv * float(charge);
+            const T sa = 0.5 * xdiff.partial_norm(acc) * curv * static_cast<T>(charge);
             const T ca = alpaka::math::sqrt(acc,1. - sa * sa);
 
             // Rotate momentum vector in the xy-plane
-            const T pxNew = ca * pxOld + sa * pyOld;
+            const T pxNew =  ca * pxOld + sa * pyOld;
             const T pyNew = -sa * pxOld + ca * pyOld;
 	    //
-            const Vec3 pNew(pxNew,pyNew,pz); 
+            const Vec3d pNew(pxNew,pyNew,pz); 
 
-            return FreeTrajectoryState<Vec3>(pNew, xmeas, charge);
+            return FreeTrajectoryState(pNew, xmeas, charge);
         }
 
     }  // namespace ftsFromVertexToPointPortable

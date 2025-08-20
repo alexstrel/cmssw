@@ -159,6 +159,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 				{
 
 					if(j >= sizeSCs) break;
+					//if(j >= 1) break;
 
 			 		const double x = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::cos(acc,viewSCs[j].scPhi());				
 					const double y = viewSCs[j].scR() * alpaka::math::sin(acc,viewSCs[j].scSeedTheta()) * alpaka::math::sin(acc,viewSCs[j].scPhi());
@@ -168,13 +169,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					const float e = viewSCs[j].scEnergy();
 
 			 		Vec3d positionSC(x,y,z);
-	
+
 			 		for (int charge : {1,-1}) 
 			 		{
 						const float c = (charge == 1 ? -2.99792458e-3f : +2.99792458e-3f);
 
 			 			auto newfreeTS = ftsFromVertexToPointPortable::ftsFromVertexToPoint(acc,positionSC,vertex,e,charge,magneticFieldParabolicPortable::magneticFieldAtPoint(acc, positionSC));	
-												
 			 			const Vec3d position(newfreeTS.get_position());
 			 			const Vec3d momentum(newfreeTS.get_momentum());
 
@@ -184,8 +184,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			 			Vec3d propagatedPos(0);
 			 			Vec3d propagatedMom(0);
 
-			 			double rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(acc, positionSC)) /  momentum.partial_norm<TAcc, 2>(acc);
-					
+			 			double rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(acc, positionSC)) /  momentum.partial_norm(acc);
 			 			PlanePortable::Plane<typename Vec3d::value_type> plane(surfPosition,surfRotation);
 
 			 			constexpr float small = 1.e-6; 
@@ -204,6 +203,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			 				Propagators::helixBarrelPlaneCrossing<TAcc, Propagators::PropagationDirection::oppositeToMomentum>(acc,position,momentum,rho,surfPosition,surfRotation,theSolExists,propagatedPos,propagatedMom,s);
 			 				// Propagators::helixArbitraryPlaneCrossing(position,momentum,rho,Propagators::oppositeToMomentum,plane,s,propagatedPos,propagatedMom,theSolExists);
 			 			}
+
 	
 						if(!theSolExists) continue;
 
@@ -233,11 +233,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 						Vec3d position2(firstMatchFreeTraj.get_position());
 						Vec3d momentum2(firstMatchFreeTraj.get_momentum());
 						
-						rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(acc, hitPosition)) /  momentum2.partial_norm<TAcc, 2>(acc);
+						rho = (c * magneticFieldParabolicPortable::magneticFieldAtPoint(acc, hitPosition)) /  momentum2.partial_norm(acc);
 						
-						theSolExists = false; 
-						propagatedPos = Vec3d(0);
-						propagatedMom = Vec3d(0); 
+						theSolExists = false;
+
+						propagatedPos.zero();
+						propagatedMom.zero(); 
 
 			 			PlanePortable::Plane<typename Vec3d::value_type> plane2(surf2Position,surf2Rotation);
 			 			u = plane2.normalVector();
@@ -260,7 +261,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 						//propagatedMom.normalize(); 
 						//propagatedMom*= momentum.norm();
-
 						if(!theSolExists)
 							continue;
 								
@@ -273,6 +273,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 					
 						if ((dPhiMax2 >= 0 && alpaka::math::abs(acc,pair2.dPhi(acc)) > dPhiMax2) || (dRZMax2 >= 0 && alpaka::math::abs(acc,dRZ2) > dRZMax2))
 							continue;	
+
 
 						eleSeed.matchedScID() = static_cast<int16_t>(viewSCs[j].id());
 						eleSeed.isMatched()   = static_cast<int16_t>(1);
@@ -310,6 +311,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		if(groups<1)
 			return;
 		auto workDiv = make_workdiv<Acc1D>(groups, items);
+//for (int j = 0; j < 10000; j++)
 		alpaka::exec<Acc1D>(queue, workDiv, SeedToSuperClusterMatcher{},collection.view(),collection->metadata().size(),collectionSCs.view(),collectionSCs->metadata().size(),vtx_X, vtx_Y,vtx_Z);
 	}
 

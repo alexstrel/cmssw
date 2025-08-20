@@ -8,9 +8,9 @@
 #include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 #include <cmath>
 #include <cfloat>
-#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
+#include <DataFormats/EgammaReco/interface/alpaka/Phys3DVector.h>
 
-using Vec3d = cms::alpakatools::VecArray<double, 3>;
+using Vec3d = cms::alpakatools::math::Phys3DVector<double>;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 

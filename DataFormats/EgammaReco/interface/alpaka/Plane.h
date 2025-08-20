@@ -2,7 +2,7 @@
 #define DataFormats_EgammaReco_interface_alpaka_Plane_h
 
 #include <cmath>
-#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
+#include <DataFormats/EgammaReco/interface/alpaka/Phys3DVector.h>
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -11,7 +11,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         template <typename T = double>
         class Plane {
           public:		
-	    using Vec3 = cms::alpakatools::VecArray<T, 3>;
+	    using Vec3 = cms::alpakatools::math::Phys3DVector<T>;
 
             // Constructor
             constexpr  Plane(const Vec3& pos, const Vec3& rot) : position(pos), rotation(rot) {}
@@ -38,12 +38,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             // Fast access to distance from plane for a point
             constexpr inline T localZ(const Vec3& vp) const {
-		T diff_dot{0};
-                CMS_UNROLL_LOOP
-		for (unsigned int i = 0; i < 3; i++){
-		  diff_dot += rotation[i] * (vp[i] - position[i]);	
-		}
-                return diff_dot;
+		return cms::alpakatools::math::diff_dot(rotation, vp, position);
             }
 
             // Clamped distance from plane for a point
@@ -55,13 +50,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             // Fast access to distance from plane for a vector
             constexpr inline T distanceFromPlaneVector(const Vec3& gv) const {
-                return cms::alpakatools::dot(rotation, gv);
+                return cms::alpakatools::math::dot(rotation, gv);
             }
 
 	  private:
 
-	    Vec3 position;
-            Vec3 rotation; // z coordinate of rotation matrix  
+	    const Vec3 position;
+            const Vec3 rotation;  
         };
 
     }  // namespace PlanePortable

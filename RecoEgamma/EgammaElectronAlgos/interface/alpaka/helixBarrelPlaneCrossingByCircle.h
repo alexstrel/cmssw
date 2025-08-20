@@ -10,9 +10,9 @@
 
 #include "DataFormats/EgammaReco/interface/alpaka/Plane.h"
 
-#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
+#include <DataFormats/EgammaReco/interface/alpaka/Phys3DVector.h>
 
-using Vec3d = cms::alpakatools::VecArray<double, 3>;
+using Vec3d = cms::alpakatools::math::Phys3DVector<double>;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -76,7 +76,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		constexpr double straightLineCutoff = 1.e-7;
 
 		const double abs_rho = alpaka::math::abs(acc, rho);
-		const double startingDir_2dnorm = startingPos.partial_norm<TAcc, 2>(acc);
+		const double startingDir_2dnorm = startingPos.partial_norm(acc);
 
 		if (abs_rho < straightLineCutoff  &&  abs_rho * startingDir_2dnorm < straightLineCutoff) {
 		  // calculate path length
@@ -89,7 +89,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 		    const double norm  = startingDir.norm(acc);
 		    const double scale = norm > 0. ? s / norm : 0.;
-		    position  = cms::alpakatools::axpy(scale, startingDir, startingPos);
+		    position  = cms::alpakatools::math::axpy(scale, startingDir, startingPos);
 		    direction = startingDir;
 
 		  } else {
@@ -98,7 +98,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		  return; // all needed data members have been set
 		}
 
-                const double pt = startingDir.partial_norm<TAcc, 2>(acc); 		
+                const double pt = startingDir.partial_norm(acc); 		
 
 		const double o = 1. / (pt * rho);
                 const double distCx =  startingDir[1] * o;

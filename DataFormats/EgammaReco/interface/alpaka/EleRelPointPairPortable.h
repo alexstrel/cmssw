@@ -2,8 +2,7 @@
 #define DataFormats_EgammaReco_interface_alpaka_EleRelPointPairPortable_h
 
 #include <cmath>
-//#include <algorithm>
-#include <HeterogeneousCore/AlpakaInterface/interface/VecArray.h>
+#include <DataFormats/EgammaReco/interface/alpaka/Phys3DVector.h>
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -13,7 +12,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         class EleRelPointPair {
 
 	  public: 
-	    using Vec3 = cms::alpakatools::VecArray<T, 3>; 
+	    using Vec3 = cms::alpakatools::math::Phys3DVector<T>; 
 
             // Constructor to compute relative points
             constexpr EleRelPointPair(const Vec3& p1, const Vec3& p2, const Vec3& origin)
@@ -25,8 +24,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	    template <typename TAcc>
             ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T dPerp(TAcc const& acc) const {
-		    const T relP1_2dnorm = relP1.template partial_norm<TAcc, 2>(acc);
-		    const T relP2_2dnorm = relP2.template partial_norm<TAcc, 2>(acc);
+		    const T relP1_2dnorm = relP1.partial_norm(acc);
+		    const T relP2_2dnorm = relP2.partial_norm(acc);
 
 		    return (relP1_2dnorm - relP2_2dnorm); 
 	    }
@@ -34,14 +33,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             
             // Helper function to compute relative position
             constexpr Vec3 relativePosition(const Vec3& point, const Vec3& origin) const {
-                return cms::alpakatools::xmy(point, origin);
+                return cms::alpakatools::math::xmy(point, origin);
             }
 
             // Calculate  relative eta
 	    template <typename TAcc>
             ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T relative_eta(TAcc const& acc, const Vec3& p, const Vec3& origin) const {
 
-		const T tmp  = cms::alpakatools::diff2(p, origin);
+		const T tmp  = cms::alpakatools::math::diff_norm2(p, origin);
                 const T pdiff = alpaka::math::sqrt(acc,tmp);
 		const T z     = p[2] - origin[2];
 

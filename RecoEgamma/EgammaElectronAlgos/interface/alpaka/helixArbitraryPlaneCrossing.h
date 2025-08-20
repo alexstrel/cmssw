@@ -221,8 +221,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                 double tmpPathLength = 0.;
                 bool tmpValidPath    = false;
 		//
-                Vec3d tmpPosition(0.);
-                Vec3d tmpDirectionOut(0.);
+                Vec3d tmpPosition(0);
+                Vec3d tmpDirectionOut(0);
 
                 // Originally it passes the theSinTheta
                 helixArbitraryPlaneCrossing2Order<TAcc, Propagators::PropagationDirection::anyDirection>(acc,xnew,pnew,curvature,plane,tmpPathLength,tmpValidPath,tmpPosition,tmpDirectionOut);
