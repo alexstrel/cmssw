@@ -2,11 +2,6 @@
 #define DataFormats_EgammaReco_interface_alpaka_Phys3DVector_h
 
 //
-// Author: Felice Pantaleo, CERN
-//
-
-#include <utility>
-
 #include <alpaka/alpaka.hpp>
 
 #include "FWCore/Utilities/interface/CMSUnrollLoop.h"
@@ -44,7 +39,7 @@ namespace cms::alpakatools::math {
     inline constexpr void zero(){
       CMS_UNROLL_LOOP
       for (int i = 0; i < 3; i++) {
-        m_data[i] = static_cast<T>(0);
+        m_data[i] = T{0};
       }
     }
     
@@ -89,11 +84,11 @@ namespace cms::alpakatools::math {
     }
 
     template <typename TAcc >
-    ALPAKA_FN_ACC void normalize( const TAcc &acc) const {
+    ALPAKA_FN_ACC void normalize( const TAcc &acc) {
 
       const T nrm = norm(acc);
 
-      if (nrm == 0.) return;
+      if (nrm == T{0}) return;
 
       CMS_UNROLL_LOOP
       for (int i = 0; i < 3; i++) {
@@ -171,8 +166,7 @@ namespace cms::alpakatools::math {
 
     CMS_UNROLL_LOOP
     for (int i = 0; i < 3; i++) {
-      const T tmp = x[i] * (y[i] - z[i]);
-      res += tmp*tmp;
+      res += x[i] * (y[i] - z[i]);
     }
     return res;
   }

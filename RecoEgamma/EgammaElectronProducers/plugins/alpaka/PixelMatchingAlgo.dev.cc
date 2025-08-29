@@ -127,7 +127,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		ALPAKA_FN_ACC void operator()(TAcc const& acc,
 					      reco::EleSeedDeviceCollection::View viewEleSeeds,
 					      const int32_t sizeEleSeeds,
-					      reco::SuperclusterDeviceCollection::View viewSCs,
+					      const reco::SuperclusterDeviceCollection::ConstView viewSCs,
 					      const int32_t sizeSCs,
 					      const double vtx_x,
 					      const double vtx_y,
