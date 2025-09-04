@@ -1,7 +1,11 @@
-<library name="RecoEgammaGEDValueMapAnalyzer" file="GEDValueMapAnalyzer.cc">
-  <use name="FWCore/Framework"/>
-  <use name="FWCore/ParameterSet"/>
-  <use name="DataFormats/Common"/>
-  <use name="DataFormats/ParticleFlowCandidate"/>
-  <flags EDM_PLUGIN="1"/>
-</library>
+<bin file="alpaka/EigenTest.dev.cc">
+  <use name="alpaka"/>
+  <use name="eigen"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <use name="FWCore/Utilities"/>
+  <use name="DataFormats/SoATemplate"/>
+  <use name="DataFormats/Portable"/>
+  <use name="RecoEgamma/EgammaElectronProducers" source_only="1"/>
+  <flags ALPAKA_BACKENDS="1"/>
+</bin>
+
