@@ -1,3 +1,7 @@
+#define EIGEN_MAX_ALIGN_BYTES 0
+#define EIGEN_DONT_ALIGN_STATICALLY
+#define EIGEN_DONT_VECTORIZE
+
 #include <Eigen/Core>
 #include <random>
 
@@ -6,17 +10,60 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/traits.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
-//
-#include "FWCore/Utilities/interface/FileInPath.h"
-#include "FWCore/Utilities/interface/Exception.h"
 #include "FWCore/Utilities/interface/stringize.h"
-//
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/memory.h"
 
-#include "EigenTest.h"
+#include "DataFormats/SoATemplate/interface/SoACommon.h"
+#include "DataFormats/SoATemplate/interface/SoALayout.h"
 
-#define CRASH
+#include "DataFormats/Portable/interface/PortableHostCollection.h"
+#include "DataFormats/Portable/interface/alpaka/PortableCollection.h"
+
+using Vec3 = Eigen::Matrix<float, 3, 1, Eigen::DontAlign>;
+
+namespace cmstest {
+
+        GENERATE_SOA_LAYOUT(DummyEigLayout,
+                SOA_COLUMN(int, A),//Used
+                SOA_COLUMN(int, B),//Used
+                SOA_COLUMN(int, C),//Used
+                SOA_COLUMN(int, D),//Not used
+                SOA_COLUMN(int, E),//Not used
+                SOA_COLUMN(int, F),//Not used
+                SOA_EIGEN_COLUMN(Vec3, G0),//Used
+                SOA_EIGEN_COLUMN(Vec3, H0),//Used
+                SOA_EIGEN_COLUMN(Vec3, I0),//Used
+                SOA_EIGEN_COLUMN(Vec3, G1),//Used
+                SOA_EIGEN_COLUMN(Vec3, H1),//Used
+                SOA_EIGEN_COLUMN(Vec3, I1),//Not used
+                SOA_EIGEN_COLUMN(Vec3, G2),//Not used
+                SOA_EIGEN_COLUMN(Vec3, H2),//Not used
+                SOA_EIGEN_COLUMN(Vec3, I2) //Not used
+        )
+        using DummyEigSoA = DummyEigLayout<>;
+
+        using DummyEigHostCollection = PortableHostCollection<DummyEigSoA>;
+}  // namespace cmstest
+
+
+namespace ALPAKA_ACCELERATOR_NAMESPACE {
+  namespace cmstest {
+    using namespace ::cmstest;
+
+    using DummyEigDeviceCollection = PortableCollection<::cmstest::DummyEigSoA>;
+  }  // namespace portabletest
+
+
+  class EigenTest {
+  public:
+    void runTest(Queue& queue, cmstest::DummyEigDeviceCollection& collection) const;
+  };
+
+}  // namespace ALPAKA_ACCELERATOR_NAMESPACE
+
+#define CASE_1
+#define PRINT_CASE
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -32,12 +79,27 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 			{
 
 				if(i > 0) break;
-#ifdef CRASH
+				printf("Entry kernel body..\n");
+#ifdef CASE_1
 				in_view[i].C() = 1;
 				if(!(in_view[i].C())) continue;
 #endif
-				// Access first hit information
+				
 				Vec3 s0(in_view[i].G0().x(),in_view[i].G0().y(),in_view[i].G0().z());
+#ifdef PRINT_CASE
+				printf("object   @ %p\n", (const void*)&s0);
+  				printf("data()   @ %p\n", (const void*)s0.data());
+  				printf("sizeof(Vec3)        = %lu bytes\n", sizeof(Vec3));
+  				printf("alignof(Vec3)       = %lu bytes\n", alignof(Vec3));
+  				printf("coeff count (size)  = %lld\n", (long long)s0.size());
+
+  				size_t payload = static_cast<size_t>(s0.size()) * sizeof(Vec3::Scalar);
+  				printf("payload bytes       = %lu bytes\n", payload);
+
+  				std::uintptr_t p = reinterpret_cast<std::uintptr_t>(s0.data());
+  				printf("data()%%alignof(Vec3)= %" PRIuPTR "\n", p % alignof(Vec3));
+
+#endif
 				Vec3 s1(in_view[i].H0().x(),in_view[i].H0().y(),in_view[i].H0().z());
 				Vec3 s2(in_view[i].I0().x(),in_view[i].I0().y(),in_view[i].I0().z());
 
@@ -71,6 +133,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		auto workDiv =cms::alpakatools:: make_workdiv<Acc1D>(groups, items);
 
 		alpaka::exec<Acc1D>(queue, workDiv, EigenKernel{}, collection.view(), collection->metadata().size());
+
+		alpaka::wait(queue);
 	}
 
 	void launch_test(Queue& queue, const int collectionSize) {
@@ -112,8 +176,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
           alpaka::memcpy(queue, deviceProduct.buffer(), hostProduct.buffer());
 
+	  printf("Run kernel: \n");
     	  eig_test_.runTest(queue, deviceProduct);
 
+	  printf("...done\n");
+
+	  alpaka::wait(queue);
 	}
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
