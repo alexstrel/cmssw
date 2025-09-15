@@ -5,3 +5,13 @@
   <use name="DataFormats/ParticleFlowCandidate"/>
   <flags EDM_PLUGIN="1"/>
 </library>
+<bin file="alpaka/EigenTest.dev.cc">
+  <use name="alpaka"/>
+  <use name="eigen"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <use name="FWCore/Utilities"/>
+  <use name="DataFormats/SoATemplate"/>
+  <use name="DataFormats/Portable"/>
+  <flags ALPAKA_BACKENDS="1"/>
+</bin>
+
