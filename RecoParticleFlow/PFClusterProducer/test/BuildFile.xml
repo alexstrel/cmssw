@@ -17,3 +17,27 @@
   <use name="root"/>
   <flags EDM_PLUGIN="1"/>
 </library>
+
+<bin file="alpaka/WarpIntrinsicsTest.dev.cc">
+  <use name="alpaka"/>
+  <use name="eigen"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <use name="FWCore/Utilities"/>
+  <use name="DataFormats/SoATemplate"/>
+  <use name="DataFormats/Portable"/>
+  <use name="RecoParticleFlow/PFClusterProducer/plugins/alpaka"/>
+  <flags ALPAKA_BACKENDS="cuda"/>
+</bin>
+
+<bin file="alpaka/ReductionTest.dev.cc">
+  <use name="alpaka"/>
+  <use name="eigen"/>
+  <use name="HeterogeneousCore/AlpakaInterface"/>
+  <use name="FWCore/Utilities"/>
+  <use name="DataFormats/SoATemplate"/>
+  <use name="DataFormats/Portable"/>
+  <use name="RecoParticleFlow/PFClusterProducer"/>
+  <flags ALPAKA_BACKENDS="cuda"/>
+</bin>
+
+

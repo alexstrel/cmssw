@@ -13,6 +13,42 @@
 #include <iterator>
 #include <unordered_map>
 
+#include <fstream>
+#include <iomanip>
+#include <limits>
+
+void write_items(const std::string& path, const reco::PFClusterCollection& input) {
+    std::ofstream out(path);
+
+    out.imbue(std::locale::classic()); // avoid locale commas
+    out << std::setprecision(std::numeric_limits<float>::max_digits10); // 9 for float
+
+    int rfracOffset = 0;
+    for (unsigned int i=0;i<input.size();++i) {
+     const reco::PFCluster& cluster = input[i];
+
+     int rfracSize = 0;
+     for (const auto& frac : cluster.recHitFractions()) {
+       rfracSize += 1;
+     }
+
+     rfracOffset += rfracSize;
+
+     out << input[i].depth() 
+     << '\t' << cluster.seed().rawId()
+     << '\t' << i
+     << '\t' << rfracSize
+     << '\t' << rfracOffset
+     << '\t' << input[i].energy()
+     << '\t' << input[i].x()
+     << '\t' << input[i].y()
+     << '\t' << input[i].z() << '\n';
+  }
+}
+
+
+static bool _record_ = true;
+
 class PFMultiDepthClusterizer final : public PFClusterBuilderBase {
   typedef PFMultiDepthClusterizer B2DGPF;
 
@@ -97,11 +133,44 @@ void PFMultiDepthClusterizer::buildClusters(const reco::PFClusterCollection& inp
                                             const HcalPFCuts* hcalCuts) {
   std::vector<double> etaRMS2(input.size(), 0.0);
   std::vector<double> phiRMS2(input.size(), 0.0);
-
+#if 0
   //We need to sort the clusters for smaller to larger depth
-  //  for (unsigned int i=0;i<input.size();++i)
-  //   printf(" cluster%f %f \n",input[i].depth(),input[i].energy());
+  printf("==================1234567890\n");
+  int rfracOffset = 0;
+  for (unsigned int i=0;i<input.size();++i) {
+     const reco::PFCluster& cluster = input[i];
+     printf("%f\n",input[i].depth());
+     printf("%d\n",cluster.seed().rawId()/*input[i].seedRHIdx()*/);
+     int rfracSize = 0;
+     for (const auto& frac : cluster.recHitFractions()) {
+       rfracSize += 1;	     
+     }
+     printf("%d\n",i/*input[i].topoId()*/);
+     printf("%d\n",rfracSize/*input[i].rfracSize()*/);
+     printf("%d\n",rfracOffset/*input[i].rfracOffset())*/);
 
+     rfracOffset += rfracSize;
+
+     printf("%f\n",input[i].energy());
+     printf("%f\n",input[i].x());
+     printf("%f\n",input[i].y());
+     printf("%f\n",input[i].z());
+
+     //printf("%d\n",input[i].topoRHCount());
+  }
+
+  //printf("%d\n",input.nTopos());		     
+  //printf("%d\n",input.nSeeds());
+  //printf("%d\n",input.nRHFracs());
+  printf("%ld\n",input.size());
+
+  printf("==================1234567890\n\n");
+#endif
+  if (_record_) {
+    std::string s = "output.txt";
+    write_items(s, input);    
+    _record_ = false;	  
+  }
   //calculate cluster shapes
   calculateShowerShapes(input, etaRMS2, phiRMS2);
 
