@@ -55,90 +55,90 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   enum class PFMDLinkParamKind { DZ, DR, ENERGY, INVALID_KIND };
 
   class PFMDClusterParam {
-  protected:
-    float depth_  = std::numeric_limits<float>::lowest();//will disable all ghost (i.e. out-of-boundary) clusters
-    float energy_ = 0.f;
+    protected:
+      float depth_  = std::numeric_limits<float>::lowest();//will disable all ghost (i.e. out-of-boundary) clusters
+      float energy_ = 0.f;
     
-    float eta_ = 0.f;
-    float phi_ = 0.f;
+      float eta_ = 0.f;
+      float phi_ = 0.f;
     
-    double etaRMS2_ = 0.;
-    double phiRMS2_ = 0.;
+      double etaRMS2_ = 0.;
+      double phiRMS2_ = 0.;
 
-  public:
-    PFMDClusterParam() = default;    
-    PFMDClusterParam(const PFMDClusterParam&) = default;
+    public:
+      PFMDClusterParam() = default;    
+      PFMDClusterParam(const PFMDClusterParam&) = default;
 
-    template <typename TClusterVar>
-    constexpr PFMDClusterParam(const TClusterVar& cluster) {
-      // load cluster params :
-      depth_ = cluster.depth();
-      energy_ = cluster.energy();
+      template <typename TClusterVar>
+      constexpr PFMDClusterParam(const TClusterVar& cluster) {
+        // load cluster params :
+        depth_ = cluster.depth();
+        energy_ = cluster.energy();
 
-      eta_ = cluster.eta();  //cluster.posrep()(1);
-      phi_ = cluster.phi();  //cluster.posrep()(2);
+        eta_ = cluster.eta();  //cluster.posrep()(1);
+        phi_ = cluster.phi();  //cluster.posrep()(2);
 
-      etaRMS2_ = cluster.etaRMS2();
-      phiRMS2_ = cluster.phiRMS2();
-    }
+        etaRMS2_ = cluster.etaRMS2();
+        phiRMS2_ = cluster.phiRMS2();
+      }
 
-    constexpr float GetDepth() const { return depth_; }
-    constexpr float GetEnergy() const { return energy_; }
-    constexpr float GetEta() const { return eta_; }
-    constexpr float GetPhi() const { return phi_; }
+      constexpr float GetDepth() const { return depth_; }
+      constexpr float GetEnergy() const { return energy_; }
+      constexpr float GetEta() const { return eta_; }
+      constexpr float GetPhi() const { return phi_; }
 
-    constexpr double GetEtaRMS2() const { return etaRMS2_; }
-    constexpr double GetPhiRMS2() const { return phiRMS2_; }
+      constexpr double GetEtaRMS2() const { return etaRMS2_; }
+      constexpr double GetPhiRMS2() const { return phiRMS2_; }
   };
 
   class PFMDLinkParam {
-  protected:
-    int idx = -1;  // source cluster index,
+    protected:
+      int idx = -1;  // source cluster index,
 
-    float dz = std::numeric_limits<float>::max();
-    float dr = std::numeric_limits<float>::max();
-    float energy = 0.f;
+      float dz = std::numeric_limits<float>::max();
+      float dr = std::numeric_limits<float>::max();
+      float energy = 0.f;
 
-  public:
-    PFMDLinkParam() = default;
+    public:
+      PFMDLinkParam() = default;
     
     // NOTE: by default, each cluster is self-connected
-    constexpr PFMDLinkParam(const int idx_) : idx(idx_) {};
+      constexpr PFMDLinkParam(const int idx_) : idx(idx_) {};
     
-    constexpr PFMDLinkParam(const int idx_, const float dz_, const float dr_, const float energy_)
+      constexpr PFMDLinkParam(const int idx_, const float dz_, const float dr_, const float energy_)
         : idx(idx_), dz(dz_), dr(dr_), energy(energy_) {}
 
-    constexpr float Get(const PFMDLinkParamKind kind) const {
-      if (kind == PFMDLinkParamKind::DZ) {
-        return dz;
-      } else if (kind == PFMDLinkParamKind::DR) {
-        return dr;
-      } else if (kind == PFMDLinkParamKind::ENERGY) {
-        return energy;
-      }
-      return 0.f;
-    }
-
-    constexpr void TryUpdate(const int new_idx, const float new_dz, const float new_dr, const float new_energy) {
-      bool do_update = (dz > new_dz);  
-
-      if ( dz == new_dz ) {
-        do_update = (dr > new_dr) ? true : (dr == new_dr ? (energy < new_energy) : false);
+      constexpr float Get(const PFMDLinkParamKind kind) const {
+        if (kind == PFMDLinkParamKind::DZ) {
+          return dz;
+        } else if (kind == PFMDLinkParamKind::DR) {
+          return dr;
+        } else if (kind == PFMDLinkParamKind::ENERGY) {
+          return energy;
+        }
+        return 0.f;
       }
 
-      if (do_update) {
-         idx = new_idx, dz = new_dz, dr = new_dr, energy = new_energy;
-      }	    
-    }
+      constexpr void TryUpdate(const int new_idx, const float new_dz, const float new_dr, const float new_energy) {
+        bool do_update = (dz > new_dz);  
 
-    constexpr int GetIdx() const { return idx; }
+        if ( dz == new_dz ) {
+          do_update = (dr > new_dr) ? true : (dr == new_dr ? (energy < new_energy) : false);
+        }
+
+        if (do_update) {
+          idx = new_idx, dz = new_dz, dr = new_dr, energy = new_energy;
+        }	    
+      }
+
+      constexpr int GetIdx() const { return idx; }
     
-    constexpr void Set(const int idx_, const float dz_, const float dr_, const float energy_) {
-      this->idx = idx_;
-      this->dz = dz_;
-      this->dr = dr_;
-      this->energy = energy_;
-    }
+      constexpr void Set(const int idx_, const float dz_, const float dr_, const float energy_) {
+        this->idx = idx_;
+        this->dz = dz_;
+        this->dr = dr_;
+        this->energy = energy_;
+      }
   };
 
   //  Define operation type: 

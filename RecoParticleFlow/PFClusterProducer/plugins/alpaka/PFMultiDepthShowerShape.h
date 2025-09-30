@@ -12,11 +12,66 @@
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterizerHelper.h"
 
+
+// eta_from_xyz.h
+#pragma once
+#include <cmath>
+#include <limits>
+#include <type_traits>
+
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using namespace cms::alpakatools;
 
   using namespace alpaka_common;
+
+  // epsilon^{1/4}:
+  constexpr T z_scaled() const {
+    using U = std::remove_cv_t<std::remove_reference_t<T>>;
+
+    if constexpr std::is_same_v<U, float> {
+      constexpr float  z_scaled_f = 53.81737057623773f;
+      return z_scaled_f;
+    } else {
+      constexpr double z_scaled_d = 8192.0;
+      return z_scaled_d;
+    }
+  }
+
+  template <typename TAcc, typename T, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE GetPhi(TAcc const& acc, const T x, const T y) {
+    return alpaka::math::atan2(acc, y, x);
+  }
+
+  template <typename TAcc, typename T, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE GetEta(TAcc const& acc, const T x, const T y, const T z) {
+    // ROOT-style fast path:
+    // uses log(zs + sqrt(zs^2 + 1)) when |zs| is moderate,
+    // and a Taylor-aided form when |zs| is large.
+    // For rho == 0, return +/-inf.
+
+    T eta{0};
+
+    const T rho = alpaka::math::sqrt(acc, x*x + y*y);
+
+    if (rho > T{0}) {
+      // threshold for switching to the Taylor-aided branch
+      constexpr T zscaled = z_scaled();
+
+      const T zs = z / rho;
+      if (alpaka::math::abs(acc, zs) < zscaled) {
+        eta = alpaka::math::log(acc, zs + alpaka::math::sqrt(acc, zs * zs + T{1}));
+      } else {
+        // first-order Taylor expansion for the sqrt part
+        eta = (z > T{0}) ?  alpaka::math::log(acc, T{2}*zs + T{0.5}/zs)
+                         : -alpaka::math::log(acc,-T{2}*zs);
+      }
+    } else {
+      // Exactly along the beam axis:
+      if (z != T{0}) eta = alpaka::math::copysign(acc, std::numeric_limits<T>::infinity(), z);
+    }
+    return eta;
+  }
 
   template <unsigned int max_w_items = 32>
   class ShowerShapeKernel {
@@ -50,8 +105,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           mdpfClusteringVars[i].depth()  = pfClusters[i].depth();
           mdpfClusteringVars[i].energy() = pfc_energy;
 
-          const auto eta_c = pfClusters[i].y();
-          const auto phi_c = pfClusters[i].z();
+          const auto x_c = pfClusters[i].x();
+          const auto y_c = pfClusters[i].y();
+          const auto z_c = pfClusters[i].z();
+
+          const auto eta_c = GetEta(acc, x_c, y_c, z_c);
+          const auto phi_c = GetPhi(acc, x_c, y_c); 
 
           mdpfClusteringVars[i].eta() = eta_c;
           mdpfClusteringVars[i].phi() = phi_c;
@@ -95,9 +154,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               const float frac   = pfRecHitFracs[pfrhfrac_idx].frac();
               
               const float energy = pfRecHit[pfrh_idx].energy();
-              
-              const auto eta_rh  = pfRecHit[pfrh_idx].y();
-              const auto phi_rh  = pfRecHit[pfrh_idx].z();
+
+	      const auto x_rh  = pfRecHit[pfrh_idx].x();
+              const auto y_rh  = pfRecHit[pfrh_idx].y();
+              const auto z_rh  = pfRecHit[pfrh_idx].z();              
+
+              const auto eta_rh  = GetEta(acc, x_rh, y_rh, z_rh);
+              const auto phi_rh  = GetPhi(acc, x_rh, y_rh);
               
               etaSum_ = (frac * energy) * alpaka::math::abs(acc, eta_rh - eta_c);
               phiSum_ = (frac * energy) * alpaka::math::abs(acc, ::cms::alpakatools::deltaPhi(acc, phi_rh, phi_c));
