@@ -296,19 +296,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           
           unsigned int i = 0;
 
-          float energy = 0.f;
+          float energy = is_isolated_root == false ? pfRecHit[seed].energy() :  0.f;
 
           for (unsigned int j = rhf_begin; j < rhf_end; j++) {
-            const unsigned int rhIdx = pfRecHitFracs[j].pfrhIdx();
-            const unsigned int frac  = pfRecHitFracs[j].frac();
-            // Check seed if valid:
-            if(is_isolated_root == false) {
-              const unsigned int detId = pfRecHit[rhIdx].detId();
-              if (seed == detId) energy = pfRecHit[rhIdx].energy();
-            } 
-
-            outPFRecHitFracs[rhf_store_offset + i].frac()    = frac;
-            outPFRecHitFracs[rhf_store_offset + i].pfrhIdx() = rhIdx;
+            outPFRecHitFracs[rhf_store_offset + i].frac()    = pfRecHitFracs[j].frac();
+            outPFRecHitFracs[rhf_store_offset + i].pfrhIdx() = pfRecHitFracs[j].pfrhIdx();
             outPFRecHitFracs[rhf_store_offset + i].pfcIdx()  = cc_idx;
 
             ++i;
