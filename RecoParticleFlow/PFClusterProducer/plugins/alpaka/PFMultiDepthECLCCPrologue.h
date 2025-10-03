@@ -8,6 +8,7 @@
 #include "HeterogeneousCore/AlpakaMath/interface/deltaPhi.h"
 #include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
 #include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
+
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterizerHelper.h"
 
@@ -42,7 +43,6 @@
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using namespace cms::alpakatools;
-  using namespace reco::pfClustering;
 
   /**
  * @class ECLCCPrologueKernel

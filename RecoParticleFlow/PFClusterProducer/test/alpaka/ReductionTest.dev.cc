@@ -18,47 +18,21 @@
 
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterizerHelper.h"
 
-namespace cmstest {
+#include "DataFormats/ParticleFlowReco/interface/PFClusterHostCollection.h"
+#include "DataFormats/ParticleFlowReco/interface/alpaka/PFClusterDeviceCollection.h"
 
-  GENERATE_SOA_LAYOUT(TestPFClusterSoALayout,
-                      SOA_COLUMN(int, depth),
-                      SOA_COLUMN(int, seedRHIdx),
-                      SOA_COLUMN(int, topoId),
-                      SOA_COLUMN(int, rhfracSize),
-                      SOA_COLUMN(int, rhfracOffset),
-                      SOA_COLUMN(float, energy),
-                      SOA_COLUMN(float, x),
-                      SOA_COLUMN(float, y),
-                      SOA_COLUMN(float, z),
-                      SOA_COLUMN(int, topoRHCount),
-                      SOA_SCALAR(int, nTopos),
-                      SOA_SCALAR(int, nSeeds),
-                      SOA_SCALAR(int, nRHFracs),
-                      SOA_SCALAR(int, size)  // nRH
-  )
-  using TestPFClusterSoA = TestPFClusterSoALayout<>;
-  using TestPFClusterHostCollection = PortableHostCollection<TestPFClusterSoA>;
-}  //
-
+using namespace reco; 
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
-  namespace cmstest {
-    using namespace ::cmstest;
 
-    using TestPFClusterDeviceCollection = PortableCollection<::cmstest::TestPFClusterSoA>;
-  }  // namespace portabletest
+using namespace cms::alpakatools;
+using namespace reco;
 
+  	class PFClusterTest {
+  	  public:
+    	    void runTest(Queue& queue, reco::PFClusterDeviceCollection& collection) const;
+  	};
 
-  class PFClusterTest {
-  public:
-    void runTest(Queue& queue, cmstest::TestPFClusterDeviceCollection& collection) const;
-  };
-
-}  // namespace ALPAKA_ACCELERATOR_NAMESPACE
-
-#define PRINT_CASE
-
-namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
         //  Define operation type: 
         template <bool comp_min>
@@ -75,7 +49,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 	public:
 		template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
 		ALPAKA_FN_ACC void operator()(TAcc const& acc,
-					      cmstest::TestPFClusterDeviceCollection::View in) const 
+					      reco::PFClusterDeviceCollection::View in) const 
 		{
 			const unsigned int nClusters = in.size();
       
@@ -145,7 +119,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 		}
 	};
 
-	void PFClusterTest::runTest(Queue& queue, cmstest::TestPFClusterDeviceCollection& collection ) const 
+	void PFClusterTest::runTest(Queue& queue, reco::PFClusterDeviceCollection& collection ) const 
 	{
 		uint32_t items = 1024;
 
@@ -168,7 +142,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 	  PFClusterTest pfcluster_test_{};
     	  // Create device products :
-	  cmstest::TestPFClusterHostCollection hostProduct{collectionSize, queue};
+	  reco::PFClusterHostCollection hostProduct{collectionSize, queue};
 
           std::random_device rd;
           std::mt19937 gen(rd());
@@ -200,7 +174,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
           viewProduct.size() = collectionSize;
 
-    	  cmstest::TestPFClusterDeviceCollection deviceProduct{collectionSize, queue};
+	  reco::PFClusterDeviceCollection deviceProduct{collectionSize, queue};
 
           alpaka::memcpy(queue, deviceProduct.buffer(), hostProduct.buffer());
 

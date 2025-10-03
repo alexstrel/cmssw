@@ -12,12 +12,14 @@
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterizerHelper.h"
 
+#include "DataFormats/ParticleFlowReco/interface/alpaka/PFClusterDeviceCollection.h"
+#include "DataFormats/ParticleFlowReco/interface/alpaka/PFRecHitFractionDeviceCollection.h"
+#include "DataFormats/ParticleFlowReco/interface/alpaka/PFRecHitDeviceCollection.h"
 
-// eta_from_xyz.h
-#pragma once
 #include <cmath>
 #include <limits>
 #include <type_traits>
+#include <concepts>
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
@@ -26,10 +28,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   using namespace alpaka_common;
 
   // epsilon^{1/4}:
-  constexpr T z_scaled() const {
+  template<typename T>
+  requires std::floating_point<T> 
+  constexpr T z_scaled() {
     using U = std::remove_cv_t<std::remove_reference_t<T>>;
 
-    if constexpr std::is_same_v<U, float> {
+    if constexpr ( std::is_same_v<U, float> ) {
       constexpr float  z_scaled_f = 53.81737057623773f;
       return z_scaled_f;
     } else {
@@ -39,12 +43,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   }
 
   template <typename TAcc, typename T, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE GetPhi(TAcc const& acc, const T x, const T y) {
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T GetPhi(TAcc const& acc, const T x, const T y) {
     return alpaka::math::atan2(acc, y, x);
   }
 
   template <typename TAcc, typename T, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE GetEta(TAcc const& acc, const T x, const T y, const T z) {
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T GetEta(TAcc const& acc, const T x, const T y, const T z) {
     // ROOT-style fast path:
     // uses log(zs + sqrt(zs^2 + 1)) when |zs| is moderate,
     // and a Taylor-aided form when |zs| is large.
@@ -56,7 +60,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     if (rho > T{0}) {
       // threshold for switching to the Taylor-aided branch
-      constexpr T zscaled = z_scaled();
+      const T zscaled = z_scaled<T>();
 
       const T zs = z / rho;
       if (alpaka::math::abs(acc, zs) < zscaled) {
@@ -128,12 +132,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           
           unsigned int iter_pfrhf_offset, iter_pfrhf_size, iter_consumed_pfrhf_size;
           
+	  float iter_eta_c, iter_phi_c;
+
           while (iter_lane_idx < eff_w_extent) {
+	    warp::syncWarpThreads_mask(acc, active_lanes_mask);	  
             if (update_params) {
-              warp::syncWarpThreads_mask(acc, active_lanes_mask);
-              
-              iter_pfrhf_offset = warp::shfl_mask(acc, active_lanes_mask, pfrhf_offset, iter_lane_idx, w_extent);
+              iter_eta_c = warp::shfl_mask(acc, active_lanes_mask, eta_c, iter_lane_idx, w_extent);
+              iter_phi_c = warp::shfl_mask(acc, active_lanes_mask, phi_c, iter_lane_idx, w_extent);
+
+	      iter_pfrhf_offset = warp::shfl_mask(acc, active_lanes_mask, pfrhf_offset, iter_lane_idx, w_extent);
               iter_pfrhf_size   = warp::shfl_mask(acc, active_lanes_mask, pfrhf_size, iter_lane_idx, w_extent);
+
               iter_consumed_pfrhf_size = 0;
               
               iter_accum_etaSum = 0.;
@@ -161,19 +170,23 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
               const auto eta_rh  = GetEta(acc, x_rh, y_rh, z_rh);
               const auto phi_rh  = GetPhi(acc, x_rh, y_rh);
-              
-              etaSum_ = (frac * energy) * alpaka::math::abs(acc, eta_rh - eta_c);
-              phiSum_ = (frac * energy) * alpaka::math::abs(acc, ::cms::alpakatools::deltaPhi(acc, phi_rh, phi_c));
-            }
+
+
+              etaSum_ = (frac * energy) * alpaka::math::abs(acc, eta_rh - iter_eta_c);
+              phiSum_ = (frac * energy) * alpaka::math::abs(acc, ::cms::alpakatools::deltaPhi(acc, phi_rh, iter_phi_c));
+	    
+	    }
             
+	    warp::syncWarpThreads_mask(acc, active_lanes_mask);
+
             if (eff_w_extent == w_extent) {
-              iter_accum_etaSum += warp_reduce<TAcc, double>(acc, etaSum_, addFn);
-              iter_accum_phiSum += warp_reduce<TAcc, double>(acc, phiSum_, addFn);
+              iter_accum_etaSum += warp_reduce(acc, etaSum_, addFn);
+              iter_accum_phiSum += warp_reduce(acc, phiSum_, addFn);
             } else {
-              iter_accum_etaSum += warp_sparse_reduce<TAcc, double>(acc, active_lanes_mask, lane_idx, etaSum_, addFn);
-              iter_accum_phiSum += warp_sparse_reduce<TAcc, double>(acc, active_lanes_mask, lane_idx, phiSum_, addFn);
+              iter_accum_etaSum += warp_sparse_reduce(acc, active_lanes_mask, lane_idx, etaSum_, addFn);
+              iter_accum_phiSum += warp_sparse_reduce(acc, active_lanes_mask, lane_idx, phiSum_, addFn);
             }
-            
+
             if (iter_leftover_pfrhf_size < eff_w_extent) {
               
               if (lane_idx == iter_lane_idx) {

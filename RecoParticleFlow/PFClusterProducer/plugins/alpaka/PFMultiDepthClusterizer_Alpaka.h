@@ -38,6 +38,8 @@
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
+  enum class ECLCCMethod { INIT, LOW, MID, HIGH, FLATTEN, INVALID_METHOD };
+  
   class PFMultiDepthClusterizer_Alpaka {
   public:
     PFMultiDepthClusterizer_Alpaka() {}

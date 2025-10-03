@@ -152,7 +152,7 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE unsigned int get_physical_lane_idx(TAcc const& ac
  * @return return reduced value (propagated to all lanes in the mask by default)
  */
 
-  template< typename TAcc, typename reduce_t, typename reducer_t, bool all = false, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
+  template< typename TAcc, typename reduce_t, typename reducer_t, bool all = true, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
   requires std::is_arithmetic_v<reduce_t>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE reduce_t warp_reduce(TAcc const& acc, reduce_t const in, const reducer_t f)
   {   
