@@ -93,7 +93,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     	
     	if (lane_idx == 0) local_offset = tmp; //lane 0 keeps full (inclusive for the last lane) sum
     }
-    return local_offset - val; //we return exclusive sum!
+    return lane_idx == 0 ? local_offset : local_offset - val; //we return exclusive sum!
   }
 
 /**

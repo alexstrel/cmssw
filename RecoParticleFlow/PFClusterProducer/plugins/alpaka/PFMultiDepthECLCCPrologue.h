@@ -95,10 +95,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       
       const unsigned int nVertices = pfClusteringVars.size();
       
-      const unsigned int nBlocks = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];  //
-      
+      const unsigned int nBlocks  = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[0u];
+      const unsigned int blockDim = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0u];
+
       const unsigned int w_extent = alpaka::warp::getSize(acc);
-      const unsigned int w_items  = alpaka::math::min(acc, nBlocks / w_extent, max_w_items);
+      const unsigned int w_items  = alpaka::math::min(acc, (blockDim+(w_extent-1)) / w_extent, max_w_items);      
       
       auto& outer_neigh_masks(alpaka::declareSharedVar<int[max_w_items * max_w_extent], __COUNTER__>(acc));
       auto& inner_neigh_masks(alpaka::declareSharedVar<unsigned int[max_w_items * max_w_extent], __COUNTER__>(acc));
@@ -180,19 +181,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           // For instance , for warp 0 lanes 0 and 1 are have same control mask, 0x0011, so we choose lane 0 is a local "represntative" (lane with the lowest id)
           // Note that if a vertex is locally or globally isolated (i.e, connected to itself), then it will always represent itself (even though it may
           // have higher index), i.e., if is_self_connected == true then rep_lane_idx = lane_id :
-          const unsigned int rep_lane_idx = ((control_mask & local_src_vertex_lane_mask) != 0) ? src_vertex_idx : get_ls1b_idx(acc, control_mask);
-
+          const unsigned int rep_lane_idx =  get_ls1b_idx(acc, ((control_mask & local_src_vertex_lane_mask) != 0) ? local_src_vertex_lane_mask : control_mask); 
           // If a vertex represents itself, erase bit that corrsponds to the represntative vertex:
           if (is_self_connected)
             control_mask = control_mask ^ lane_mask;
           
           warp::syncWarpThreads_mask(acc, active_lanes_mask);
           
-          if (lane_idx == rep_lane_idx) {
-            if (is_local_src_vertex_idx) //i.e, src_vertex_idx is warp-local.
+          if (lane_idx == rep_lane_idx) { 
+            if (is_local_src_vertex_idx) { //i.e, src_vertex_idx is warp-local.
               inner_neigh_masks[src_vertex_idx] = control_mask;  // internal (intra-warp) neighbors mask
-            else
+	    } else {
               outer_neigh_masks[dst_vertex_idx] = control_mask;  // external (inter-warp) neighbors mask
+	    }
           }
           // We need to sync threads in the warp,
           warp::syncWarpThreads_mask(acc, active_lanes_mask);
@@ -200,12 +201,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const unsigned int local_neigh_mask = inner_neigh_masks[dst_vertex_idx];  //dst_vertex_idx is in fact idx.local
           // update neighbor number (count only local neigbors):
           neigh_num += alpaka::popcount(acc, local_neigh_mask);
-          
           nlist_offsets[idx.local] = neigh_num;
         }
-
         alpaka::syncBlockThreads(acc);
-
         // Since we have collections of local neighbors represented as lane masks for each lane in a warp,
         // we need to construct offsets for the corresponding local adjacency lists. From a global perspective,
         // the goal is to build a (global) adjacency matrix in CSR format, which consists of an array of offsets
@@ -226,7 +224,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           
           if (outer_neigh_num == 0)
             continue;
-
           const unsigned int src_vertex_idx = base_neighbor[dst_vertex_idx];
           
           alpaka::atomicAdd(acc, &nlist_offsets[src_vertex_idx], outer_neigh_num, alpaka::hierarchy::Threads{});
@@ -241,7 +238,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const auto lane_idx = idx.local % w_extent;
           
           unsigned int nnz = nlist_offsets[idx.local];  //note that nnz = 0 for idx.local >= nVertices
-          
           const auto local_warp_offset = warp_exclusive_sum(acc, nnz, lane_idx);
           // First, store total warp-local nnz into shared mem buffer for the lane id = 0:
           if (lane_idx == 0)
@@ -293,7 +289,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           nlist_offsets[idx.local] = global_offset;
           // Last entry for total NNZ:
           if (warp_idx == 0 && lane_idx == 0)
-            nlist_offsets[nVertices] = subdomain_offsets[warp_idx];
+            nlist_offsets[nVertices] = subdomain_offsets[0];
         }
         alpaka::syncBlockThreads(acc);
 	// Alias:
@@ -302,7 +298,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent))) {
           if (idx.local >= nVertices)
             continue;
-
           const auto dst_vertex_idx = idx.local;
           
           const auto warp_idx = idx.local / w_extent;
@@ -314,20 +309,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const unsigned int src_vertex_idx = base_neighbor[idx.local];
           
           unsigned int adjacency_pos = begin;
-          
           if (src_vertex_idx != dst_vertex_idx)// exclude self connection
             adjacency_list[adjacency_pos++] = src_vertex_idx;
-
           if( inner_neigh_mask == 0 ) { //no inner neighbors detected, so there is nothing to store in adjacency_list at this point
             adjacency_idx[dst_vertex_idx] = adjacency_pos;
             continue;
           }      
 
 	  const unsigned int nLanes = static_cast<unsigned int>(alpaka::popcount(acc, inner_neigh_mask));
-
           for (unsigned int lid = 0; lid < nLanes; ++lid) {
             adjacency_list[adjacency_pos++] = get_physical_lane_idx(acc,inner_neigh_mask,lid) + warp_idx * w_extent;//store neighbor vertex idx;
-          }
+	  }
           adjacency_idx[dst_vertex_idx] = adjacency_pos;
         }
 
@@ -350,7 +342,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
           if (nnz == 0)
             continue;  // skip inactive lanes
-
           unsigned adjacency_pos =
               alpaka::atomicAdd(acc, &adjacency_idx[src_vertex_idx], nnz, alpaka::hierarchy::Threads{});
 
@@ -366,8 +357,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           
           if (idx.local >= nVertices)
             continue;
-          
-          pfClusteringEdgeVars[idx.local].mdpf_adjacencyList()  = adjacency_list[idx.local];
+    
+          for(unsigned int i = idx.local; i < nlist_offsets[nVertices]; i += nVertices) 
+            pfClusteringEdgeVars[i].mdpf_adjacencyList()  = adjacency_list[i];
+	  
           pfClusteringEdgeVars[idx.local].mdpf_adjacencyIndex() = nlist_offsets[idx.local];
           
           if (idx.local == 0)
