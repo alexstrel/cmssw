@@ -7,5 +7,3 @@ struct PFMultiDepthClusterParams {
 };
 
 #endif
-
-

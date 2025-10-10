@@ -9,7 +9,6 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/memory.h"
 
-
 #include "DataFormats/SoATemplate/interface/SoACommon.h"
 #include "DataFormats/SoATemplate/interface/SoALayout.h"
 
@@ -21,170 +20,175 @@
 #include "DataFormats/ParticleFlowReco/interface/PFClusterHostCollection.h"
 #include "DataFormats/ParticleFlowReco/interface/alpaka/PFClusterDeviceCollection.h"
 
-using namespace reco; 
+using namespace reco;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
-using namespace cms::alpakatools;
-using namespace reco;
+  using namespace cms::alpakatools;
+  using namespace reco;
 
-  	class PFClusterTest {
-  	  public:
-    	    void runTest(Queue& queue, reco::PFClusterDeviceCollection& collection) const;
-  	};
+  class PFClusterTest {
+  public:
+    void runTest(Queue& queue, reco::PFClusterDeviceCollection& collection) const;
+  };
 
+  //  Define operation type:
+  template <bool comp_min>
+  struct CompFn {
+    ALPAKA_FN_ACC float operator()(float a, float b) const {
+      if constexpr (comp_min)
+        return a < b ? a : b;
+      else
+        return a > b ? a : b;
+    }
+  };
 
-        //  Define operation type: 
-        template <bool comp_min>
-        struct CompFn {
-          ALPAKA_FN_ACC float operator()(float a, float b) const {
-          if constexpr (comp_min)
-            return a < b ? a : b;
-          else
-            return a > b ? a : b;
+  class PFClusterTestKernel {
+  public:
+    template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
+    ALPAKA_FN_ACC void operator()(TAcc const& acc, reco::PFClusterDeviceCollection::View in) const {
+      const unsigned int nClusters = in.size();
+
+      const unsigned int w_extent = alpaka::warp::getSize(acc);
+
+      for (auto group : ::cms::alpakatools::uniform_groups(acc)) {  //loop over thread blocks
+                                                                    // Only single block is active:
+        if (group != 0)
+          continue;
+        const unsigned int boundary = (w_extent - 20);
+
+        for (auto idx : ::cms::alpakatools::uniform_group_elements(
+                 acc, group, ::cms::alpakatools::round_up_by(nClusters, w_extent))) {
+          if (idx.local == 0)
+            printf("Entry kernel body...\n");
+          const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.global < boundary);
+
+          if (idx.local >= boundary)
+            continue;
+
+          const unsigned int lane_idx = idx.local % w_extent;
+
+          unsigned int val = idx.global % 2;
+
+          const unsigned int even_lanes_mask = warp::ballot_mask(acc, active_lanes_mask, idx.global % 2 == 0);
+
+          if (idx.local < 2)
+            printf("Even lanes mask = %u (seen from lane %u)\n", even_lanes_mask, lane_idx);
+
+          if (is_work_lane(even_lanes_mask, lane_idx, w_extent)) {
+            val = warp::shfl_mask(acc, even_lanes_mask, val, 0, w_extent);
           }
-        };
 
-	class PFClusterTestKernel {
-	public:
-		template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-		ALPAKA_FN_ACC void operator()(TAcc const& acc,
-					      reco::PFClusterDeviceCollection::View in) const 
-		{
-			const unsigned int nClusters = in.size();
-      
-                        const unsigned int w_extent = alpaka::warp::getSize(acc);
+          warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
-			for (auto group : ::cms::alpakatools::uniform_groups(acc)) {  //loop over thread blocks
-		          // Only single block is active:
-                          if (group != 0) continue;
-			  const unsigned int boundary = (w_extent - 20);
+          const unsigned int odd_lanes_mask = warp::ballot_mask(acc, active_lanes_mask, idx.global % 2 == 1);
 
-                          for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nClusters, w_extent))) {
-		             if(idx.local == 0) printf("Entry kernel body...\n");
-			     const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.global < boundary);
+          if (idx.local < 2)
+            printf("Odd lanes mask = %u (seen from lane %u)\n", odd_lanes_mask, lane_idx);
 
-			     if (idx.local >= boundary) continue;
+          if (is_work_lane(odd_lanes_mask, lane_idx, w_extent)) {
+            val = warp::shfl_mask(acc, odd_lanes_mask, val, 1, w_extent);
+          }
 
-			     const unsigned int lane_idx = idx.local % w_extent;
+          warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
-			     unsigned int val = idx.global % 2;
+          const unsigned int evenodd_mask = warp::match_any_mask(acc, active_lanes_mask, val);
 
-			     const unsigned int even_lanes_mask = warp::ballot_mask(acc,active_lanes_mask,idx.global % 2 == 0);
+          if (idx.local < 2)
+            printf("Evenodd lanes mask = %u (seen from lane %u)\n", evenodd_mask, lane_idx);
 
-			     if(idx.local < 2) printf("Even lanes mask = %u (seen from lane %u)\n", even_lanes_mask, lane_idx );
+          warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
-			     if(is_work_lane(even_lanes_mask,lane_idx,w_extent)){
-				val = warp::shfl_mask( acc, even_lanes_mask, val, 0, w_extent );     
-			     }
+          const unsigned int local_offset = in[idx.global].rhfracSize();
+          const unsigned int warp_offsets = warp_sparse_exclusive_sum(acc, evenodd_mask, local_offset, lane_idx);
 
-			     warp::syncWarpThreads_mask(acc, active_lanes_mask);
+          if (is_work_lane(active_lanes_mask, idx.local, w_extent))
+            printf("Result %u, \t lane id %u \t offset %u\n", warp_offsets, lane_idx, local_offset);
 
-			     const unsigned int odd_lanes_mask = warp::ballot_mask(acc,active_lanes_mask,idx.global % 2 == 1);
+          warp::syncWarpThreads_mask(acc, active_lanes_mask);
+          const float energy = in[idx.global].energy();
+          const float min_energy = warp_sparse_reduce(acc, active_lanes_mask, lane_idx, energy, CompFn<true>());
 
-                             if(idx.local < 2) printf("Odd lanes mask = %u (seen from lane %u)\n", odd_lanes_mask, lane_idx );
+          if (is_work_lane(active_lanes_mask, idx.local, w_extent))
+            printf("Current val = %f (seen from lane %u)\n", energy, lane_idx);
 
-                             if(is_work_lane(odd_lanes_mask,lane_idx,w_extent)){
-                                val = warp::shfl_mask( acc, odd_lanes_mask, val, 1, w_extent );
-                             }
+          warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
-			     warp::syncWarpThreads_mask(acc, active_lanes_mask);
+          const auto winner_mask = warp::ballot_mask(acc, active_lanes_mask, energy == min_energy);
 
-			     const unsigned int evenodd_mask = warp::match_any_mask(acc, active_lanes_mask, val);
+          if (idx.local == 0)
+            printf("Min val = %f (seen from lane %u, local val is %f)\n", min_energy, lane_idx, energy);
 
-			     if(idx.local < 2) printf("Evenodd lanes mask = %u (seen from lane %u)\n", evenodd_mask, lane_idx );
+          if (is_work_lane(winner_mask, idx.local, w_extent))
+            printf("Orig lane with min val = %f (seen from lane %u)\n", energy, lane_idx);
+        }
+      }
+    }
+  };
 
-			     warp::syncWarpThreads_mask(acc, active_lanes_mask);
+  void PFClusterTest::runTest(Queue& queue, reco::PFClusterDeviceCollection& collection) const {
+    uint32_t items = 1024;
 
-			     const unsigned int local_offset = in[idx.global].rhfracSize();
-			     const unsigned int warp_offsets = warp_sparse_exclusive_sum(acc, evenodd_mask, local_offset, lane_idx);
+    auto n = static_cast<uint32_t>(collection->metadata().size());
+    uint32_t groups = cms::alpakatools::divide_up_by(n, items);
 
-			     if( is_work_lane(active_lanes_mask, idx.local, w_extent) ) printf("Result %u, \t lane id %u \t offset %u\n", warp_offsets, lane_idx, local_offset);
+    if (groups < 1) {
+      printf("Skip kernel launch...\n");
+      return;
+    }
 
-			     warp::syncWarpThreads_mask(acc, active_lanes_mask);
-                             const float energy = in[idx.global].energy(); 
-			     const float min_energy = warp_sparse_reduce(acc, active_lanes_mask, lane_idx, energy, CompFn<true>());
+    auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(groups, items);
 
-			     if( is_work_lane(active_lanes_mask, idx.local, w_extent) ) printf("Current energy = %f (seen from lane %u)\n", energy, lane_idx );
+    alpaka::exec<Acc1D>(queue, workDiv, PFClusterTestKernel{}, collection.view());
 
-			     warp::syncWarpThreads_mask(acc, active_lanes_mask);
+    alpaka::wait(queue);
+  }
 
-			     const auto winner_mask = warp::ballot_mask(acc,active_lanes_mask,energy == min_energy);
+  void launch_test(Queue& queue, const int collectionSize) {
+    PFClusterTest pfcluster_test_{};
+    // Create device products :
+    reco::PFClusterHostCollection hostProduct{collectionSize, queue};
 
-			     if(idx.local == 0) printf("Min energy = %f (seen from lane %u, local energy is %f)\n", min_energy, lane_idx, energy );
+    std::random_device rd;
+    std::mt19937 gen(rd());
 
-			     if( is_work_lane(winner_mask, idx.local, w_extent) ) printf("Orig lane with min energy = %f (seen from lane %u)\n", energy, lane_idx );
-			  }
-			}
-		}
-	};
+    std::normal_distribution<float> distr(0.f, 1.f);
 
-	void PFClusterTest::runTest(Queue& queue, reco::PFClusterDeviceCollection& collection ) const 
-	{
-		uint32_t items = 1024;
+    auto& viewProduct = hostProduct.view();
 
-	        auto n = static_cast<uint32_t>(collection->metadata().size());
-		uint32_t groups = cms::alpakatools::divide_up_by(n, items);
+    for (int i = 0; i < collectionSize; i++) {
+      viewProduct[i].depth() = i;
+      viewProduct[i].seedRHIdx() = i;
+      viewProduct[i].topoId() = i;
+      viewProduct[i].rhfracSize() = i + 1;
+      viewProduct[i].rhfracOffset() = i;
 
-		if(groups<1) {
-		  printf("Skip kernel launch...\n");
-		  return;
-		}
+      viewProduct[i].energy() = fabs(distr(gen));
 
-		auto workDiv =cms::alpakatools:: make_workdiv<Acc1D>(groups, items);
+      viewProduct[i].x() = distr(gen);
+      viewProduct[i].y() = distr(gen);
+      viewProduct[i].z() = distr(gen);
 
-		alpaka::exec<Acc1D>(queue, workDiv, PFClusterTestKernel{}, collection.view());
+      viewProduct[i].topoRHCount() = collectionSize / (i + 1);
+    }
 
-		alpaka::wait(queue);
-	}
+    viewProduct.nTopos() = collectionSize;
+    viewProduct.nSeeds() = collectionSize;
+    viewProduct.nRHFracs() = collectionSize;
 
-	void launch_test(Queue& queue, const int collectionSize) {
+    viewProduct.size() = collectionSize;
 
-	  PFClusterTest pfcluster_test_{};
-    	  // Create device products :
-	  reco::PFClusterHostCollection hostProduct{collectionSize, queue};
+    reco::PFClusterDeviceCollection deviceProduct{collectionSize, queue};
 
-          std::random_device rd;
-          std::mt19937 gen(rd());
+    alpaka::memcpy(queue, deviceProduct.buffer(), hostProduct.buffer());
 
-          std::normal_distribution<float> distr(0.f, 1.f);
+    printf("Run kernel: \n");
+    pfcluster_test_.runTest(queue, deviceProduct);
 
-	  auto& viewProduct = hostProduct.view();
+    printf("...done\n");
 
-          for( int i = 0; i < collectionSize; i++ ) {
-	     viewProduct[i].depth()        = i;
-             viewProduct[i].seedRHIdx()    = i;
-             viewProduct[i].topoId()       = i;
-             viewProduct[i].rhfracSize()   = i + 1;	     
-             viewProduct[i].rhfracOffset() = i;
-
-             viewProduct[i].energy() = fabs(distr(gen));
-
-	     viewProduct[i].x() = distr(gen);
-	     viewProduct[i].y() = distr(gen);
-	     viewProduct[i].z() = distr(gen);
-
-             viewProduct[i].topoRHCount() = collectionSize / (i+1);
-
-	  }
-
-	  viewProduct.nTopos() = collectionSize;
-          viewProduct.nSeeds() = collectionSize;
-          viewProduct.nRHFracs() = collectionSize;
-
-          viewProduct.size() = collectionSize;
-
-	  reco::PFClusterDeviceCollection deviceProduct{collectionSize, queue};
-
-          alpaka::memcpy(queue, deviceProduct.buffer(), hostProduct.buffer());
-
-	  printf("Run kernel: \n");
-    	  pfcluster_test_.runTest(queue, deviceProduct);
-
-	  printf("...done\n");
-
-	  alpaka::wait(queue);
-	}
+    alpaka::wait(queue);
+  }
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 
@@ -212,11 +216,3 @@ int main() {
 
   return 0;
 }
-
-
-
-
-
-
-
-

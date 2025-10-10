@@ -9,7 +9,6 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/memory.h"
 
-
 #include "DataFormats/SoATemplate/interface/SoACommon.h"
 #include "DataFormats/SoATemplate/interface/SoALayout.h"
 
@@ -38,16 +37,14 @@ namespace cmstest {
   )
   using TestPFClusterSoA = TestPFClusterSoALayout<>;
   using TestPFClusterHostCollection = PortableHostCollection<TestPFClusterSoA>;
-}  //
-
+}  // namespace cmstest
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
   namespace cmstest {
     using namespace ::cmstest;
 
     using TestPFClusterDeviceCollection = PortableCollection<::cmstest::TestPFClusterSoA>;
-  }  // namespace portabletest
-
+  }  // namespace cmstest
 
   class PFClusterTest {
   public:
@@ -60,110 +57,112 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
-	class PFClusterTestKernel {
-	public:
-		template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-		ALPAKA_FN_ACC void operator()(TAcc const& acc,
-					      cmstest::TestPFClusterDeviceCollection::View in) const 
-		{
-			const unsigned int nClusters = in.size();
-      
-                        const unsigned int w_extent = alpaka::warp::getSize(acc);
+  class PFClusterTestKernel {
+  public:
+    template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
+    ALPAKA_FN_ACC void operator()(TAcc const& acc, cmstest::TestPFClusterDeviceCollection::View in) const {
+      const unsigned int nClusters = in.size();
 
-			for (auto group : ::cms::alpakatools::uniform_groups(acc)) {  //loop over thread blocks
-		          // Only single block is active:
-                          if (group != 0) continue;
-                          for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(nClusters, w_extent))) {
-		             if(idx.local == 0) printf("Entry kernel body...\n");
-			     const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.global % 2 == 1 && idx.global < (w_extent - 20));
+      const unsigned int w_extent = alpaka::warp::getSize(acc);
 
-			     if (idx.local >= nClusters) continue;
+      for (auto group : ::cms::alpakatools::uniform_groups(acc)) {  //loop over thread blocks
+                                                                    // Only single block is active:
+        if (group != 0)
+          continue;
+        for (auto idx : ::cms::alpakatools::uniform_group_elements(
+                 acc, group, ::cms::alpakatools::round_up_by(nClusters, w_extent))) {
+          if (idx.local == 0)
+            printf("Entry kernel body...\n");
+          const unsigned int active_lanes_mask =
+              alpaka::warp::ballot(acc, idx.global % 2 == 1 && idx.global < (w_extent - 20));
 
-			     const unsigned int lane_idx = idx.local % w_extent;
+          if (idx.local >= nClusters)
+            continue;
 
-			     unsigned int local_offset = idx.local;
+          const unsigned int lane_idx = idx.local % w_extent;
 
-			     warp::syncWarpThreads_mask(acc, active_lanes_mask);
+          unsigned int local_offset = idx.local;
 
-			     const unsigned int warp_offsets = warp_sparse_exclusive_sum(acc, active_lanes_mask, local_offset, lane_idx);
+          warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
-			     if(idx.local < w_extent) printf("Result %u, lane id %u, local offset = %u.\n", warp_offsets, lane_idx, local_offset);
+          const unsigned int warp_offsets = warp_sparse_exclusive_sum(acc, active_lanes_mask, local_offset, lane_idx);
 
-			  }
+          if (idx.local < w_extent)
+            printf("Result %u, lane id %u, local offset = %u.\n", warp_offsets, lane_idx, local_offset);
+        }
 
-			  for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, ::cms::alpakatools::round_up_by(w_extent, w_extent))) {
-                             if(idx.local < w_extent / 8) printf("Entry kernel body 2.. %d\n", idx.local);
-                          }
-			}
-		}
-	};
+        for (auto idx : ::cms::alpakatools::uniform_group_elements(
+                 acc, group, ::cms::alpakatools::round_up_by(w_extent, w_extent))) {
+          if (idx.local < w_extent / 8)
+            printf("Entry kernel body 2.. %d\n", idx.local);
+        }
+      }
+    }
+  };
 
-	void PFClusterTest::runTest(Queue& queue, cmstest::TestPFClusterDeviceCollection& collection ) const 
-	{
-		uint32_t items = 1024;
+  void PFClusterTest::runTest(Queue& queue, cmstest::TestPFClusterDeviceCollection& collection) const {
+    uint32_t items = 1024;
 
-	        auto n = static_cast<uint32_t>(collection->metadata().size());
-		uint32_t groups = cms::alpakatools::divide_up_by(n, items);
+    auto n = static_cast<uint32_t>(collection->metadata().size());
+    uint32_t groups = cms::alpakatools::divide_up_by(n, items);
 
-		if(groups<1) {
-		  printf("Skip kernel launch...\n");
-		  return;
-		}
+    if (groups < 1) {
+      printf("Skip kernel launch...\n");
+      return;
+    }
 
-		auto workDiv =cms::alpakatools:: make_workdiv<Acc1D>(groups, items);
+    auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(groups, items);
 
-		alpaka::exec<Acc1D>(queue, workDiv, PFClusterTestKernel{}, collection.view());
+    alpaka::exec<Acc1D>(queue, workDiv, PFClusterTestKernel{}, collection.view());
 
-		alpaka::wait(queue);
-	}
+    alpaka::wait(queue);
+  }
 
-	void launch_test(Queue& queue, const int collectionSize) {
+  void launch_test(Queue& queue, const int collectionSize) {
+    PFClusterTest pfcluster_test_{};
+    // Create device products :
+    cmstest::TestPFClusterHostCollection hostProduct{collectionSize, queue};
 
-	  PFClusterTest pfcluster_test_{};
-    	  // Create device products :
-	  cmstest::TestPFClusterHostCollection hostProduct{collectionSize, queue};
+    std::random_device rd;
+    std::mt19937 gen(rd());
 
-          std::random_device rd;
-          std::mt19937 gen(rd());
+    std::normal_distribution<float> distr(0.f, 1.f);
 
-          std::normal_distribution<float> distr(0.f, 1.f);
+    auto& viewProduct = hostProduct.view();
 
-	  auto& viewProduct = hostProduct.view();
+    for (int i = 0; i < collectionSize; i++) {
+      viewProduct[i].depth() = i;
+      viewProduct[i].seedRHIdx() = i;
+      viewProduct[i].topoId() = i;
+      viewProduct[i].rhfracSize() = i;
+      viewProduct[i].rhfracOffset() = i;
 
-          for( int i = 0; i < collectionSize; i++ ) {
-	     viewProduct[i].depth()        = i;
-             viewProduct[i].seedRHIdx()    = i;
-             viewProduct[i].topoId()       = i;
-             viewProduct[i].rhfracSize()   = i;	     
-             viewProduct[i].rhfracOffset() = i;
+      viewProduct[i].energy() = distr(gen);
 
-             viewProduct[i].energy() = distr(gen);
+      viewProduct[i].x() = distr(gen);
+      viewProduct[i].y() = distr(gen);
+      viewProduct[i].z() = distr(gen);
 
-	     viewProduct[i].x() = distr(gen);
-	     viewProduct[i].y() = distr(gen);
-	     viewProduct[i].z() = distr(gen);
+      viewProduct[i].topoRHCount() = collectionSize / (i + 1);
+    }
 
-             viewProduct[i].topoRHCount() = collectionSize / (i+1);
+    viewProduct.nTopos() = collectionSize;
+    viewProduct.nSeeds() = collectionSize;
+    viewProduct.nRHFracs() = collectionSize;
 
-	  }
+    viewProduct.size() = collectionSize;
 
-	  viewProduct.nTopos() = collectionSize;
-          viewProduct.nSeeds() = collectionSize;
-          viewProduct.nRHFracs() = collectionSize;
+    cmstest::TestPFClusterDeviceCollection deviceProduct{collectionSize, queue};
 
-          viewProduct.size() = collectionSize;
+    alpaka::memcpy(queue, deviceProduct.buffer(), hostProduct.buffer());
 
-    	  cmstest::TestPFClusterDeviceCollection deviceProduct{collectionSize, queue};
+    printf("Run kernel: \n");
+    pfcluster_test_.runTest(queue, deviceProduct);
 
-          alpaka::memcpy(queue, deviceProduct.buffer(), hostProduct.buffer());
+    printf("...done\n");
 
-	  printf("Run kernel: \n");
-    	  pfcluster_test_.runTest(queue, deviceProduct);
-
-	  printf("...done\n");
-
-	  alpaka::wait(queue);
-	}
+    alpaka::wait(queue);
+  }
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
 
@@ -191,11 +190,3 @@ int main() {
 
   return 0;
 }
-
-
-
-
-
-
-
-

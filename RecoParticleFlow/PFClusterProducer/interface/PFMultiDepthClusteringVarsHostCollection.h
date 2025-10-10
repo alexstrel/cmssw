@@ -9,5 +9,3 @@ namespace reco {
 }
 
 #endif  // RecoParticleFlow_PFClusterProducer_interface_PFMultiDepthClusteringVarsHostCollection_h
-
-
