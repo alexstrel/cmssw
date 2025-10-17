@@ -86,7 +86,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                                   const reco::PFClusterDeviceCollection::ConstView pfClusters,
                                   const reco::PFRecHitFractionDeviceCollection::ConstView pfRecHitFracs,
                                   const reco::PFRecHitDeviceCollection::ConstView pfRecHit) const {
-      const unsigned int nClusters = pfClusters.size();
+      //const unsigned int nClusters = pfClusters.size();
+      const unsigned int nClusters = pfClusters.nSeeds();
 
       const unsigned int w_extent = alpaka::warp::getSize(acc);
 
