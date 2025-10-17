@@ -38,7 +38,6 @@
 #include "RecoParticleFlow/PFClusterProducer/interface/PFMultiDepthClusteringVarsHostCollection.h"
 #include "RecoParticleFlow/PFClusterProducer/interface/PFMultiDepthClusteringEdgeVarsHostCollection.h"
 
-
 using namespace reco;
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
@@ -99,8 +98,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     for (int i = 0; i < 2 * nClusters; i++) {
       const int begin = hClusteringEdgeVars[i].mdpf_adjacencyIndex();
       const int end = hClusteringEdgeVars[i + 1].mdpf_adjacencyIndex();
-
-      const int len = end - begin;
 
       std::cout << i << ": [";
       for (int j = begin; j < end; j++) {

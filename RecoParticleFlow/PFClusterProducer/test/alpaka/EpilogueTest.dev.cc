@@ -24,7 +24,7 @@
 #include "DataFormats/Portable/interface/alpaka/PortableCollection.h"
 
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterizerHelper.h"
-#include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthShowerShape.h"
+#include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthECLCCEpilogue.h"
 
 #include "DataFormats/ParticleFlowReco/interface/PFClusterHostCollection.h"
 #include "DataFormats/ParticleFlowReco/interface/alpaka/PFClusterDeviceCollection.h"
@@ -64,25 +64,25 @@ namespace {
   public:
     enum ParIdx { kDx = 0, kDy = 1, kDz = 2, kNPar = 3 };
 
-    BoxCell(CornersMgr* cMgr, GlobalPoint const& center, CCGFloat const* par) : CaloCellGeometry(center, cMgr, par) {
+    BoxCell(CornersMgr *cMgr, GlobalPoint const &center, CCGFloat const *par) : CaloCellGeometry(center, cMgr, par) {
       initSpan();
     }
 
-    void vocalCorners(Pt3DVec& out, CCGFloat const*, Pt3D& ref) const final {
+    void vocalCorners(Pt3DVec &out, CCGFloat const *, Pt3D &ref) const final {
       out.clear();
       out.reserve(k_cornerSize);
-      auto const& cv = getCorners();
+      auto const &cv = getCorners();
       for (unsigned i = 0; i < k_cornerSize; ++i)
         out.emplace_back(cv[i].x(), cv[i].y(), cv[i].z());
-      auto const& P = getPosition();
+      auto const &P = getPosition();
       ref = Pt3D(P.x(), P.y(), P.z());
     }
 
     // compute 8 corners from (center, dx,dy,dz) stored in param()
-    void initCorners(CornersVec& c) final {
-      auto const* p = param();  // points to 3 floats: dx,dy,dz
+    void initCorners(CornersVec &c) final {
+      auto const *p = param();  // points to 3 floats: dx,dy,dz
       auto const dx = p[kDx], dy = p[kDy], dz = p[kDz];
-      auto const& C = getPosition();
+      auto const &C = getPosition();
 
       // indices: 0..3 at z - dz, 4..7 at z + dz (match CaloCellGeometry::initBack)
       c[0] = GlobalPoint(C.x() - dx, C.y() - dy, C.z() - dz);
@@ -96,14 +96,17 @@ namespace {
     }
   };
 
+  // Thread-local pools: REQUIRED so EZArrayFL/EZMgrFL have backing storage
+  //!
   static thread_local CaloCellGeometry::CornersMgr s_cornersMgr(65536,
                                                                 CaloCellGeometry::k_cornerSize);  //k_cornerSize = 8;
 
+  //!
   static thread_local CaloCellGeometry::ParMgr s_parMgr(65536, /*subSize=*/BoxCell::kNPar);
 
   static thread_local CaloCellGeometry::ParVecVec s_parBlocks;
 
-  static thread_local const CaloCellGeometry::CCGFloat* s_boxParPtr = [] {
+  static thread_local const CaloCellGeometry::CCGFloat *s_boxParPtr = [] {
     using CCF = CaloCellGeometry::CCGFloat;
     std::vector<CCF> pars = {1.f, 1.f, 1.f};
     return CaloCellGeometry::getParmPtr(pars, &s_parMgr, s_parBlocks);
@@ -116,7 +119,8 @@ namespace {
   }
 }  // namespace
 
-static inline HcalDetId makeDetId(int ieta, int iphi, int depth) {
+static inline HcalDetId makeDetId(int ieta, int iphi, int depth) {  //makeHBdetId
+
   iphi = std::max(1, std::min(iphi, 72));
   ieta = std::max(1, std::min(16, ieta));
   depth = (depth <= 1) ? 1 : 2;
@@ -125,28 +129,32 @@ static inline HcalDetId makeDetId(int ieta, int iphi, int depth) {
 }
 
 static inline reco::PFRecHit makePFRecHit(
-    PFLayer::Layer layer, const HcalDetId& detId, float energy, float x, float y, float z, uint32_t flags = 0) {
+    PFLayer::Layer layer, const HcalDetId &detId, float energy, float x, float y, float z, uint32_t flags = 0) {
   // half-sizes for a simple cell; tweak as you like
   return reco::PFRecHit{makeBoxCellGeo(x, y, z), detId.rawId(), layer, energy, flags};
 }
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
-  class ShowerShapeTest {
+  class EpilogueTest {
   public:
-    void apply(Queue& queue,
-               reco::PFMultiDepthClusteringVarsDeviceCollection& mdpfClusteringVars,
-               const reco::PFClusterDeviceCollection& pfClusters,
-               const reco::PFRecHitFractionDeviceCollection& pfRecHitFracs,
-               const reco::PFRecHitDeviceCollection& pfRecHit) const;
+    void apply(Queue &queue,
+               reco::PFClusterDeviceCollection &outPFCluster,
+               reco::PFRecHitFractionDeviceCollection &outPFRecHitFracs,
+               const reco::PFMultiDepthClusteringVarsDeviceCollection &mdpfClusteringVars,
+               const reco::PFClusterDeviceCollection &pfClusters,
+               const reco::PFRecHitFractionDeviceCollection &pfRecHitFracs,
+               const reco::PFRecHitDeviceCollection &pfRecHit) const;
   };
 
-  void ShowerShapeTest::apply(Queue& queue,
-                              reco::PFMultiDepthClusteringVarsDeviceCollection& mdpfClusteringVars,
-                              const reco::PFClusterDeviceCollection& pfClusters,
-                              const reco::PFRecHitFractionDeviceCollection& pfRecHitFracs,
-                              const reco::PFRecHitDeviceCollection& pfRecHit) const {
-    uint32_t items = 1024;
+  void EpilogueTest::apply(Queue &queue,
+                           reco::PFClusterDeviceCollection &outPFCluster,
+                           reco::PFRecHitFractionDeviceCollection &outPFRecHitFracs,
+                           const reco::PFMultiDepthClusteringVarsDeviceCollection &mdpfClusteringVars,
+                           const reco::PFClusterDeviceCollection &pfClusters,
+                           const reco::PFRecHitFractionDeviceCollection &pfRecHitFracs,
+                           const reco::PFRecHitDeviceCollection &pfRecHit) const {
+    uint32_t items = 128;
 
     auto n = static_cast<uint32_t>(pfClusters->metadata().size());
     uint32_t groups = cms::alpakatools::divide_up_by(n, items);
@@ -160,7 +168,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     alpaka::exec<Acc1D>(queue,
                         workDiv,
-                        ShowerShapeKernel{},
+                        ECLCCEpilogueKernel{},
+                        outPFCluster.view(),
+                        outPFRecHitFracs.view(),
                         mdpfClusteringVars.view(),
                         pfClusters.view(),
                         pfRecHitFracs.view(),
@@ -169,13 +179,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     alpaka::wait(queue);
   }
 
-  void launch_shower_shape_test(Queue& queue,
-                                ::reco::PFMultiDepthClusteringVarsHostCollection& hostClusteringVars,
-                                const ::reco::PFClusterHostCollection& hostClusters,
-                                const ::reco::PFRecHitHostCollection& hostRecHits,
-                                const ::reco::PFRecHitFractionHostCollection& hostRecHitFracs) {
-    ShowerShapeTest shower_shape_test{};
+  void launch_epilogue_test(Queue &queue,
+                            reco::PFClusterHostCollection &outClusters,
+                            reco::PFRecHitFractionHostCollection &outRecHitFracs,
+                            const ::reco::PFMultiDepthClusteringVarsHostCollection &hostClusteringVars,
+                            const ::reco::PFClusterHostCollection &hostClusters,
+                            const ::reco::PFRecHitHostCollection &hostRecHits,
+                            const ::reco::PFRecHitFractionHostCollection &hostRecHitFracs) {
+    EpilogueTest epilogue_test{};
 
+    auto hOutClusters = outClusters.view();
     auto hClusters = hostClusters.view();
     auto hRecHits = hostRecHits.view();
     auto hRecHitFracs = hostRecHitFracs.view();
@@ -183,6 +196,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     const int nClusters = hClusters.size();
     const int nHits = hRecHits.size();
     const int nFracs = hClusters.nRHFracs();
+
+    const int nOutClusters = hOutClusters.size();
+
+    reco::PFClusterDeviceCollection outDevClusters{nOutClusters, queue};
+    reco::PFRecHitFractionDeviceCollection outDevRecHitFracs{nFracs, queue};
 
     reco::PFClusterDeviceCollection devClusters{nClusters, queue};
     reco::PFRecHitDeviceCollection devRecHits{nHits, queue};
@@ -194,9 +212,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     reco::PFMultiDepthClusteringVarsDeviceCollection devClusteringVars{nClusters, queue};
 
-    shower_shape_test.apply(queue, devClusteringVars, devClusters, devRecHitFracs, devRecHits);
+    alpaka::memcpy(queue, devClusteringVars.buffer(), hostClusteringVars.buffer());
 
-    alpaka::memcpy(queue, hostClusteringVars.buffer(), devClusteringVars.buffer());
+    printf("Run epilogue kernel %d %d %d \n", nClusters, nHits, nFracs);
+    epilogue_test.apply(
+        queue, outDevClusters, outDevRecHitFracs, devClusteringVars, devClusters, devRecHitFracs, devRecHits);
+    printf("...done.\n");
+
+    alpaka::memcpy(queue, outClusters.buffer(), outDevClusters.buffer());
+    alpaka::memcpy(queue, outRecHitFracs.buffer(), outDevRecHitFracs.buffer());
+
     alpaka::wait(queue);
   }
 
@@ -210,10 +235,10 @@ struct Fraction {  // content is same as for SoA
   float frac;      // contribution of that hit to that cluster
 };
 
-std::pair<int, int> create(::reco::PFClusterCollection& clusters,
-                           ::reco::PFRecHitCollection& hits,
-                           std::vector<Fraction>& rhfracs,
-                           std::vector<int>& seedIdx,
+std::pair<int, int> create(::reco::PFClusterCollection &clusters,
+                           ::reco::PFRecHitCollection &hits,
+                           std::vector<Fraction> &rhfracs,
+                           std::vector<int> &seedIdx,
                            const int nClusters,
                            const int minHitsPerCluster = 2,
                            const int maxHitsPerCluster = 10,
@@ -238,6 +263,7 @@ std::pair<int, int> create(::reco::PFClusterCollection& clusters,
   int nHits = 0;
 
   int tot_offset = 0;
+
   for (int i = 0; i < nClusters; ++i) {
     const bool is_depth1 = (i % 2 == 0);
     const PFLayer::Layer layer = is_depth1 ? PFLayer::Layer::HCAL_BARREL1 : PFLayer::Layer::HCAL_BARREL2;
@@ -256,6 +282,7 @@ std::pair<int, int> create(::reco::PFClusterCollection& clusters,
     cluster.setDepth(depth);
 
     const int nRH = nRH_distr(rng);
+
     nHits += nRH;
 
     std::vector<float> w(nRH);
@@ -271,6 +298,7 @@ std::pair<int, int> create(::reco::PFClusterCollection& clusters,
 
     const double phc = std::atan2(y, x);
     int iphi = 1 + int((phc < 0 ? phc + 2 * M_PI : phc) / (2 * M_PI) * 72.0);
+    //int ieta = std::max(1, std::min(16, int(std::hypot(y, x)/11.0)));
     int ieta_mag = std::max(1, std::min(16, int(std::hypot(y, x) / 11.0)));
     int ieta = (std::uniform_int_distribution<int>(0, 1)(rng) ? +ieta_mag : -ieta_mag);
 
@@ -286,10 +314,12 @@ std::pair<int, int> create(::reco::PFClusterCollection& clusters,
       const HcalDetId detId = makeDetId(ieta, ((iphi + j) % 72) + 1, depth);
       const int hIdx = tot_offset + j;
       auto hit = makePFRecHit(layer, detId, eH, hx, hy, hz);
+
       hitOwners.push_back(i);
 
       // primary fraction entry: this hit contributes to its owner cluster:
       const float frac_value = (cluster.energy() > 0.0) ? (eH / float(cluster.energy())) : 0.f;
+
       rhfracs.push_back(Fraction{hIdx, i, frac_value});
 
       float current_energy = frac_value * /*hit.energy()*/ eH;
@@ -359,13 +389,13 @@ std::pair<int, int> create(::reco::PFClusterCollection& clusters,
   return std::make_pair(nHits, nFracs);
 }
 
-void load(::reco::PFClusterHostCollection& hostClusters,
-          ::reco::PFRecHitHostCollection& hostRecHits,
-          ::reco::PFRecHitFractionHostCollection& hostRecHitFracs,
-          const ::reco::PFClusterCollection& clusters,
-          const ::reco::PFRecHitCollection& hits,
-          const std::vector<Fraction>& rhfracs,
-          const std::vector<int>& seedIdx) {
+void load(::reco::PFClusterHostCollection &hostClusters,
+          ::reco::PFRecHitHostCollection &hostRecHits,
+          ::reco::PFRecHitFractionHostCollection &hostRecHitFracs,
+          const ::reco::PFClusterCollection &clusters,
+          const ::reco::PFRecHitCollection &hits,
+          const std::vector<Fraction> &rhfracs,
+          const std::vector<int> &seedIdx) {
   auto hClusters = hostClusters.view();
   auto hRecHits = hostRecHits.view();
   auto hRecHitFracs = hostRecHitFracs.view();
@@ -375,9 +405,9 @@ void load(::reco::PFClusterHostCollection& hostClusters,
   const int nFracs = hClusters.nRHFracs();
 
   for (int i = 0; i < nHits; ++i) {
-    const ::reco::PFRecHit& rhit = hits[i];
+    const ::reco::PFRecHit &rhit = hits[i];
 
-    const auto& rhpos = rhit.position();
+    const auto &rhpos = rhit.position();
 
     hRecHits[i].detId() = rhit.detId();
     hRecHits[i].denseId() = i;  //fake parameter for now.
@@ -394,7 +424,7 @@ void load(::reco::PFClusterHostCollection& hostClusters,
   int recHitFracIdx = 0;
 
   for (int i = 0; i < nClusters; ++i) {
-    const ::reco::PFCluster& cluster = clusters[i];
+    const ::reco::PFCluster &cluster = clusters[i];
 
     const int recHitOffset = recHitFracIdx;
 
@@ -409,7 +439,7 @@ void load(::reco::PFClusterHostCollection& hostClusters,
       }
     }
 
-    const auto& cpos = cluster.position();
+    const auto &cpos = cluster.position();
 
     hClusters[i].depth() = cluster.depth();
     hClusters[i].seedRHIdx() = seedIdx[i];
@@ -424,53 +454,130 @@ void load(::reco::PFClusterHostCollection& hostClusters,
   }
 }
 
-void checkShowerShapes(const ::reco::PFClusterCollection& clusters,
-                       const ::reco::PFRecHitCollection& recHits,
-                       const ::reco::PFMultiDepthClusteringVarsHostCollection& hostClusteringVars,
-                       const std::vector<Fraction>& rhfracs) {
-  const int nClusters = clusters.size();
-
-  std::vector<double> etaRMS2(nClusters, 0.0);
-  std::vector<double> phiRMS2(nClusters, 0.0);
-
-  for (int i = 0; i < nClusters; ++i) {
-    const int cluster_idx = i;
-
-    const ::reco::PFCluster& cluster = clusters[cluster_idx];
-
-    double etaSum = 0.0;
-    double phiSum = 0.0;
-
-    auto const& crep = cluster.positionREP();
-    for (const auto& frac : rhfracs) {
-      if (frac.pfcIdx != i)
-        continue;
-      auto const& h = recHits[frac.pfrhIdx];
-      auto const& rep = h.positionREP();
-
-      etaSum += (frac.frac * h.energy()) * std::abs(rep.eta() - crep.eta());
-      phiSum += (frac.frac * h.energy()) * std::abs(deltaPhi(rep.phi(), crep.phi()));
-    }
-    //protection for single line : assign ~ tower
-    etaRMS2[i] = std::max(etaSum / cluster.energy(), 0.1);
-    etaRMS2[i] *= etaRMS2[i];
-    phiRMS2[i] = std::max(phiSum / cluster.energy(), 0.1);
-    phiRMS2[i] *= phiRMS2[i];
-  }
-
+void create_cc_list(::reco::PFMultiDepthClusteringVarsHostCollection &hostClusteringVars,
+                    const std::vector<int> cc_roots,
+                    const int nClusters) {
   auto hClusteringVars = hostClusteringVars.view();
 
-  for (int i = 0; i < nClusters; i++) {
-    const ::reco::PFCluster& cluster = clusters[i];
-    auto const& crep = cluster.positionREP();
+  const int low_cc_roots_num = 2;  //zero and the next (after zero) cc roots
+  const int cc_roots_num = static_cast<int>(cc_roots.size());
 
-    printf("Result depth %f (cluster %f)\n", hClusteringVars[i].depth(), cluster.depth());
-    printf("Result energy %f (%f)\n", hClusteringVars[i].energy(), cluster.energy());
-    printf("Result eta %f (%f)\n", hClusteringVars[i].eta(), crep.eta());
-    printf("Result phi %f (%f)\n", hClusteringVars[i].phi(), crep.phi());
-    printf("Result etaRMS2 %f (%f)\n", hClusteringVars[i].etaRMS2(), etaRMS2[i]);
-    printf("Result phiRMS2 %f (%f)\n", hClusteringVars[i].phiRMS2(), phiRMS2[i]);
-    printf("=====================================================================\n");
+  std::mt19937 rng(std::random_device{}());
+
+  std::bernoulli_distribution pick_next_to_zero_cc_root(0.5);
+  std::bernoulli_distribution pick_zero_cc_root_cond(0.1 / 0.5);
+
+  std::uniform_int_distribution<int> pick_higher_cc_roots(low_cc_roots_num, cc_roots_num - 1);
+
+  int current_cc_root_idx = 0;
+
+  for (int i = 0; i < nClusters; ++i) {
+    const bool is_cc_root = std::binary_search(cc_roots.begin(), cc_roots.end(), i);
+
+    int x;
+    if (is_cc_root) {
+      x = i;
+      if (current_cc_root_idx < cc_roots_num - 1)
+        current_cc_root_idx += 1;
+    } else {
+      bool is_set = false;
+      while (is_set == false) {
+        if (pick_next_to_zero_cc_root(rng)) {
+          x = 1;
+          is_set = true;
+        } else if (pick_zero_cc_root_cond(rng)) {
+          x = 0;
+          is_set = true;
+        } else {
+          x = cc_roots[pick_higher_cc_roots(rng)];
+          if (x < cc_roots[current_cc_root_idx])
+            is_set = true;
+        }
+      }
+    }
+    hClusteringVars[i].mdpf_topoId() = x;
+    //printf("Cluster %d linked to %d\n", i, x);
+  }
+}
+
+void checkEpilogue(const ::reco::PFClusterHostCollection &outHostClusters,
+                   const ::reco::PFRecHitFractionHostCollection &outHostRecHitsFracs,
+                   const ::reco::PFClusterHostCollection &inHostClusters,
+                   const ::reco::PFRecHitHostCollection &recHits,
+                   const ::reco::PFRecHitFractionHostCollection &inHostRecHitsFracs,
+                   const ::reco::PFMultiDepthClusteringVarsHostCollection &hostClusteringVars,
+                   const std::vector<int> cc_roots) {
+  auto hostClusteringVarsView = hostClusteringVars.view();
+  auto inHostClustersView = inHostClusters.view();
+  auto outHostClustersView = outHostClusters.view();
+  auto inHostRecHitsFracsView = inHostRecHitsFracs.view();
+  auto outHostRecHitsFracsView = outHostRecHitsFracs.view();
+  auto recHitsView = recHits.view();
+
+  const int inClustersNum = inHostClustersView.size();
+
+  for (auto &cc_root : cc_roots) {
+    printf("Process cc root %d\n", cc_root);
+    int tot_recFracSize = 0;
+    bool is_valid_seed = false;
+    int cc_seed = inHostClustersView[cc_root].seedRHIdx();
+    float cc_energy = recHitsView[cc_seed].energy();
+
+    for (int i = 0; i < inClustersNum; i++) {
+      const int rep = hostClusteringVarsView[i].mdpf_topoId();
+      if (rep == cc_root) {
+        const auto recFracOffset = inHostClustersView[i].rhfracOffset();
+        const auto recFracSize = inHostClustersView[i].rhfracSize();
+
+        auto seed = inHostClustersView[i].seedRHIdx();
+
+        auto seed_energy = recHitsView[seed].energy();
+
+        printf("RHFracs offset %d RHSFrac size %d (seed %d)\n", recFracOffset, recFracSize, seed);
+
+        tot_recFracSize += recFracSize;
+        for (int j = 0; j < recFracSize; j++) {
+          auto recHitidx = inHostRecHitsFracsView[recFracOffset + j].pfrhIdx();
+          if (seed == recHitidx)
+            is_valid_seed = true;
+          //printf("RH index %d\n", recHitidx);
+        }
+
+        if (is_valid_seed == false) {
+          printf("Component seeds not valid for cluster %d!\n", rep);
+        } else {
+          if (cc_energy < seed_energy) {
+            cc_seed = seed;
+            cc_energy = seed_energy;
+            printf("updated seed for cluster %d\n", rep);
+          }
+          //printf("CC seed energy %d\t %f.\n", cc_seed, cc_energy);
+          is_valid_seed = false;
+        }
+      }
+    }
+    printf("TOT rh size = %d , seed = %d\n", tot_recFracSize, cc_seed);
+  }
+
+  const int outClustersNum = outHostClustersView.size();
+
+  for (int i = 0; i < outClustersNum; i++) {
+    const auto recFracOffset = outHostClustersView[i].rhfracOffset();
+    const auto recFracSize = outHostClustersView[i].rhfracSize();
+    const auto clidx = outHostRecHitsFracsView[recFracOffset].pfcIdx();
+    const auto seed = outHostClustersView[i].seedRHIdx();
+    const auto energy = recHitsView[seed].energy();
+    printf("OUT cluster RHF offset %d RHF size %d  idx %d seed %d energy %f\n",
+           recFracOffset,
+           recFracSize,
+           clidx,
+           seed,
+           energy);
+
+    for (int j = 0; j < recFracSize; j++) {
+      auto recHitidx = outHostRecHitsFracsView[recFracOffset + j].pfrhIdx();
+      //printf("OUT RH index %d\n", recHitidx);
+    }
   }
 }
 
@@ -479,16 +586,16 @@ using namespace std;
 
 int main() {
   // get the list of devices on the current platform
-  auto const& devices = cms::alpakatools::devices<Platform>();
+  auto const &devices = cms::alpakatools::devices<Platform>();
   if (devices.empty()) {
     std::cerr << "No devices available for the " EDM_STRINGIZE(ALPAKA_ACCELERATOR_NAMESPACE) " backend, "
       "the test will be skipped.\n";
     exit(EXIT_FAILURE);
   }
 
-  const int nClusters = 100;
-  const int maxHitsPerCluster = 67;
-  const int minHitsPerCluster = 23;
+  const int nClusters = 100;         // default 100
+  const int maxHitsPerCluster = 67;  // default 67
+  const int minHitsPerCluster = 23;  // default 23
 
   ::reco::PFClusterCollection clusters;
   clusters.reserve(nClusters);
@@ -506,16 +613,28 @@ int main() {
   const int nHits = sizes.first;
   const int nFracs = sizes.second;
 
+  std::vector<int> cc_roots = {0, 1, 5, 9, 33, 38};
+
+  const int cc_num = static_cast<int>(cc_roots.size());
+
   // run the test on each device
-  for (auto const& device : devices) {
+  for (auto const &device : devices) {
     auto queue = Queue(device);
+
+    ::reco::PFClusterHostCollection outHostClusters{cc_num, queue};
+    ::reco::PFRecHitFractionHostCollection outHostRecHitFracs{nFracs, queue};
 
     ::reco::PFClusterHostCollection hostClusters{nClusters, queue};
     ::reco::PFRecHitHostCollection hostRecHits{nHits, queue};
     ::reco::PFRecHitFractionHostCollection hostRecHitFracs{nFracs, queue};
 
+    ::reco::PFMultiDepthClusteringVarsHostCollection hostClusteringVars{nClusters, queue};
+
     auto hClusters = hostClusters.view();
+    auto outHClusters = outHostClusters.view();
     auto hRecHits = hostRecHits.view();
+
+    auto hClusteringVars = hostClusteringVars.view();
 
     hRecHits.size() = nHits;
 
@@ -524,13 +643,19 @@ int main() {
     hClusters.nRHFracs() = nFracs;
     hClusters.size() = nClusters;
 
+    outHClusters.size() = cc_num;
+
+    hClusteringVars.size() = nClusters;
+
     load(hostClusters, hostRecHits, hostRecHitFracs, clusters, hits, rhfracs, seedIdx);
 
-    ::reco::PFMultiDepthClusteringVarsHostCollection hostClusteringVars{nClusters, queue};
+    create_cc_list(hostClusteringVars, cc_roots, nClusters);
 
-    launch_shower_shape_test(queue, hostClusteringVars, hostClusters, hostRecHits, hostRecHitFracs);
+    launch_epilogue_test(
+        queue, outHostClusters, outHostRecHitFracs, hostClusteringVars, hostClusters, hostRecHits, hostRecHitFracs);
 
-    checkShowerShapes(clusters, hits, hostClusteringVars, rhfracs);
+    checkEpilogue(
+        outHostClusters, outHostRecHitFracs, hostClusters, hostRecHits, hostRecHitFracs, hostClusteringVars, cc_roots);
   }
 
   return 0;
