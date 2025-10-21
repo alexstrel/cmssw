@@ -95,7 +95,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     alpaka::wait(queue);
 
-    for (int i = 0; i < 2 * nClusters; i++) {
+    for (int i = 0; i < nClusters; i++) {
       const int begin = hClusteringEdgeVars[i].mdpf_adjacencyIndex();
       const int end = hClusteringEdgeVars[i + 1].mdpf_adjacencyIndex();
 

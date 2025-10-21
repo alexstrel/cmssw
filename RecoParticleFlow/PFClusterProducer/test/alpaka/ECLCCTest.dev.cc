@@ -50,25 +50,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
     auto workDiv = cms::alpakatools::make_workdiv<Acc1D>(groups, items);
 
-    auto workl = ::cms::alpakatools::make_device_buffer<int[]>(queue, nClusters);
-    auto tp = ::cms::alpakatools::make_device_buffer<int[]>(queue, 4);
-    // Create algorithm internal resources:
-    auto cc_args = eclcc::CCGAlgorithmArgs<decltype(workl)>(
-        queue, mdpfClusteringVars, mdpfClusteringEdgeVars, workl, tp, nClusters);
-
-    auto cc_args_ptr = &cc_args;
     // ECL-CC init stage:
-    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCInitKernel{}, cc_args_ptr);
-
+    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCInitKernel{}, mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
     // ECL-CC run low-degree hooking:
-    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCLowDegreeComputeKernel{}, cc_args_ptr);
+    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCLowDegreeComputeKernel{}, mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
     // ECL-CC run mid-degree hooking:
-    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCMidDegreeComputeKernel{}, cc_args_ptr);
+    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCMidDegreeComputeKernel{}, mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
     // ECL-CC run high-degree hooking:
-    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCHighDegreeComputeKernel{}, cc_args_ptr);
+    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCHighDegreeComputeKernel{}, mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
     // ECL-CC run finalizing stage:
-    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCFlattenKernel{}, cc_args_ptr);
-
+    alpaka::exec<Acc1D>(queue, workDiv, eclcc::ECLCCFlattenKernel{}, mdpfClusteringVars.view());
     alpaka::wait(queue);
   }
 

@@ -111,39 +111,34 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
                           mdpfClusteringEdgeVars.view(),
                           mdpfClusteringVars.view());
     }
-    // Create and launch ECL-CC algorithm:
+    // Launch ECL-CC algorithm:
 
-    auto workl = ::cms::alpakatools::make_device_buffer<int[]>(queue, nClusters);
-    auto tp = ::cms::alpakatools::make_device_buffer<int[]>(queue, 4);
-    // reset all internal buffers:
-    alpaka::memset(queue, workl, 0);
-    alpaka::memset(queue, tp, 0);
-    // Create algorithm internal resources:
-    using Args = CCGAlgorithmArgs<std::remove_cvref_t<decltype(workl)>>;
-
-    auto cc_args = std::make_unique<Args>(queue, mdpfClusteringVars, mdpfClusteringEdgeVars, workl, tp, nClusters);
     // ECL-CC init stage:
-    alpaka::exec<Acc1D>(
-        queue, ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock), ECLCCInitKernel{}, cc_args.get());
+    alpaka::exec<Acc1D>(queue, 
+		        ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock), 
+			ECLCCInitKernel{}, 
+			mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
 
     // ECL-CC run low-degree hooking:
     alpaka::exec<Acc1D>(queue,
                         ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock),
                         ECLCCLowDegreeComputeKernel{},
-                        cc_args.get());
+                        mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
     // ECL-CC run mid-degree hooking:
     alpaka::exec<Acc1D>(queue,
                         ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock),
                         ECLCCMidDegreeComputeKernel{},
-                        cc_args.get());
+                        mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
     // ECL-CC run high-degree hooking:
     alpaka::exec<Acc1D>(queue,
                         ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock),
                         ECLCCHighDegreeComputeKernel{},
-                        cc_args.get());
+                        mdpfClusteringVars.view(), mdpfClusteringEdgeVars.view());
     // ECL-CC run finalizing stage:
-    alpaka::exec<Acc1D>(
-        queue, ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock), ECLCCFlattenKernel{}, cc_args.get());
+    alpaka::exec<Acc1D>(queue, 
+		        ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock), 
+			ECLCCFlattenKernel{}, 
+			mdpfClusteringVars.view());
 
     // ECL-CC epilogue:
     if (nClusters < 256) {
