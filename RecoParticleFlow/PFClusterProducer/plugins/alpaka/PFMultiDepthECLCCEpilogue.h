@@ -5,7 +5,7 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
 
-#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringCCLabelsDeviceCollection.h"
 
 #include "DataFormats/ParticleFlowReco/interface/alpaka/PFRecHitDeviceCollection.h"
 #include "DataFormats/ParticleFlowReco/interface/alpaka/PFRecHitFractionDeviceCollection.h"
@@ -67,19 +67,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   class ECLCCEpilogueKernel {
   public:
     template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc,
-                                  reco::PFClusterDeviceCollection::View outPFCluster,
-                                  reco::PFRecHitFractionDeviceCollection::View outPFRecHitFracs,
-                                  const reco::PFMultiDepthClusteringVarsDeviceCollection::ConstView pfClusteringVars,
-                                  const reco::PFClusterDeviceCollection::ConstView pfCluster,
-                                  const reco::PFRecHitFractionDeviceCollection::ConstView pfRecHitFracs,
-                                  const reco::PFRecHitDeviceCollection::ConstView pfRecHit) const {
+    ALPAKA_FN_ACC void operator()(
+        TAcc const& acc,
+        reco::PFClusterDeviceCollection::View outPFCluster,
+        reco::PFRecHitFractionDeviceCollection::View outPFRecHitFracs,
+        const reco::PFMultiDepthClusteringCCLabelsDeviceCollection::ConstView pfClusteringCCLabels,
+        const reco::PFClusterDeviceCollection::ConstView pfCluster,
+        const reco::PFRecHitFractionDeviceCollection::ConstView pfRecHitFracs,
+        const reco::PFRecHitDeviceCollection::ConstView pfRecHit) const {
       static_assert(max_w_items <= 32,
                     "ECLCCEpilogueKernel: Maximum number of supported warps per block is 32, "
                     "assuming one warp per 32 threads.");
       constexpr unsigned int max_w_extent = 32;  // max warp size..
 
-      const unsigned int nVertices = pfClusteringVars.size();
+      const unsigned int nVertices = pfClusteringCCLabels.size();
 
       const unsigned int w_extent = alpaka::warp::getSize(acc);
 
@@ -126,7 +127,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
           const unsigned int lane_idx = idx.local % w_extent;
 
-          const unsigned int rep_idx = pfClusteringVars[vertex_idx].mdpf_topoId();
+          const unsigned int rep_idx = pfClusteringCCLabels[vertex_idx].mdpf_topoId();
 
           component_roots[vertex_idx] = rep_idx;
 

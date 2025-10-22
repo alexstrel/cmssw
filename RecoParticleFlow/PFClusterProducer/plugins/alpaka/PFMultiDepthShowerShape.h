@@ -201,6 +201,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             } else {
               iter_consumed_pfrhf_size += eff_w_extent;
             }
+            if (idx.global == 0) {
+              mdpfClusteringVars.size() = nClusters;
+            }
           }
         }  //end uniform_groups
       }

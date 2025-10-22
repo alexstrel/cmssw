@@ -13,12 +13,6 @@ namespace reco {
                       SOA_COLUMN(float, energy),
                       SOA_COLUMN(float, eta),
                       SOA_COLUMN(float, phi),
-                      SOA_COLUMN(int, mdpf_topoId),
-                      SOA_COLUMN(int, workl),		      
-		      SOA_SCALAR(int, topH),
-		      SOA_SCALAR(int, posH),
-		      SOA_SCALAR(int, topL),
-                      SOA_SCALAR(int, posL),
                       SOA_SCALAR(int, size))
 
   using PFMultiDepthClusteringVarsSoA = PFMultiDepthClusteringVarsSoALayout<>;

@@ -7,7 +7,7 @@
 #include "HeterogeneousCore/AlpakaMath/interface/deltaPhi.h"
 #include "FWCore/Utilities/interface/CMSUnrollLoop.h"
 
-//#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringCCLabelsDeviceCollection.h"
 #include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
 
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
@@ -227,7 +227,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   public:
     template <typename TAcc, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
     ALPAKA_FN_ACC void operator()(TAcc const& acc,
-                                  reco::PFMultiDepthClusteringVarsDeviceCollection::View mdpfClusteringVars,
+                                  reco::PFMultiDepthClusteringCCLabelsDeviceCollection::View mdpfClusteringCCLabels,
+                                  const reco::PFMultiDepthClusteringVarsDeviceCollection::ConstView mdpfClusteringVars,
                                   const PFMultiDepthClusterParams* nSigma) const {
       const unsigned int nClusters = mdpfClusteringVars.size();
 
@@ -383,8 +384,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           warp::syncWarpThreads_mask(acc, init_active_lanes_mask);
           // Store linked cluster id (or self index, if isolated)
 
-          if (idx.global < nClusters)
-            mdpfClusteringVars[idx.global].mdpf_topoId() = selected_link_params.GetIdx();
+          if (idx.global < nClusters) {
+            mdpfClusteringCCLabels[idx.global].mdpf_topoId() = selected_link_params.GetIdx();
+            mdpfClusteringCCLabels[idx.global].workl() = 0;
+          }
+
+          if (idx.global == 0)
+            mdpfClusteringCCLabels.size() = nClusters;
 
         }  // end uniform_group_elements
       }  //end uniform_groups

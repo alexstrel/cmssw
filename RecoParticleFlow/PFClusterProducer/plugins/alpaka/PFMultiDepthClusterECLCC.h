@@ -5,7 +5,7 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/workdivision.h"
 
 #include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
-#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringCCLabelsDeviceCollection.h"
 
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterizerHelper.h"
@@ -76,26 +76,26 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
   template <typename TAcc>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE static void hook(
       TAcc const& acc,
-      reco::PFMultiDepthClusteringVarsDeviceCollection::View pfClusteringVars,
+      reco::PFMultiDepthClusteringCCLabelsDeviceCollection::View pfClusteringCCLabels,
       const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars,
       const int v,
       const int begin_v,
       const int end_v,
       const int offset_v) {
-    auto representative = [pfClusteringVarsPtr = &pfClusteringVars](const int v) -> int {
-      int curr_v = (*pfClusteringVarsPtr)[v].mdpf_topoId();
+    auto representative = [pfClusteringCCLabelsPtr = &pfClusteringCCLabels](const int v) -> int {
+      int curr_v = (*pfClusteringCCLabelsPtr)[v].mdpf_topoId();
 
       if (curr_v == v)
         return curr_v;
 
       int prev_v = v;
-      int next_v = (*pfClusteringVarsPtr)[curr_v].mdpf_topoId();
+      int next_v = (*pfClusteringCCLabelsPtr)[curr_v].mdpf_topoId();
 
       while (curr_v > next_v) {
-        (*pfClusteringVarsPtr)[prev_v].mdpf_topoId() = next_v;
+        (*pfClusteringCCLabelsPtr)[prev_v].mdpf_topoId() = next_v;
         prev_v = curr_v;
         curr_v = next_v;
-        next_v = (*pfClusteringVarsPtr)[curr_v].mdpf_topoId();
+        next_v = (*pfClusteringCCLabelsPtr)[curr_v].mdpf_topoId();
       }
 
       return curr_v;
@@ -117,7 +117,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
         int low_rep = is_low ? rep_v : rep_neigh_v;
         int high_rep = !is_low ? rep_v : rep_neigh_v;
 
-        int tmp = alpaka::atomicCas(acc, &pfClusteringVars[high_rep].mdpf_topoId(), high_rep, low_rep);
+        int tmp = alpaka::atomicCas(acc, &pfClusteringCCLabels[high_rep].mdpf_topoId(), high_rep, low_rep);
 
         if (tmp == high_rep)
           break;  // merge successful, exit.
@@ -134,10 +134,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
   class ECLCCInitKernel {
   public:
     template <typename TAcc>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc,  
-		                  reco::PFMultiDepthClusteringVarsDeviceCollection::View pfClusteringVars,
-                                  const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
-      const unsigned int nClusters = pfClusteringVars.size();	    
+    ALPAKA_FN_ACC void operator()(
+        TAcc const& acc,
+        reco::PFMultiDepthClusteringCCLabelsDeviceCollection::View pfClusteringCCLabels,
+        const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
+      const unsigned int nClusters = pfClusteringCCLabels.size();
 
       for (int v : ::cms::alpakatools::uniform_elements(acc, nClusters)) {
         const int begin_v = pfClusteringEdgeVars[v].mdpf_adjacencyIndex();
@@ -148,13 +149,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
           m = alpaka::math::min(acc, m, pfClusteringEdgeVars[i].mdpf_adjacencyList());
           i++;
         }
-        pfClusteringVars[v].mdpf_topoId() = m;
+        pfClusteringCCLabels[v].mdpf_topoId() = m;
 
         if (v == 0) {
-          pfClusteringVars.topH() = nClusters - 1; 
-          pfClusteringVars.posH() = nClusters - 1; 
-	  pfClusteringVars.topL() = 0;
-          pfClusteringVars.posL() = 0;
+          pfClusteringCCLabels.topH() = nClusters - 1;
+          pfClusteringCCLabels.posH() = nClusters - 1;
+          pfClusteringCCLabels.topL() = 0;
+          pfClusteringCCLabels.posL() = 0;
         }
       }
     }
@@ -163,21 +164,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
   class ECLCCLowDegreeComputeKernel {
   public:
     template <typename TAcc, Idx default_mid_degree_threshold = 400>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc,
-                                  reco::PFMultiDepthClusteringVarsDeviceCollection::View pfClusteringVars,
-                                  const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
+    ALPAKA_FN_ACC void operator()(
+        TAcc const& acc,
+        reco::PFMultiDepthClusteringCCLabelsDeviceCollection::View pfClusteringCCLabels,
+        const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
+      constexpr Idx mid_degree_threshold = default_mid_degree_threshold;
 
-      constexpr Idx mid_degree_threshold = default_mid_degree_threshold;	    
-
-      const unsigned int nClusters = pfClusteringVars.size();
-      
+      const unsigned int nClusters = pfClusteringCCLabels.size();
 
       const int warpExtent = alpaka::warp::getSize(acc);
 
       const unsigned int low_degree_threshold = warpExtent / 2;  // also okay for warp size
 
       for (int v : ::cms::alpakatools::uniform_elements(acc, nClusters)) {
-        if (pfClusteringVars[v].mdpf_topoId() == v)
+        if (pfClusteringCCLabels[v].mdpf_topoId() == v)
           continue;  // Skip if already its own representative
 
         const unsigned int begin_v = pfClusteringEdgeVars[v].mdpf_adjacencyIndex();
@@ -187,14 +187,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
         if (deg_v > low_degree_threshold) {
           // Assign vertex to appropriate worklist based on degree
           int idx = (deg_v <= mid_degree_threshold)
-                        ? alpaka::atomicAdd(acc, &pfClusteringVars.topL(), +1, alpaka::hierarchy::Blocks{})
-                        : alpaka::atomicAdd(acc, &pfClusteringVars.topH(), -1, alpaka::hierarchy::Blocks{});
-          pfClusteringVars[idx].workl() = v;
+                        ? alpaka::atomicAdd(acc, &pfClusteringCCLabels.topL(), +1, alpaka::hierarchy::Blocks{})
+                        : alpaka::atomicAdd(acc, &pfClusteringCCLabels.topH(), -1, alpaka::hierarchy::Blocks{});
+          pfClusteringCCLabels[idx].workl() = v;
 
           continue;
         }
         // Edge-process low-degree vertices:
-        hook(acc, pfClusteringVars, pfClusteringEdgeVars, v, begin_v, end_v, 1);
+        hook(acc, pfClusteringCCLabels, pfClusteringEdgeVars, v, begin_v, end_v, 1);
       }
     }
   };
@@ -202,15 +202,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
   class ECLCCMidDegreeComputeKernel {
   public:
     template <typename TAcc>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc,
-                                  reco::PFMultiDepthClusteringVarsDeviceCollection::View pfClusteringVars,
-                                  const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
-      const unsigned int nClusters = pfClusteringVars.size();
+    ALPAKA_FN_ACC void operator()(
+        TAcc const& acc,
+        reco::PFMultiDepthClusteringCCLabelsDeviceCollection::View pfClusteringCCLabels,
+        const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
+      const unsigned int nClusters = pfClusteringCCLabels.size();
 
       const int w_extent = alpaka::warp::getSize(acc);
 
-      for (auto idx :
-           ::cms::alpakatools::uniform_elements(acc, ::cms::alpakatools::round_up_by(nClusters, w_extent))) {
+      for (auto idx : ::cms::alpakatools::uniform_elements(acc, ::cms::alpakatools::round_up_by(nClusters, w_extent))) {
         const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx < nClusters);
         // Skip inactive lanes:
         if (idx >= nClusters)
@@ -218,23 +218,25 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
 
         const auto lane_idx = idx % w_extent;
 
-        const auto x = lane_idx == 0 ? alpaka::atomicAdd(acc, &pfClusteringVars.posL(), 1, alpaka::hierarchy::Blocks{}) : 0;
+        const auto x =
+            lane_idx == 0 ? alpaka::atomicAdd(acc, &pfClusteringCCLabels.posL(), 1, alpaka::hierarchy::Blocks{}) : 0;
 
         warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
         int i = warp::shfl_mask(acc, active_lanes_mask, x, 0, w_extent);
 
-        const int N = pfClusteringVars.topL(); /*topL*/
+        const int N = pfClusteringCCLabels.topL(); /*topL*/
 
         while (i < N) {
-          const auto v = pfClusteringVars[i].workl();
+          const auto v = pfClusteringCCLabels[i].workl();
 
           const auto begin_v = pfClusteringEdgeVars[v].mdpf_adjacencyIndex() + lane_idx;
           const auto end_v = pfClusteringEdgeVars[v + 1].mdpf_adjacencyIndex();
 
-          hook(acc, pfClusteringVars, pfClusteringEdgeVars, v, begin_v, end_v, w_extent);
+          hook(acc, pfClusteringCCLabels, pfClusteringEdgeVars, v, begin_v, end_v, w_extent);
           // Assign the next vertex in the worklist
-          const auto y = lane_idx == 0 ? alpaka::atomicAdd(acc, &pfClusteringVars.posL(), 1, alpaka::hierarchy::Blocks{}) : 0;
+          const auto y =
+              lane_idx == 0 ? alpaka::atomicAdd(acc, &pfClusteringCCLabels.posL(), 1, alpaka::hierarchy::Blocks{}) : 0;
 
           warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
@@ -247,16 +249,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
   class ECLCCHighDegreeComputeKernel {
   public:
     template <typename TAcc>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc,
-                                  reco::PFMultiDepthClusteringVarsDeviceCollection::View pfClusteringVars,
-                                  const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
-      const unsigned int nClusters = pfClusteringVars.size();
+    ALPAKA_FN_ACC void operator()(
+        TAcc const& acc,
+        reco::PFMultiDepthClusteringCCLabelsDeviceCollection::View pfClusteringCCLabels,
+        const reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::ConstView pfClusteringEdgeVars) const {
+      const unsigned int nClusters = pfClusteringCCLabels.size();
 
       auto const blockDim_x = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
 
       int& v = alpaka::declareSharedVar<int, __COUNTER__>(acc);
 
-      const int topH = pfClusteringVars.topH();
+      const int topH = pfClusteringCCLabels.topH();
 
       for (auto group : ::cms::alpakatools::uniform_groups(acc)) {
         for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, nClusters)) {
@@ -264,8 +267,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
             continue;
 
           if (::cms::alpakatools::once_per_block(acc)) {
-            int i = alpaka::atomicAdd(acc, &pfClusteringVars.posH() /*posH*/, -1, alpaka::hierarchy::Grids{});
-            v = (i > topH) ? pfClusteringVars[i].workl() : -1;
+            int i = alpaka::atomicAdd(acc, &pfClusteringCCLabels.posH() /*posH*/, -1, alpaka::hierarchy::Grids{});
+            v = (i > topH) ? pfClusteringCCLabels[i].workl() : -1;
           }
         }
 
@@ -279,11 +282,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
             const int begin_v = pfClusteringEdgeVars[v].mdpf_adjacencyIndex() + idx.local;
             const int end_v = pfClusteringEdgeVars[v + 1].mdpf_adjacencyIndex();
 
-            hook(acc, pfClusteringVars, pfClusteringEdgeVars, v, begin_v, end_v, blockDim_x);
+            hook(acc, pfClusteringCCLabels, pfClusteringEdgeVars, v, begin_v, end_v, blockDim_x);
 
             if (::cms::alpakatools::once_per_block(acc)) {
-              int i = alpaka::atomicAdd(acc, &pfClusteringVars.posH() /*posH*/, -1, alpaka::hierarchy::Blocks{});
-              v = (i > topH) ? pfClusteringVars[i].workl() : -1;
+              int i = alpaka::atomicAdd(acc, &pfClusteringCCLabels.posH() /*posH*/, -1, alpaka::hierarchy::Blocks{});
+              v = (i > topH) ? pfClusteringCCLabels[i].workl() : -1;
             }
           }
           alpaka::syncBlockThreads(acc);
@@ -295,20 +298,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
   class ECLCCFlattenKernel {
   public:
     template <typename TAcc>
-    ALPAKA_FN_ACC void operator()(TAcc const& acc,
-                                  reco::PFMultiDepthClusteringVarsDeviceCollection::View pfClusteringVars) const {
-      const unsigned int nClusters = pfClusteringVars.size();
+    ALPAKA_FN_ACC void operator()(
+        TAcc const& acc, reco::PFMultiDepthClusteringCCLabelsDeviceCollection::View pfClusteringCCLabels) const {
+      const unsigned int nClusters = pfClusteringCCLabels.size();
 
       for (int v : ::cms::alpakatools::uniform_elements(acc, nClusters)) {
-        int vstat = pfClusteringVars[v].mdpf_topoId();
-        int next = pfClusteringVars[vstat].mdpf_topoId();
+        int vstat = pfClusteringCCLabels[v].mdpf_topoId();
+        int next = pfClusteringCCLabels[vstat].mdpf_topoId();
         const int old = vstat;
         while (vstat > next) {
           vstat = next;
-          next = pfClusteringVars[vstat].mdpf_topoId();
+          next = pfClusteringCCLabels[vstat].mdpf_topoId();
         }
         if (old != vstat)
-          pfClusteringVars[v].mdpf_topoId() = vstat;
+          pfClusteringCCLabels[v].mdpf_topoId() = vstat;
       }
     }
   };

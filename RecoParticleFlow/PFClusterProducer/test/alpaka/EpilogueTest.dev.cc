@@ -48,7 +48,7 @@
 #include "Geometry/CaloGeometry/interface/TruncatedPyramid.h"
 #include "DataFormats/GeometryVector/interface/GlobalPoint.h"
 
-#include "RecoParticleFlow/PFClusterProducer/interface/PFMultiDepthClusteringVarsHostCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/PFMultiDepthClusteringCCLabelsHostCollection.h"
 
 #include "DataFormats/Math/interface/deltaPhi.h"
 
@@ -141,7 +141,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     void apply(Queue &queue,
                reco::PFClusterDeviceCollection &outPFCluster,
                reco::PFRecHitFractionDeviceCollection &outPFRecHitFracs,
-               const reco::PFMultiDepthClusteringVarsDeviceCollection &mdpfClusteringVars,
+               const reco::PFMultiDepthClusteringCCLabelsDeviceCollection &mdpfClusteringVars,
                const reco::PFClusterDeviceCollection &pfClusters,
                const reco::PFRecHitFractionDeviceCollection &pfRecHitFracs,
                const reco::PFRecHitDeviceCollection &pfRecHit) const;
@@ -150,7 +150,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   void EpilogueTest::apply(Queue &queue,
                            reco::PFClusterDeviceCollection &outPFCluster,
                            reco::PFRecHitFractionDeviceCollection &outPFRecHitFracs,
-                           const reco::PFMultiDepthClusteringVarsDeviceCollection &mdpfClusteringVars,
+                           const reco::PFMultiDepthClusteringCCLabelsDeviceCollection &mdpfClusteringVars,
                            const reco::PFClusterDeviceCollection &pfClusters,
                            const reco::PFRecHitFractionDeviceCollection &pfRecHitFracs,
                            const reco::PFRecHitDeviceCollection &pfRecHit) const {
@@ -182,7 +182,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   void launch_epilogue_test(Queue &queue,
                             reco::PFClusterHostCollection &outClusters,
                             reco::PFRecHitFractionHostCollection &outRecHitFracs,
-                            const ::reco::PFMultiDepthClusteringVarsHostCollection &hostClusteringVars,
+                            const ::reco::PFMultiDepthClusteringCCLabelsHostCollection &hostClusteringVars,
                             const ::reco::PFClusterHostCollection &hostClusters,
                             const ::reco::PFRecHitHostCollection &hostRecHits,
                             const ::reco::PFRecHitFractionHostCollection &hostRecHitFracs) {
@@ -210,7 +210,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     alpaka::memcpy(queue, devRecHits.buffer(), hostRecHits.buffer());
     alpaka::memcpy(queue, devRecHitFracs.buffer(), hostRecHitFracs.buffer());
 
-    reco::PFMultiDepthClusteringVarsDeviceCollection devClusteringVars{nClusters, queue};
+    reco::PFMultiDepthClusteringCCLabelsDeviceCollection devClusteringVars{nClusters, queue};
 
     alpaka::memcpy(queue, devClusteringVars.buffer(), hostClusteringVars.buffer());
 
@@ -454,7 +454,7 @@ void load(::reco::PFClusterHostCollection &hostClusters,
   }
 }
 
-void create_cc_list(::reco::PFMultiDepthClusteringVarsHostCollection &hostClusteringVars,
+void create_cc_list(::reco::PFMultiDepthClusteringCCLabelsHostCollection &hostClusteringVars,
                     const std::vector<int> cc_roots,
                     const int nClusters) {
   auto hClusteringVars = hostClusteringVars.view();
@@ -505,7 +505,7 @@ void checkEpilogue(const ::reco::PFClusterHostCollection &outHostClusters,
                    const ::reco::PFClusterHostCollection &inHostClusters,
                    const ::reco::PFRecHitHostCollection &recHits,
                    const ::reco::PFRecHitFractionHostCollection &inHostRecHitsFracs,
-                   const ::reco::PFMultiDepthClusteringVarsHostCollection &hostClusteringVars,
+                   const ::reco::PFMultiDepthClusteringCCLabelsHostCollection &hostClusteringVars,
                    const std::vector<int> cc_roots) {
   auto hostClusteringVarsView = hostClusteringVars.view();
   auto inHostClustersView = inHostClusters.view();
@@ -628,7 +628,7 @@ int main() {
     ::reco::PFRecHitHostCollection hostRecHits{nHits, queue};
     ::reco::PFRecHitFractionHostCollection hostRecHitFracs{nFracs, queue};
 
-    ::reco::PFMultiDepthClusteringVarsHostCollection hostClusteringVars{nClusters, queue};
+    ::reco::PFMultiDepthClusteringCCLabelsHostCollection hostClusteringVars{nClusters, queue};
 
     auto hClusters = hostClusters.view();
     auto outHClusters = outHostClusters.view();

@@ -7,7 +7,7 @@
 
 #include "HeterogeneousCore/AlpakaMath/interface/deltaPhi.h"
 #include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
-#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
+#include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringCCLabelsDeviceCollection.h"
 
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterWarpIntrinsics.h"
 #include "RecoParticleFlow/PFClusterProducer/plugins/alpaka/PFMultiDepthClusterizerHelper.h"
@@ -87,13 +87,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     ALPAKA_FN_ACC void operator()(
         TAcc const& acc,
         reco::PFMultiDepthClusteringEdgeVarsDeviceCollection::View pfClusteringEdgeVars,
-        const reco::PFMultiDepthClusteringVarsDeviceCollection::ConstView pfClusteringVars) const {
+        const reco::PFMultiDepthClusteringCCLabelsDeviceCollection::ConstView pfClusteringCCLabels) const {
       static_assert(max_w_items <= 32,
                     "ECLCCPrologueKernel: Maximum number of supported warps per block is 32, "
                     "assuming one warp per 32 threads.");
       constexpr unsigned int max_w_extent = 32;
 
-      const unsigned int nVertices = pfClusteringVars.size();
+      const unsigned int nVertices = pfClusteringCCLabels.size();
 
       const unsigned int blockDim = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0u];
 
@@ -149,7 +149,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const unsigned int warp_low_boundary = (warp_idx + 0) * w_extent;
           const unsigned int warp_high_boundary = (warp_idx + 1) * w_extent;
 
-          const unsigned int src_vertex_idx = pfClusteringVars[idx.global].mdpf_topoId();
+          const unsigned int src_vertex_idx = pfClusteringCCLabels[idx.global].mdpf_topoId();
           // Store source vertex index (direct neighbor) into the shared memory buffer:
           base_neighbor[idx.local] = src_vertex_idx;
           // Check, whether this vertex is warp-local
