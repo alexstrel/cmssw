@@ -39,21 +39,15 @@
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
 
-  class PFMultiDepthClusterizer_Alpaka {
-  public:
-    PFMultiDepthClusterizer_Alpaka() {}
-    PFMultiDepthClusterizer_Alpaka(const PFMultiDepthClusterizer_Alpaka&) = delete;
-    PFMultiDepthClusterizer_Alpaka& operator=(const PFMultiDepthClusterizer_Alpaka&) = delete;
-
-    void apply(Queue& queue,
-               reco::PFClusterDeviceCollection& outPFCluster,
-               reco::PFRecHitFractionDeviceCollection& outPFRecHitFracs,
-               const reco::PFClusterDeviceCollection& pfCluster,
-               const reco::PFRecHitFractionDeviceCollection& pfRecHitFracs,
-               const reco::PFRecHitDeviceCollection& pfRecHit,
-               const PFMultiDepthClusterParams* params,
-               const unsigned int nClusters);
-  };
+  void clusterize(Queue& queue,
+             	  reco::PFClusterDeviceCollection& outPFCluster,
+                  reco::PFRecHitFractionDeviceCollection& outPFRecHitFracs,
+                  const reco::PFClusterDeviceCollection& pfCluster,
+                  const reco::PFRecHitFractionDeviceCollection& pfRecHitFracs,
+                  const reco::PFRecHitDeviceCollection& pfRecHit,
+                  const PFMultiDepthClusterParams* params,
+                  const unsigned int nClusters);
+ 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc
 
 #endif

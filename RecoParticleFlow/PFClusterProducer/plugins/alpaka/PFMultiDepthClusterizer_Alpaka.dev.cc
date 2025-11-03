@@ -61,14 +61,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
  * @param pfRecHit Device collection of PFRecHits (input).
  *
  */
-  void PFMultiDepthClusterizer_Alpaka::apply(Queue& queue,
-                                             reco::PFClusterDeviceCollection& outPFCluster,
-                                             reco::PFRecHitFractionDeviceCollection& outPFRecHitFracs,
-                                             const reco::PFClusterDeviceCollection& pfCluster,
-                                             const reco::PFRecHitFractionDeviceCollection& pfRecHitFracs,
-                                             const reco::PFRecHitDeviceCollection& pfRecHit,
-                                             const PFMultiDepthClusterParams* params,
-                                             const unsigned int nClusters) {
+  void clustetize(Queue& queue,
+                  reco::PFClusterDeviceCollection& outPFCluster,
+                  reco::PFRecHitFractionDeviceCollection& outPFRecHitFracs,
+                  const reco::PFClusterDeviceCollection& pfCluster,
+                  const reco::PFRecHitFractionDeviceCollection& pfRecHitFracs,
+                  const reco::PFRecHitDeviceCollection& pfRecHit,
+                  const PFMultiDepthClusterParams* params,
+                  const unsigned int nClusters) {
     const unsigned int wExtend = 32;	  
     const unsigned int threadsPerBlock = ::cms::alpakatools::round_up_by( nClusters, wExtend );
     const unsigned int blocks = ::cms::alpakatools::divide_up_by(nClusters, threadsPerBlock);
