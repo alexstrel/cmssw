@@ -117,8 +117,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         for (auto idx : ::cms::alpakatools::uniform_group_elements(
                  acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent))) {
           // Reset shared memory buffers to zero:
-          nlist_offsets[idx.local] = 0;
-
           inner_neigh_masks[idx.local] = 0;
           outer_neigh_masks[idx.local] = 0;
 
@@ -188,8 +186,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           // If a vertex represents itself, erase bit that corrsponds to the represntative vertex:
           if (is_self_connected)
             control_mask = control_mask ^ lane_mask;
-
-          warp::syncWarpThreads_mask(acc, active_lanes_mask);
 
           if (lane_idx == rep_lane_idx) {
             if (is_local_src_vertex_idx) {                       //i.e, src_vertex_idx is warp-local.
@@ -289,8 +285,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const unsigned shift = warp_idx != 0 ? subdomain_offsets[warp_idx] : 0;
 
           const auto global_offset = lane_offset + shift;
-          // We just need to sync threads in the warp,
-          warp::syncWarpThreads_mask(acc, active_lanes_mask);
+          // We don't need to sync threads in the warp,
           // Store final offsets in shared memory:
           nlist_offsets[idx.local] = global_offset;
           // Last entry for total NNZ:

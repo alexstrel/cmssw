@@ -136,7 +136,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           float iter_eta_c, iter_phi_c;
 
           while (iter_lane_idx < eff_w_extent) {
-            warp::syncWarpThreads_mask(acc, active_lanes_mask);
             if (update_params) {
               iter_eta_c = warp::shfl_mask(acc, active_lanes_mask, eta_c, iter_lane_idx, w_extent);
               iter_phi_c = warp::shfl_mask(acc, active_lanes_mask, phi_c, iter_lane_idx, w_extent);
@@ -176,9 +175,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               phiSum_ = (frac * energy) * alpaka::math::abs(acc, ::cms::alpakatools::deltaPhi(acc, phi_rh, iter_phi_c));
             }
 
-            warp::syncWarpThreads_mask(acc, active_lanes_mask);
-
-            if (eff_w_extent == w_extent) {
+            if (eff_w_extent == w_extent) { // NOTE that active mask is teken into account
               iter_accum_etaSum += warp_reduce(acc, etaSum_, addFn);
               iter_accum_phiSum += warp_reduce(acc, phiSum_, addFn);
             } else {
@@ -204,7 +201,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             if (idx.global == 0) {
               mdpfClusteringVars.size() = nClusters;
             }
-          }
+          } // end while
         }  //end uniform_groups
       }
     }

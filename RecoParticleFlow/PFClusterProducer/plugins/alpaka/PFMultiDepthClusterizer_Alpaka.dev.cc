@@ -69,14 +69,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
                                              const reco::PFRecHitDeviceCollection& pfRecHit,
                                              const PFMultiDepthClusterParams* params,
                                              const unsigned int nClusters) {
-    const unsigned int wExtend = 32;
+    const unsigned int wExtend = 32;	  
     const unsigned int threadsPerBlock = ::cms::alpakatools::round_up_by( nClusters, wExtend );
     const unsigned int blocks = ::cms::alpakatools::divide_up_by(nClusters, threadsPerBlock);
-
+    
     reco::PFMultiDepthClusteringVarsDeviceCollection mdpfClusteringVars{static_cast<int>(nClusters), queue};
     reco::PFMultiDepthClusteringCCLabelsDeviceCollection mdpfCCLabels{static_cast<int>(nClusters) + 1, queue};
     reco::PFMultiDepthClusteringEdgeVarsDeviceCollection mdpfClusteringEdgeVars{2 * static_cast<int>(nClusters), queue};
-    //
+    
     alpaka::exec<Acc1D>(queue,
                         ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock),
                         ShowerShapeKernel{},
@@ -84,14 +84,12 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
                         pfCluster.view(),
                         pfRecHitFracs.view(),
                         pfRecHit.view());
-    //
     alpaka::exec<Acc1D>(queue,
                         ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock),
                         ConstructLinksKernel{},
                         mdpfCCLabels.view(),
                         mdpfClusteringVars.view(),
                         params);
-
     // ECL-CC prologue:
     if (threadsPerBlock <= 256) {
       constexpr unsigned int max_w_items = 8;
@@ -116,7 +114,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
                           mdpfCCLabels.view());
     }
     // Launch ECL-CC algorithm:
-
     // ECL-CC init stage:
     alpaka::exec<Acc1D>(queue, 
 		        ::cms::alpakatools::make_workdiv<Acc1D>(blocks, threadsPerBlock), 
@@ -179,6 +176,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
                           pfRecHitFracs.view(),
                           pfRecHit.view());
     }
+    alpaka::wait(queue);
   }
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc

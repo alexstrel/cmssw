@@ -217,8 +217,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       return in;
 
     //Compute the next power of two:
-    const unsigned int msb_idx = (w_extent - 1) - cms::alpakatools::clz(acc, mask);
-    const unsigned int pow2_boundary = 1 << msb_idx;
+    const unsigned int pow2 = w_extent - cms::alpakatools::clz(acc, nActiveLanes-1);
+    const unsigned int pow2_boundary = 1 << pow2;
 
     const unsigned int logical_lane_idx = get_logical_lane_idx(acc, mask, lane_idx);
 
@@ -275,8 +275,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
       return val;  //nothing to do, note that this is the inclusive "sum": low lane always keeps the whole sum
 
     //Compute the next power of two:
-    const unsigned int msb_idx = (w_extent - 1) - cms::alpakatools::clz(acc, mask);
-    const unsigned int pow2_boundary = 1 << msb_idx;
+    const unsigned int pow2 = w_extent - cms::alpakatools::clz(acc, nActiveLanes-1);
+    const unsigned int pow2_boundary = 1 << pow2;
 
     const unsigned int logical_lane_idx = get_logical_lane_idx(acc, mask, lane_idx);
 
