@@ -27,6 +27,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using namespace alpaka_common;
 
+namespace alpakamath {
+
   // epsilon^{1/4}:
   template <typename T>
     requires std::floating_point<T>
@@ -43,18 +45,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
   }
 
   template <typename TAcc, typename T, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T GetPhi(TAcc const& acc, const T x, const T y) {
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T phi(TAcc const& acc, const T x, const T y) {
     return alpaka::math::atan2(acc, y, x);
   }
 
   template <typename TAcc, typename T, typename = std::enable_if_t<alpaka::isAccelerator<TAcc>>>
-  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T GetEta(TAcc const& acc, const T x, const T y, const T z) {
+  ALPAKA_FN_HOST_ACC ALPAKA_FN_INLINE T eta(TAcc const& acc, const T x, const T y, const T z) {
     // ROOT-style fast path:
     // uses log(zs + sqrt(zs^2 + 1)) when |zs| is moderate,
     // and a Taylor-aided form when |zs| is large.
     // For rho == 0, return +/-inf.
 
-    T eta{0};
+    T eta_val{0};
 
     const T rho = alpaka::math::sqrt(acc, x * x + y * y);
 
@@ -64,19 +66,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
       const T zs = z / rho;
       if (alpaka::math::abs(acc, zs) < zscaled) {
-        eta = alpaka::math::log(acc, zs + alpaka::math::sqrt(acc, zs * zs + T{1}));
+        eta_val = alpaka::math::log(acc, zs + alpaka::math::sqrt(acc, zs * zs + T{1}));
       } else {
         // first-order Taylor expansion for the sqrt part
-        eta = (z > T{0}) ? alpaka::math::log(acc, T{2} * zs + T{0.5} / zs) : -alpaka::math::log(acc, -T{2} * zs);
+        eta_val = (z > T{0}) ? alpaka::math::log(acc, T{2} * zs + T{0.5} / zs) : -alpaka::math::log(acc, -T{2} * zs);
       }
     } else {
       // Exactly along the beam axis:
       if (z != T{0})
-        eta = alpaka::math::copysign(acc, std::numeric_limits<T>::infinity(), z);
+        eta_val = alpaka::math::copysign(acc, std::numeric_limits<T>::infinity(), z);
     }
-    return eta;
+    return eta_val;
   }
-
+}
   template <unsigned int max_w_items = 32>
   class ShowerShapeKernel {
   public:
@@ -114,8 +116,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const auto y_c = pfClusters[i].y();
           const auto z_c = pfClusters[i].z();
 
-          const auto eta_c = GetEta(acc, x_c, y_c, z_c);
-          const auto phi_c = GetPhi(acc, x_c, y_c);
+          const auto eta_c = alpakamath::eta(acc, x_c, y_c, z_c);
+          const auto phi_c = alpakamath::phi(acc, x_c, y_c);
 
           mdpfClusteringVars[i].eta() = eta_c;
           mdpfClusteringVars[i].phi() = phi_c;
@@ -168,8 +170,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               const auto y_rh = pfRecHit[pfrh_idx].y();
               const auto z_rh = pfRecHit[pfrh_idx].z();
 
-              const auto eta_rh = GetEta(acc, x_rh, y_rh, z_rh);
-              const auto phi_rh = GetPhi(acc, x_rh, y_rh);
+              const auto eta_rh = alpakamath::eta(acc, x_rh, y_rh, z_rh);
+              const auto phi_rh = alpakamath::phi(acc, x_rh, y_rh);
 
               etaSum_ = (frac * energy) * alpaka::math::abs(acc, eta_rh - iter_eta_c);
               phiSum_ = (frac * energy) * alpaka::math::abs(acc, ::cms::alpakatools::deltaPhi(acc, phi_rh, iter_phi_c));

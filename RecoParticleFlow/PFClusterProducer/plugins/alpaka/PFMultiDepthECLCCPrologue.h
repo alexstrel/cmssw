@@ -272,8 +272,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         // Now we assemble global offsets for each vertex:
         for (auto idx : ::cms::alpakatools::uniform_group_elements(
                  acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent))) {
-          const unsigned int active_lanes_mask = alpaka::warp::ballot(acc, idx.local < nVertices);
-
           if (idx.local >= nVertices)
             continue;
 

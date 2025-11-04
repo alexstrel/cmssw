@@ -61,7 +61,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
  * @param pfRecHit Device collection of PFRecHits (input).
  *
  */
-  void clustetize(Queue& queue,
+  void clusterize(Queue& queue,
                   reco::PFClusterDeviceCollection& outPFCluster,
                   reco::PFRecHitFractionDeviceCollection& outPFRecHitFracs,
                   const reco::PFClusterDeviceCollection& pfCluster,
