@@ -120,6 +120,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           inner_neigh_masks[idx.local] = 0;
           outer_neigh_masks[idx.local] = 0;
 
+          nlist_offsets[idx.local] = 0;
+
           if (idx.local < max_w_items)
             subdomain_offsets[idx.local] = 0;
           if (idx.local == 0)
