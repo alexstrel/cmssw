@@ -166,7 +166,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                         pfRecHitFractions,
                         pfRecHits,
                         paramsDev,
-                        nClusters_);
+                        *pfcl_size_);
     } else {
       outPFClusters = std::make_unique<reco::PFClusterDeviceCollection>(0, event.queue());
       outPFRHFractions = std::make_unique<reco::PFRecHitFractionDeviceCollection>(0, event.queue());
