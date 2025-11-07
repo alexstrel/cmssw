@@ -132,8 +132,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const unsigned int lane_idx = idx.local % w_extent;
 
           const unsigned int rep_idx = pfClusteringCCLabels[vertex_idx].mdpf_topoId();
-
-          component_roots[vertex_idx] = rep_idx;
+          
+	  component_roots[vertex_idx] = rep_idx;
 
           const bool is_representative = vertex_idx == rep_idx;
 
@@ -226,17 +226,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const bool is_representative = vertex_idx == rep_idx;
 
           const unsigned int rep_mask = warp::ballot_mask(acc, active_lanes_mask, is_representative);
-          const unsigned int seed = pfCluster[idx.local].seedRHIdx();
+          vertex_seeds[vertex_idx] = pfCluster[idx.local].seedRHIdx();
 
           const unsigned int connected_comp_rhf_size = is_representative ? connected_comp_rhf_sizes[rep_idx] : 0;
-
-          vertex_seeds[vertex_idx] = connected_comp_rhf_size == 1 ? 0 : seed;
 
           if (is_work_lane(rep_mask, lane_idx, w_extent)) {
             const unsigned int cc_idx = component_map[vertex_idx];
             cc_rhf_sizes[cc_idx] = connected_comp_rhf_size;
           }
         }
+
         alpaka::syncBlockThreads(acc);
 
         auto& cc_rhf_offsets = connected_comp_rhf_sizes;
@@ -288,6 +287,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
         alpaka::syncBlockThreads(acc);
 
         auto& vertex_energies = connected_comp_sizes;
+	auto& isolated_roots = subcc_offsets;
 
         for (auto idx : ::cms::alpakatools::uniform_group_elements(
                  acc, group, ::cms::alpakatools::round_up_by(nVertices, w_extent))) {
@@ -297,20 +297,31 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             continue;
 
           const unsigned int lane_idx = idx.local % w_extent;
+	  const unsigned int warp_idx = idx.local / w_extent;
 
           const unsigned int vertex_idx = idx.local;
+
           const unsigned int rep_idx = component_roots[vertex_idx];
           const unsigned int cc_idx = component_map[rep_idx];
-          const unsigned int rhf_begin = pfCluster[idx.local].rhfracOffset();  //vertex_rhf_offsets[vertex_idx];
-          const unsigned int rhf_end = rhf_begin + pfCluster[vertex_idx].rhfracSize();  // vertex_rhf_sizes[vertex_idx];
+
+          const unsigned int rhf_begin = pfCluster[idx.local].rhfracOffset();  
+          const unsigned int rhf_end = rhf_begin + pfCluster[vertex_idx].rhfracSize();  
+
+          const bool is_root = (vertex_idx == rep_idx);
+
+	  const unsigned int comp_size = connected_comp_sizes[vertex_idx];
+
+	  const bool is_isolated_root = (vertex_idx == rep_idx) && (comp_size == 1);
+
+	  const unsigned int iso_root_mask = warp::ballot_mask(acc, active_lanes_mask, is_isolated_root);
+
           const unsigned int seed = vertex_seeds[vertex_idx];
-          // Note : we don't process isolated roots, so seed was intentinally set to zero for those roots.
-          const bool is_isolated_root = (vertex_idx == rep_idx) && (seed == 0);
-          const unsigned int rhf_store_offset = connected_comp_rhf_offsets[vertex_idx] + cc_rhf_offsets[cc_idx];
 
+	  if(lane_idx == 0) isolated_roots[warp_idx] = iso_root_mask;
+
+          unsigned int store_idx = connected_comp_rhf_offsets[vertex_idx] + cc_rhf_offsets[cc_idx];
+          
           float energy = is_isolated_root == false ? pfRecHit[seed].energy() : 0.f;
-
-          unsigned int store_idx = rhf_store_offset;
 
           for (unsigned int j = rhf_begin; j < rhf_end; j++) {
             outPFRecHitFracs[store_idx].frac() = pfRecHitFracs[j].frac();
@@ -318,9 +329,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             outPFRecHitFracs[store_idx].pfcIdx() = cc_idx;
             ++store_idx;
           }
+
           auto compFn = [] ALPAKA_FN_ACC(const float a, const float b) -> float { return a > b ? a : b; };
 
-          const unsigned int subcomponent_mask = warp::match_any_mask(acc, active_lanes_mask, rep_idx);
+          const unsigned int updated_active_lanes_mask = warp::ballot_mask(acc, active_lanes_mask, is_isolated_root == false);
+
+          if (is_isolated_root) continue;
+
+          const unsigned int subcomponent_mask = warp::match_any_mask(acc, updated_active_lanes_mask, rep_idx);
 
           const unsigned int low_local_rep_idx = get_ls1b_idx(acc, subcomponent_mask);
 
@@ -334,13 +350,16 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           const auto seed_max = warp::shfl_mask(acc, subcomponent_mask, seed, max_energy_lane_idx, w_extent);
           const auto energy_max = warp::shfl_mask(acc, subcomponent_mask, max_energy, max_energy_lane_idx, w_extent);
 
-          if (lane_idx == low_local_rep_idx && is_isolated_root == false) {
+	  warp::syncWarpThreads_mask(acc, updated_active_lanes_mask);
+
+          if (lane_idx == low_local_rep_idx) {
             unsigned int x = std::bit_cast<unsigned int>(energy_max);
             alpaka::atomicMax(acc, &cc_energies[cc_idx], x);
             vertex_seeds[vertex_idx] = seed_max;
             vertex_energies[vertex_idx] = x;
           }
         }
+
         alpaka::syncBlockThreads(acc);
 
         for (auto idx : ::cms::alpakatools::uniform_group_elements(
@@ -350,12 +369,25 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             continue;
 
           const unsigned int lane_idx = idx.local % w_extent;
+	  const unsigned int warp_idx = idx.local / w_extent;
 
-          const unsigned int vertex_idx = idx.local;
+          const unsigned int iso_root_mask = isolated_roots[warp_idx];
+
+	  const unsigned int vertex_idx = idx.local;
+
           const unsigned int rep_idx = component_roots[vertex_idx];
           const unsigned int cc_idx = component_map[rep_idx];
 
-          const unsigned int subcomponent_mask = warp::match_any_mask(acc, active_lanes_mask, rep_idx);
+          const bool is_isolated_root = is_work_lane(iso_root_mask, lane_idx, w_extent);
+
+          const unsigned int updated_active_lanes_mask = warp::ballot_mask(acc, active_lanes_mask, is_isolated_root == false);
+
+          if( is_isolated_root ) {
+	    cc_seeds[cc_idx] = vertex_seeds[vertex_idx];	  
+	    continue;
+	  }	  
+
+          const unsigned int subcomponent_mask = warp::match_any_mask(acc, updated_active_lanes_mask, rep_idx);
           const unsigned int low_local_rep_idx = get_ls1b_idx(acc, subcomponent_mask);
 
           if (lane_idx == low_local_rep_idx) {
@@ -375,20 +407,18 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
           const unsigned int topo_idx = idx.local;
           const unsigned int root_idx = cc_roots[topo_idx];
+
           outPFCluster[topo_idx].depth() = pfCluster[root_idx].depth();
-          outPFCluster[topo_idx].topoId() =
-              pfCluster[root_idx]
-                  .topoId();  // might be wrong: merged clusters could have different topoIds? Now I just keep one from root.
+          outPFCluster[topo_idx].topoId() = topo_idx;
           outPFCluster[topo_idx].energy() = pfCluster[root_idx].energy();
           outPFCluster[topo_idx].x() = pfCluster[root_idx].x();
           outPFCluster[topo_idx].y() = pfCluster[root_idx].y();
           outPFCluster[topo_idx].z() = pfCluster[root_idx].z();
-          outPFCluster[topo_idx].topoRHCount() = pfCluster[root_idx].topoRHCount();
+          outPFCluster[topo_idx].topoRHCount() = pfCluster[root_idx].topoRHCount();//??
 
           outPFCluster[topo_idx].rhfracOffset() = cc_rhf_offsets[topo_idx];
           outPFCluster[topo_idx].rhfracSize() = cc_rhf_sizes[topo_idx];
           outPFCluster[topo_idx].seedRHIdx() = cc_seeds[topo_idx];
-
           if (idx.local == 0) {
             outPFCluster.nTopos() = nComponents;
             outPFCluster.nSeeds() = nComponents;
