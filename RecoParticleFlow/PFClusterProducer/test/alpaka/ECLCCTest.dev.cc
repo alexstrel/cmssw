@@ -26,11 +26,7 @@
 #include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringVarsDeviceCollection.h"
 #include "RecoParticleFlow/PFClusterProducer/interface/alpaka/PFMultiDepthClusteringEdgeVarsDeviceCollection.h"
 
-using namespace reco;
-
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
-
-  //using namespace cms::eclcc;
 
   class ECLCCTest {
   public:
@@ -253,7 +249,6 @@ void create(::reco::PFMultiDepthClusteringEdgeVarsHostCollection& hostClustering
       }
     }
     vx[i] = vx_;
-    //printf("CHECK %d\n", vx[i] );
   }
 
   auto adj = buildAdj(vx);
