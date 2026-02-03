@@ -147,7 +147,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     std::unique_ptr<reco::PFRecHitFractionDeviceCollection> outPFRHFractions;
     std::unique_ptr<reco::PFClusterDeviceCollection> outPFClusters;
 
-    LogDebug("PFMultiDepthClusterSoAProducer") << "nClusters is: " << *pfcl_size_;
+    //LogDebug("PFMultiDepthClusterSoAProducer") << "nClusters is: " << *pfcl_size_;
+
+    std::cout << "nClusters is: " << *pfcl_size_ << std::endl;
 
     if (*pfcl_size_ > 0) {
       outPFClusters = std::make_unique<reco::PFClusterDeviceCollection>(event.queue(), *pfcl_size_);

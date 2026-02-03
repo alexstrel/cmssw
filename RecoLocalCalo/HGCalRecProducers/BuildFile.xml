@@ -1,9 +1,0 @@
-<use name="clhep"/>
-<use name="DataFormats/HGCRecHit"/>
-<use name="FWCore/Framework"/>
-<use name="FWCore/ParameterSet"/>
-<use name="Geometry/HGCalGeometry"/>
-<use name="RecoLocalCalo/HGCalRecAlgos"/>
-<export>
-  <lib name="1"/>
-</export>
