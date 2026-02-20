@@ -177,18 +177,10 @@ pfClusterSoAProducerHBHEOnly = _pfClusterSoAProducer.clone(
         topology = "pfRecHitHCALTopologyESProducer:offline",
     )
 
-from RecoParticleFlow.PFClusterProducer.pfClusterSoAPositionUpdater_cfi import pfClusterSoAPositionUpdater as _pfClusterSoAPositionUpdater
-pfClusterSoAUpdated = _pfClusterSoAPositionUpdater.clone(
-    src = 'pfClusterSoAProducerHBHEOnly',
-    pfClusterBuilder = particleFlowClusterHBHE.pfClusterBuilder,
-    recHitsSource = 'particleFlowRecHitHBHEOnly',
-    PFRecHitsLabelIn = 'pfRecHitSoAProducerHBHEOnly'
-)
-
 from RecoParticleFlow.PFClusterProducer.pfMultiDepthClusterSoAProducer_cfi import pfMultiDepthClusterSoAProducer as _pfMultiDepthClusterSoAProducer
 pfMultiDepthClusterSoAProducerHCALOnly = _pfMultiDepthClusterSoAProducer.clone(
-    clustersSrc    = 'pfClusterSoAUpdated',
-    rhfracSrc      = 'pfClusterSoAUpdated',
+    clustersSrc    = 'pfClusterSoAProducerHBHEOnly',
+    rhfracSrc      = 'pfClusterSoAProducerHBHEOnly',
     rechitSrc         = 'pfRecHitSoAProducerHBHEOnly',
 )
 
