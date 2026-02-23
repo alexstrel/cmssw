@@ -54,7 +54,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
                   const PFMultiDepthClusterParams* params,
                   const unsigned int nClusters) {
     const unsigned int wExtend = alpaka::getPreferredWarpSize(alpaka::getDev(queue));
-    const unsigned int threadsPerBlock = std::min(768, ::cms::alpakatools::round_up_by(nClusters, wExtend));
+    const unsigned int threadsPerBlock =
+        std::min(static_cast<alpaka_common::Idx>(768), ::cms::alpakatools::round_up_by(nClusters, wExtend));
     const unsigned int blocks = ::cms::alpakatools::divide_up_by(nClusters, threadsPerBlock);
 
     reco::PFMultiDepthClusteringVarsDeviceCollection mdpfClusteringVars{queue, static_cast<int>(nClusters)};
