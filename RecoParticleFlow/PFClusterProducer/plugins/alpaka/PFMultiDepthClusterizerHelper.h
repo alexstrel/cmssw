@@ -88,7 +88,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     if constexpr (std::is_same_v<Device, alpaka::DevCpu>)
       return 0;
 
-    using signed_warp_mask_t = std::conditional_t<sizeof(warp::warp_mask_t) == 8, std::int64_t, std::int32_t>;
+    using signed_warp_mask_t = std::make_signed_t<warp::warp_mask_t>; 
 
     const auto pos = alpaka::ffs(acc, static_cast<signed_warp_mask_t>(mask));
     return static_cast<warp::warp_mask_t>(pos - 1);
