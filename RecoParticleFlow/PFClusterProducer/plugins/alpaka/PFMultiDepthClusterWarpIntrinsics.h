@@ -22,8 +22,8 @@ namespace cms::alpakaintrinsics {
 
 #ifdef __HIP_DEVICE_COMPILE__
 
-#if HIP_VERSION_MAJOR < 7
-#warning "HIP Version < 7.0 is not supported."
+#if !((HIP_VERSION_MAJOR >= 7) || (HIP_VERSION >= 60200000 && defined(HIP_ENABLE_WARP_SYNC_BUILTINS)))
+#warning "HIP Version is not supported."
 #endif
 
 #endif
