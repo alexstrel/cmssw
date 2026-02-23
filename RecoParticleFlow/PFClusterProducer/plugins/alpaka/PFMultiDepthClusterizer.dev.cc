@@ -53,12 +53,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::eclcc {
                   const reco::PFRecHitDeviceCollection& pfRecHit,
                   const PFMultiDepthClusterParams* params,
                   const unsigned int nClusters) {
-#ifdef __CUDACC__
-    const unsigned int wExtend = 32;
-#else
-    const unsigned int wExtend = 64;
-#endif
-    const unsigned int threadsPerBlock = ::cms::alpakatools::round_up_by(nClusters, wExtend);
+    const unsigned int wExtend = alpaka::getPreferredWarpSize(alpaka::getDev(queue));
+    const unsigned int threadsPerBlock = std::min(512, ::cms::alpakatools::round_up_by(nClusters, wExtend));
     const unsigned int blocks = ::cms::alpakatools::divide_up_by(nClusters, threadsPerBlock);
 
     reco::PFMultiDepthClusteringVarsDeviceCollection mdpfClusteringVars{queue, static_cast<int>(nClusters)};

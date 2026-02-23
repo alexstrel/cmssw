@@ -51,7 +51,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
  * @param pfRecHit            Input PF rec hit device collection.
  */
 
-  template <unsigned int max_w_items = 32, bool is_cooperative = false>
+  template <unsigned int max_w_items = 32, bool multi_block = false, bool is_cooperative = false>
   class ECLCCEpilogueKernel {
   public:
     ALPAKA_FN_ACC void operator()(
@@ -74,7 +74,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 #else
       constexpr bool hip_enabled = false;
 #endif
-      if constexpr (std::is_same_v<Device, alpaka::DevCpu> || hip_enabled) {
+      if constexpr (std::is_same_v<Device, alpaka::DevCpu> || hip_enabled || multi_block) {
         if (::cms::alpakatools::once_per_grid(acc)) {
           unsigned int ccrhfrac_idx = 0;
           unsigned int cc_idx = 0;
@@ -138,7 +138,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           outPFCluster.size() = cc_idx;
         }
         return;
-      }
+      } else {
 
       //representative vertex index for a component.
       auto& cc_roots(alpaka::declareSharedVar<unsigned int[max_w_items * max_w_extent + 1], __COUNTER__>(acc));
@@ -663,6 +663,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           outPFCluster[topo_idx].seedRHIdx() = cc_seeds[topo_idx];
         }
       }
+      } //end of solo-block branch 
     }
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE

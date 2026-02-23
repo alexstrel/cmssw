@@ -84,7 +84,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
  * @param pfClusteringCCLabels Input view of connected-component labels.
  */
 
-  template <unsigned int max_w_items = 32>
+  template <unsigned int max_w_items = 32, bool multi_block = false>
   class ECLCCPrologueKernel {
   public:
     ALPAKA_FN_ACC void operator()(
@@ -102,7 +102,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 #else
       constexpr bool hip_enabled = false;
 #endif
-      if constexpr (std::is_same_v<Device, alpaka::DevCpu> || hip_enabled) {
+      if constexpr (std::is_same_v<Device, alpaka::DevCpu> || hip_enabled || multi_block) {
         if (::cms::alpakatools::once_per_grid(acc)) {
           unsigned int store_idx = 0;
 
@@ -127,7 +127,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           pfClusteringEdgeVars[nVertices].mdpf_adjacencyIndex() = store_idx;
         }
         return;
-      }
+      } else {
 
       const unsigned int blockDim = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0u];
 
@@ -420,6 +420,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
           }
         }
       }  //groups
+      }  // end of solo-block branch
     }
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE
