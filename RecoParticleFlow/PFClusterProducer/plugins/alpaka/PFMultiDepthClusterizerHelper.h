@@ -49,7 +49,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 #if defined(__HIP_DEVICE_COMPILE__) && defined(ALPAKA_ACC_GPU_HIP_ENABLED)
     return (1ULL << lane_idx);
 #else
-    return (1 << lane_idx);
+    return (1U << lane_idx);
 #endif
   }
 
