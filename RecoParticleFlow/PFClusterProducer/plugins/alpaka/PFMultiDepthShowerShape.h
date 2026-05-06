@@ -141,29 +141,29 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
       const unsigned int w_extent = alpaka::warp::getSize(acc);
 
-      for (auto group : ::cms::alpakatools::uniform_groups(acc)) {  //loop over thread blocks
+      for (auto idx : ::cms::alpakatools::uniform_elements(acc, nClusters)) {
+        const warp::warp_mask_t active_lanes_mask = alpaka::warp::activemask(acc);
 
         accum_t accum_etaSum_div_en{0.};
         accum_t accum_phiSum_div_en{0.};
+        {
+          const auto pfc_energy = pfClusters[idx].energy();
 
-        for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, nClusters)) {
-          const auto pfc_energy = pfClusters[idx.global].energy();
+          mdpfClusteringVars[idx].depth() = pfClusters[idx].depth();
+          mdpfClusteringVars[idx].energy() = pfc_energy;
 
-          mdpfClusteringVars[idx.global].depth() = pfClusters[idx.global].depth();
-          mdpfClusteringVars[idx.global].energy() = pfc_energy;
-
-          const compute_t x_c = pfClusters[idx.global].x();
-          const compute_t y_c = pfClusters[idx.global].y();
-          const compute_t z_c = pfClusters[idx.global].z();
+          const compute_t x_c = pfClusters[idx].x();
+          const compute_t y_c = pfClusters[idx].y();
+          const compute_t z_c = pfClusters[idx].z();
 
           const reduce_t eta_c = static_cast<reduce_t>(cms::alpakamath::eta(acc, x_c, y_c, z_c));
           const reduce_t phi_c = static_cast<reduce_t>(::cms::alpakatools::phi(acc, x_c, y_c));
 
-          mdpfClusteringVars[idx.global].eta() = eta_c;
-          mdpfClusteringVars[idx.global].phi() = phi_c;
+          mdpfClusteringVars[idx].eta() = eta_c;
+          mdpfClusteringVars[idx].phi() = phi_c;
 
-          int pfrhf_offset = pfClusters[idx.global].rhfracOffset();
-          int pfrhf_size = pfClusters[idx.global].rhfracSize();
+          int pfrhf_offset = pfClusters[idx].rhfracOffset();
+          int pfrhf_size = pfClusters[idx].rhfracSize();
 
           reduce_t iter_accum_etaSum{0};
           reduce_t iter_accum_phiSum{0};
@@ -184,7 +184,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             const warp::warp_mask_t active_lanes_mask = alpaka::warp::activemask(acc);
 
-            const unsigned int lane_idx = idx.local % w_extent;
+            const unsigned int lane_idx = idx % w_extent;
 
             const unsigned int eff_w_extent = alpaka::popcount(acc, active_lanes_mask);
 
@@ -392,17 +392,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             accum_etaSum_div_en = static_cast<accum_t>(iter_accum_etaSum / pfc_energy);
             accum_phiSum_div_en = static_cast<accum_t>(iter_accum_phiSum / pfc_energy);
           }
-        }  //end uniform_groups_elements
-
-        alpaka::syncBlockThreads(acc);
-
-        for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, nClusters)) {
-          const double etaRMS2_ = alpaka::math::max(acc, accum_etaSum_div_en, rms2_threshold);
-          const double phiRMS2_ = alpaka::math::max(acc, accum_phiSum_div_en, rms2_threshold);
-
-          mdpfClusteringVars[idx.global].etaRMS2() = etaRMS2_ * etaRMS2_;
-          mdpfClusteringVars[idx.global].phiRMS2() = phiRMS2_ * phiRMS2_;
         }
+        warp::syncWarpThreads_mask(acc, active_lanes_mask);
+
+        const double etaRMS2_ = alpaka::math::max(acc, accum_etaSum_div_en, rms2_threshold);
+        const double phiRMS2_ = alpaka::math::max(acc, accum_phiSum_div_en, rms2_threshold);
+
+        mdpfClusteringVars[idx].etaRMS2() = etaRMS2_ * etaRMS2_;
+        mdpfClusteringVars[idx].phiRMS2() = phiRMS2_ * phiRMS2_;
       }
     }
   };
