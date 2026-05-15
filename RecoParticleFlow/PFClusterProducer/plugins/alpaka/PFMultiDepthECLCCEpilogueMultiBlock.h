@@ -309,6 +309,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             outPFCluster.nSeeds() = totNComponents;
             outPFCluster.nRHFracs() = pfCluster.nRHFracs();
             outPFCluster.size() = totNComponents;
+
+	    pfClusteringCCLabels.ncomponents() = 0;
           }
 
           for (auto idx : ::cms::alpakatools::uniform_group_elements(acc, group, nVertices)) {
