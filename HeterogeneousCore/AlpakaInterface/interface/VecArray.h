@@ -5,9 +5,13 @@
 // Author: Felice Pantaleo, CERN
 //
 
+#include <concepts>
+
 #include <utility>
 
 #include <alpaka/alpaka.hpp>
+
+#include "FWCore/Utilities/interface/CMSUnrollLoop.h"
 
 namespace cms::alpakatools {
 
@@ -16,6 +20,10 @@ namespace cms::alpakatools {
   public:
     using self = VecArray<T, maxSize>;
     using value_t = T;
+
+    // same notations as std::vector/array
+    using value_type = T;
+    static constexpr int N = maxSize;
 
     inline constexpr int push_back_unsafe(const T &element) {
       auto previousSize = m_size;
@@ -58,7 +66,7 @@ namespace cms::alpakatools {
 
     // thread-safe version of the vector, when used in a kernel
     template <alpaka::concepts::Acc TAcc>
-    ALPAKA_FN_ACC int push_back(const TAcc &acc, const T &element) {
+    ALPAKA_FN_ACC std::int32_t push_back(const TAcc &acc, const T &element) {
       auto previousSize = alpaka::atomicAdd(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       if (previousSize < maxSize) {
         m_data[previousSize] = element;
@@ -70,7 +78,7 @@ namespace cms::alpakatools {
     }
 
     template <alpaka::concepts::Acc TAcc, class... Ts>
-    ALPAKA_FN_ACC int emplace_back(const TAcc &acc, Ts &&...args) {
+    ALPAKA_FN_ACC std::int32_t emplace_back(const TAcc &acc, Ts &&...args) {
       auto previousSize = alpaka::atomicAdd(acc, &m_size, 1, alpaka::hierarchy::Blocks{});
       if (previousSize < maxSize) {
         (new (&m_data[previousSize]) T(std::forward<Ts>(args)...));
@@ -88,6 +96,27 @@ namespace cms::alpakatools {
       } else
         return T();
     }
+
+    constexpr VecArray() : m_size(maxSize) {};
+
+    VecArray(const VecArray<T, maxSize> &) = default;
+    VecArray(VecArray<T, maxSize> &&) = default;
+
+    ALPAKA_FN_ACC VecArray(const T &value) {
+      m_size = maxSize;
+
+      CMS_UNROLL_LOOP
+      for (int i = 0; i < maxSize; i++) {
+        m_data[i] = value;
+      }
+    }
+
+    template <typename... U,
+              typename = std::enable_if_t<(sizeof...(U) == maxSize) && (std::conjunction_v<std::is_same<T, U>...>)>>
+    constexpr VecArray(U... args) : m_data{args...}, m_size(sizeof...(U)) {}
+
+    VecArray<T, maxSize> &operator=(const VecArray<T, maxSize> &) = default;
+    VecArray<T, maxSize> &operator=(VecArray<T, maxSize> &&) = default;
 
     inline constexpr T const *begin() const { return m_data; }
     inline constexpr T const *end() const { return m_data + m_size; }
@@ -108,6 +137,18 @@ namespace cms::alpakatools {
 
     int m_size;
   };
+
+  template <typename T>
+  struct is_VecArray : std::false_type {};
+
+  template <typename T, int N>
+  struct is_VecArray<cms::alpakatools::VecArray<T, N>> : std::true_type {};
+
+  template <typename T>
+  inline constexpr bool is_VecArray_v = is_VecArray<T>::value;
+
+  template <typename T>
+  concept VecArrayType = is_VecArray<std::remove_cvref_t<T>>::value;
 
 }  // namespace cms::alpakatools
 
