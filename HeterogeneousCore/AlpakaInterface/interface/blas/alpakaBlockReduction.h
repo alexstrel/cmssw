@@ -58,8 +58,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
 
     template <alpaka::concepts::Acc TAcc, typename data_t, typename transform_reducer_t, bool use_sloppy_reduce_ = false>
       requires AtomicReduceData<data_t, transform_reducer_t>
-    ALPAKA_FN_ACC auto apply(
-        TAcc const& acc, data_t const& in, const transform_reducer_t f, unsigned int const laneIdx, bool all = true) {
+    ALPAKA_FN_ACC auto apply(TAcc const& acc,
+                             data_t const& in,
+                             const transform_reducer_t f,
+                             unsigned int const laneIdx,
+                             bool all = true) const {
       using reducer_t = typename transform_reducer_t::reducer_t;
       using atomic_t = cms::alpakatools::atomic_type_t<typename transform_reducer_t::reduce_t>;
 
@@ -88,8 +91,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
     }
 
     template <alpaka::concepts::Acc TAcc, typename data_t, typename transform_reducer_t, bool use_sloppy_reduce = false>
-    ALPAKA_FN_ACC auto apply(
-        TAcc const& acc, data_t const& in, const transform_reducer_t f, unsigned int const laneIdx, bool all = true)
+    ALPAKA_FN_ACC auto apply(TAcc const& acc,
+                             data_t const& in,
+                             const transform_reducer_t f,
+                             unsigned int const laneIdx,
+                             bool all = true) const
       requires VecArrayType<data_t> && (std::remove_cvref_t<data_t>::N >= 3)
     {
       using atomic_t = cms::alpakatools::atomic_type_t<data_t>;
@@ -128,7 +134,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
                                     int const batch,
                                     typename transform_reducer_t::reduce_t const& in,
                                     const transform_reducer_t f,
-                                    bool all = true) -> typename transform_reducer_t::reduce_t {
+                                    bool all = true) const -> typename transform_reducer_t::reduce_t {
       using reduce_t = typename transform_reducer_t::reduce_t;
 
       constexpr int w_extent = get_warp_size<TAcc>();
@@ -177,7 +183,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
 
             CMS_UNROLL_LOOP
             for (std::size_t i = 0; i < n_elements; i++) {
-              res_tmp[i] = reduce::result<true>(res[i]);
+              res_tmp[i] = reduce::result<decltype(res[i]), true>(res[i]);
             }
 
             memcpy(out.data(), res_tmp.data(), sizeof(reduce_t::value_t) * n_elements);
@@ -258,7 +264,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       }
 
       alpaka::syncBlockThreads(acc);
-
+      //return res;
       if (all) {
         auto* smem_cache = sdata.template as<atomic_t>();
 

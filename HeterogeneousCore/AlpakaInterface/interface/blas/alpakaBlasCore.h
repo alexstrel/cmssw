@@ -116,7 +116,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
     MultiSrcTransformReducer(TransformReducer_t f, const Args &args) : args(args), f(f) {}
 
     template <typename TQueue>
-    auto fetch(TQueue queue) const {
+    auto fetch(TQueue const &queue) const {
       args.template fetch_data<TQueue>(queue);
     }
 
@@ -132,9 +132,37 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
       return values;
     }
 
+    template <typename TQueue>
+    auto host_reduced_values(TQueue const &queue) const {
+      using host_reduce_t = typename TransformReducer_t::reduce_t;
+
+      fetch(queue);
+
+      std::vector<host_reduce_t> values(Args::nSrc);
+
+      alpaka::wait(queue);
+
+      for (Idx i = 0; i < Args::nSrc; i++) {
+        values[i] = args.result_h[i];
+      }
+
+      return values;
+    }
+
+    template <typename TQueue>
+    auto device_reduced_values(TQueue const &queue) const {
+      using reduce_t = typename TransformReducer_t::reduce_t;
+
+      auto values = alpaka::allocBuf<reduce_t, Idx>(alpaka::getDev(queue), Args::nSrc);
+
+      alpaka::memcpy(queue, values, args.result_d);
+
+      return values;
+    }
+
     //these are helper methods to return correct thread/block indices and dimensions:
     template <alpaka::concepts::Acc TAcc>
-    ALPAKA_FN_ACC inline Vec2D threads_2d(TAcc const &acc) {
+    ALPAKA_FN_ACC inline Vec2D threads_2d(TAcc const &acc) const {
       constexpr std::size_t nDim = alpaka::Dim<TAcc>::value;
       static_assert(alpaka::Dim<TAcc>::value <= 3u,
                     "The accelerator used for the Alpaka Kernel has to be at most 3 dimensional!");
@@ -144,7 +172,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
     }
 
     template <alpaka::concepts::Acc TAcc>
-    ALPAKA_FN_ACC inline Vec2D block_2d(TAcc const &acc) {
+    ALPAKA_FN_ACC inline Vec2D block_2d(TAcc const &acc) const {
       constexpr std::size_t nDim = alpaka::Dim<TAcc>::value;
       static_assert(alpaka::Dim<TAcc>::value <= 3u,
                     "The accelerator used for the Alpaka Kernel has to be at most 3 dimensional!");
@@ -156,7 +184,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
     template <alpaka::concepts::Acc TAcc, typename... T, bool use_cg_reduce = false, bool use_cg_reducer = false>
     ALPAKA_FN_ACC std::enable_if_t<alpaka::Dim<TAcc>::value <= 3, void> apply(TAcc const &acc,
                                                                               unsigned int const batch_idx,
-                                                                              T... external_args) {
+                                                                              T... external_args) const {
       using reducer_t = typename TransformReducer_t::reducer_t;
       using reduce_t = typename TransformReducer_t::reduce_t;
       using transformer_t = typename TransformReducer_t::transformer_t;
@@ -192,7 +220,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
       result = block_reducer.template apply<TAcc, TransformReducer_t>(acc, batch_idx, result, f, true);
 
-      auto &isLastBlockDone = alpaka::declareSharedVar<cms::alpakatools::VecArray<bool, Args::nSrc>, __COUNTER__>(acc);
+      auto &isLastBlockDone = alpaka::declareSharedVar<bool[Args::nSrc], __COUNTER__>(acc);
 
       using count_t = typename Args::count_t;
 
@@ -214,11 +242,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
       alpaka::syncBlockThreads(acc);
 
       if (isLastBlockDone[batch_idx]) {
-        reducer_t reducer = f.get_reducer();
-
         auto s = threadIdx_y * blockDim_x + threadIdx_x;
 
         auto accum = TransformReducer_t::init();
+
+        reducer_t reducer = f.get_reducer();
 
         while (s < gridDim_x) {
           accum = reducer(accum, d_partial[batch_idx * gridDim_x + s]);
@@ -235,59 +263,43 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
     }
   };
 
-  /**
-     * Generic transform-reduce device kernel, accepts two scalars and upto four containers with buffers
-     */
-  template <alpaka::concepts::Acc TAcc,
-            typename TQueue,
-            typename Transformer,
+  template <typename Transformer,
             typename reduce_t,
             typename Reducer,
-            unsigned long long nSrc,
+            std::size_t nSrc,
             typename TXBufAcc,
             typename TYBufAcc,
             typename... coeff_t>
-  auto instantiateTransformReducer(const TQueue &queue,
-                                   const std::vector<TXBufAcc> &x,
+  auto instantiateTransformReducer(auto &reduce_bufs,
+                                   std::vector<TXBufAcc> const &x,
                                    std::vector<TYBufAcc> &y,
                                    coeff_t const &...a) {
-    auto const nsrc = x.size();
+    using args_t = TransformReduceArgs<TXBufAcc, TYBufAcc, decltype(reduce_bufs), nSrc>;
 
-    std::cout << "Created full msrc functor" << std::endl;
+    args_t args{reduce_bufs, x, y};
 
-    if (nsrc != nSrc)
-      std::cout << "Incorrect number of sources\n" << std::endl;
+    using transform_reduce_t = TransformReduceFunctor<Transformer, reduce_t, Reducer, false>;
 
-    auto const platformAcc = alpaka::Platform<TAcc>{};
-    auto const devAcc = alpaka::getDevByIdx(platformAcc, 0);
+    transform_reduce_t transform_reduce_func{Transformer{a...}, Reducer{}};
 
-    auto max_reduce_blocks =
-        2 * alpaka::getAccDevProps<TAcc>(devAcc).m_multiProcessorCount;  //only 2 blocks per MP are active
-
-    auto &reduce_bufs = reduce::ReducerResource<TAcc, TQueue, typename Transformer::reduce_t>::get_reduction_resources(
-        queue, nSrc, max_reduce_blocks);
-
-    auto args = TransformReduceArgs<TXBufAcc, TYBufAcc, decltype(reduce_bufs), nSrc>(reduce_bufs, x, y);
-
-    Transformer transform_func(a...);
-
-    auto transform_reduce_func =
-        TransformReduceFunctor<Transformer, reduce_t, Reducer, false>{transform_func, Reducer{}};
-
-    return MultiSrcTransformReducer<decltype(transform_reduce_func), decltype(args)>(transform_reduce_func, args);
+    return MultiSrcTransformReducer<transform_reduce_t, args_t>{transform_reduce_func, args};
   }
 
+  /*
+  * Generic transform-reduce device kernel, accepts two scalars and upto four containers with buffers
+  */
   template <alpaka::concepts::Acc TAcc,
             typename TQueue,
             typename Transformer,
             typename reduce_t,
             typename Reducer,
+            typename ReducerResources,
             unsigned long long nSrc,
             typename TXBufAcc,
             typename TYBufAcc,
             typename... coeff_t>
-  auto instantiateTransformReducer(const TQueue &queue,
-                                   auto &reduce_bufs,
+  auto instantiateTransformReducer([[maybe_unused]] const TQueue &queue,
+                                   [[maybe_unused]] ReducerResources &reduce_bufs,
                                    const std::vector<TXBufAcc> &x,
                                    std::vector<TYBufAcc> &y,
                                    coeff_t const &...a) {
@@ -298,14 +310,21 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
     std::cout << "Created reduced msrc functor" << std::endl;
 
-    auto args = TransformReduceArgs<TXBufAcc, TYBufAcc, decltype(reduce_bufs), nSrc>(reduce_bufs, x, y);
+    if constexpr (std::same_as<std::remove_cvref_t<ReducerResources>, std::monostate>) {
+      auto const devAcc = alpaka::getDev(queue);
 
-    Transformer transform_func(a...);
+      auto max_reduce_blocks =
+          2 * alpaka::getAccDevProps<TAcc>(devAcc).m_multiProcessorCount;  //only 2 blocks per MP are active
 
-    auto transform_reduce_func =
-        TransformReduceFunctor<Transformer, reduce_t, Reducer, false>{transform_func, Reducer{}};
+      auto &reducer_resources =
+          reduce::ReducerResource<TAcc, TQueue, reduce_t>::get_reduction_resources(queue, nSrc, max_reduce_blocks);
 
-    return MultiSrcTransformReducer<decltype(transform_reduce_func), decltype(args)>(transform_reduce_func, args);
+      return instantiateTransformReducer<Transformer, reduce_t, Reducer, nSrc, TXBufAcc, TYBufAcc, coeff_t...>(
+          reducer_resources, x, y, a...);
+    } else {
+      return instantiateTransformReducer<Transformer, reduce_t, Reducer, nSrc, TXBufAcc, TYBufAcc, coeff_t...>(
+          reduce_bufs, x, y, a...);
+    }
   }
 
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas
