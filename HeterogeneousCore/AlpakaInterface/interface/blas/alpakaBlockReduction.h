@@ -233,11 +233,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
         auto* smem_cache = sdata.template as<atomic_t>();
         if constexpr (n_elements == 1) {
           if constexpr (use_sloppy_reduction) {
-            reduce::accum(res) = smem_cache[warpIdx_x + batch * w_items_x];
+            reduce::accum(res) = smem_cache[threadIdx_x + batch * w_items_x];
             const std::size_t offset = w_items_x * blockDim_z;
-            reduce::compensation(res) = smem_cache[warpIdx_x + batch * w_items_x + offset];
+            reduce::compensation(res) = smem_cache[threadIdx_x + batch * w_items_x + offset];
           } else {
-            res = smem_cache[warpIdx_x + batch * w_items_x];
+            res = smem_cache[threadIdx_x + batch * w_items_x];
           }
         } else {
           const std::size_t stride = w_items_x * blockDim_z;
@@ -245,11 +245,11 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
           for (std::size_t i = 0; i < n_elements; i++) {
             const std::size_t stride = w_items_x * blockDim_z;
             if constexpr (use_sloppy_reduction) {
-              reduce::accum(res[i]) = smem_cache[warpIdx_x + batch * w_items_x + i * stride];
+              reduce::accum(res[i]) = smem_cache[threadIdx_x + batch * w_items_x + i * stride];
               const std::size_t offset = w_items_x * blockDim_z * n_elements;
-              reduce::compensation(res[i]) = smem_cache[warpIdx_x + batch * w_items_x + i * stride + offset];
+              reduce::compensation(res[i]) = smem_cache[threadIdx_x + batch * w_items_x + i * stride + offset];
             } else {
-              res[i] = smem_cache[warpIdx_x + batch * w_items_x + i * stride];
+              res[i] = smem_cache[threadIdx_x + batch * w_items_x + i * stride];
             }
           }
         }
@@ -262,7 +262,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       if (all) {
         auto* smem_cache = sdata.template as<atomic_t>();
 
-        if (cms::alpakatools::once_per_block(acc)) {
+        if (threadIdx_x == 0) {
           if constexpr (n_elements == 1) {
             smem_cache[0 + batch * w_items_x] = reduce::result<decltype(res), use_sloppy_reduction>(res);
           } else {
