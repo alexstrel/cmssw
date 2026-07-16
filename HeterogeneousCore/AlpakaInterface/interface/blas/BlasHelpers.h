@@ -15,7 +15,6 @@
 #include <concepts>
 #include <type_traits>
 
-
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using namespace cms::alpakatools;

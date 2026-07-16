@@ -12,8 +12,6 @@ namespace cms::alpakatools {
    * where memory coherence between the device (e.g., GPU) and host (CPU) isn't guaranteed.
    */
 
-
-
   template <typename T>
   concept AtomicScalar = (std::integral<std::remove_cvref_t<T>> || std::floating_point<std::remove_cvref_t<T>>) &&
                          (sizeof(std::remove_cvref_t<T>) == 4 || sizeof(std::remove_cvref_t<T>) == 8);

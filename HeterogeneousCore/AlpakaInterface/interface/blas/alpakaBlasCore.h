@@ -174,7 +174,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
       auto const i(static_cast<unsigned int>(threadIdx_x + blockIdx_x * blockDim_x));
 
       transformer_t transformer = f.get_transformer();
-      reducer_t reducer = f.get_reducer();
 
       reduce_t result = TransformReducer_t::init();
 
@@ -215,6 +214,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
       alpaka::syncBlockThreads(acc);
 
       if (isLastBlockDone[batch_idx]) {
+        reducer_t reducer = f.get_reducer();
+
         auto s = threadIdx_y * blockDim_x + threadIdx_x;
 
         auto accum = TransformReducer_t::init();
