@@ -9,43 +9,6 @@
 
 namespace cms::alpakatools {
   namespace transform {
-
-    template <typename T>
-    struct xpy {
-      //
-      using data_t = T;
-
-      static constexpr T apply(T x, T y) { return x + y; }
-      constexpr T operator()(T x, T y) const { return apply(x, y); }
-    };
-
-    template <typename T>
-    struct xmy {
-      //
-      using data_t = T;
-
-      static constexpr T apply(T x, T y) { return x - y; }
-      constexpr T operator()(T x, T y) const { return apply(x, y); }
-    };
-
-    template <typename T>
-    struct axpy {
-      //
-      using data_t = T;
-
-      static constexpr T apply(T a, T x, T y) { return a * x + y; }
-      constexpr T operator()(T a, T x, T y) const { return apply(a, x, y); }
-    };
-
-    template <typename T>
-    struct xpay {
-      //
-      using data_t = T;
-
-      static constexpr T apply(T a, T x, T y) { return x + a * y; }
-      constexpr T operator()(T a, T x, T y) const { return apply(a, x, y); }
-    };
-
     template <typename T>
     concept NonBoolIntegral = std::integral<std::remove_cvref_t<T>> && !std::same_as<std::remove_cvref_t<T>, bool>;
 
