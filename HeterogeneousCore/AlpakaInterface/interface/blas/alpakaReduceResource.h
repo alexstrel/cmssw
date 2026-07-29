@@ -53,6 +53,8 @@ namespace cms::alpakatools {
 
       auto get_count_ptr() { return count.data(); }
 
+      auto get_partial_upper_limit() { return alpaka::getExtents(partial).prod(); }
+
       void fetch_reduce_data(TQueue queue) { alpaka::memcpy(queue, result_h, result_d); }
 
     private:
@@ -67,7 +69,7 @@ namespace cms::alpakatools {
           : result_h(
                 alpaka::allocBuf<system_atomic_t, Idx>(alpaka::getDevByIdx(alpaka::PlatformCpu{}, numa_node_id), nSrc)),
             result_d(alpaka::allocBuf<system_atomic_t, Idx>(alpaka::getDev(queue), nSrc)),
-            partial(alpaka::allocBuf<device_atomic_t, Idx>(alpaka::getDev(queue), n_blocks)),
+            partial(alpaka::allocBuf<device_atomic_t, Idx>(alpaka::getDev(queue), nSrc * n_blocks)),
             count(alpaka::allocBuf<count_t, Idx>(alpaka::getDev(queue), nSrc)) {
         alpaka::memset(queue, result_h, 0);
         alpaka::memset(queue, result_d, 0);
