@@ -9,8 +9,8 @@
 #include "DataFormats/EgammaReco/interface/ElectronSeedSoA.h"
 
 namespace ALPAKA_ACCELERATOR_NAMESPACE::reco {
-    using namespace ::reco;
-    using ElectronSeedDeviceCollection = PortableCollection<ElectronSeedSoA>;
+  using namespace ::reco;
+  using ElectronSeedDeviceCollection = PortableCollection<ElectronSeedSoA>;
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::reco
 
 #endif  // DataFormats_EgammaReco_interface_alpaka_ElectronSeedDeviceCollection_h
