@@ -31,8 +31,8 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
-  static const Idx N = 1 << 12;  //6
-  //
+  static const Idx N = 16777216;  //4325376;  //6, 16
+
   static constexpr Idx nSrc = 2;
 
   std::cout << "N : " << N << std::endl;
@@ -142,13 +142,16 @@ int main() {
 #ifdef LOAD_REDUCE_BUF
     auto reduced_values =
         transform_reduce<QueueAcc, transformer_t, reduce_t, reducer_t, nSrc, copy_to_host, true, Buf_t, Buf_t, DataType>(
-            computeQueue, xAcc, yAcc, a);
+            computeQueue, 0, N, xAcc, yAcc, a);
 #else  // reduce_t deduce from reducer_t..
     auto reduced_values =
         transform_reduce<QueueAcc, transformer_t, reduce_t, reducer_t, nSrc, copy_to_host, false, Buf_t, Buf_t, DataType>(
-            computeQueue, xAcc, yAcc, a);
+            computeQueue, 0, N, xAcc, yAcc, a);
 #endif
 
+    bool is_correct = true;
+
+    constexpr double tol = 1e-10;
     for (size_t i{0}; i < nSrc; ++i) {
       std::cout << "CHECK output : " << std::setprecision(16) << reduced_values[i] << std::endl;
       //
@@ -162,12 +165,15 @@ int main() {
       }
 
       std::cout << "NORM on the host :: " << std::setprecision(16) << gnrm << std::endl;
+      if (abs(reduced_values[i] - gnrm) > tol)
+        is_correct = false;
     }
     //  Print results
     std::cout << "Multisrc reduction kernel.\n";
     std::cout << "Vector Size:" << N << "x" << ", src number:" << nSrc << "\n";
 
-    std::cout << "Sampled result checks are correct!\n";
+    if (is_correct)
+      std::cout << "Sampled result checks passed.\n";
   }
 
   return EXIT_SUCCESS;
