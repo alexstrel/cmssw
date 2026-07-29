@@ -68,6 +68,15 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
       return result;
     }
 
+    // Helper function to get compute range
+    template <typename VecType>
+    static auto get_max_range(VecType &vec) {
+      auto const max_it =
+          std::ranges::max_element(vec, {}, [](auto const &buffer) { return alpaka::getExtents(buffer).prod(); });
+
+      return alpaka::getExtents(*max_it).prod();
+    }
+
     reduce_t *result_h;
     system_atomic_t *result_d;
     device_atomic_t *partial;
@@ -79,6 +88,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
     reducer_params_t &reducer_params;
 
+    const Idx max_range;
+
     TransformReduceArgs(reducer_params_t &params,
                         [[maybe_unused]] const std::vector<x_buf_t> &x_,
                         [[maybe_unused]] std::vector<y_buf_t> &y_)
@@ -88,20 +99,26 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
           x(init_vec_array<x_buf_t>(x_)),
           y(init_vec_array<y_buf_t>(y_)),
           count(params.get_count_ptr()),
-          reducer_params(params) {}
+          reducer_params(params),
+          max_range(get_max_range(y_)) {}
 
-    TransformReduceArgs(reducer_params_t &params)
+    TransformReduceArgs(reducer_params_t &params, Idx const compute_range)
         : result_h(host_reduction ? params.get_host_reduce_ptr() : nullptr),
           result_d(params.get_device_reduce_ptr()),
           partial(params.get_partial_ptr()),
           count(params.get_count_ptr()),
-          reducer_params(params) {}
+          reducer_params(params),
+          max_range(compute_range) {}
 
     template <typename TQueue>
     auto fetch_data(TQueue queue) const {
       static_assert(host_reduction);
       reducer_params.fetch_reduce_data(queue);
     }
+
+    auto get_reducer_limit() const { return reducer_params.get_partial_upper_limit(); }
+
+    auto get_max_range() const { return max_range; }
   };
 
   template <typename TransformReducer_t, typename Args>
@@ -114,6 +131,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
     multireduce::BlockReducer block_reducer;
 
     MultiSrcTransformReducer(TransformReducer_t f, const Args &args) : args(args), f(f) {}
+
+    auto get_reducer_limit() const { return args.get_reducer_limit(); }
+
+    auto get_max_range() const { return args.get_max_range(); }
 
     template <typename TQueue>
     auto fetch(TQueue const &queue) const {
@@ -183,7 +204,9 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
     template <alpaka::concepts::Acc TAcc, typename... T, bool use_cg_reduce = false, bool use_cg_reducer = false>
     ALPAKA_FN_ACC std::enable_if_t<alpaka::Dim<TAcc>::value <= 3, void> apply(TAcc const &acc,
-                                                                              unsigned int const batch_idx,
+                                                                              std::uint32_t const batch_idx,
+                                                                              std::uint32_t const begin,
+                                                                              std::uint32_t const end,
                                                                               T... external_args) const {
       using reducer_t = typename TransformReducer_t::reducer_t;
       using reduce_t = typename TransformReducer_t::reduce_t;
@@ -198,35 +221,37 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
       auto const gridDim_x = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[lDim];
       auto const [blockDim_y, blockDim_x] = block_2d(acc);
 
-      // Block/Grid dims
-      auto const i(static_cast<unsigned int>(threadIdx_x + blockIdx_x * blockDim_x));
-
       transformer_t transformer = f.get_transformer();
 
       reduce_t result = TransformReducer_t::init();
 
-      if constexpr (sizeof...(external_args) == 0) {
-        using x_type = std::remove_cvref_t<decltype(args.x)>;
-        using y_type = std::remove_cvref_t<decltype(args.y)>;
+      auto i(static_cast<std::uint32_t>(threadIdx_x + blockIdx_x * blockDim_x) + begin);
 
-        static_assert((cms::alpakatools::is_VecArray_v<x_type> and cms::alpakatools::is_VecArray_v<y_type>),
-                      "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
-        result = transformer(acc, args.x, args.y, i, 0, batch_idx);
-      } else {
-        static_assert((cms::alpakatools::is_VecArray_v<T> && ...),
-                      "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
-        result = transformer(acc, external_args..., i, 0, batch_idx);
+      while (i < end) {
+        reduce_t reduce_val;
+
+        if constexpr (sizeof...(external_args) == 0) {
+          using x_type = std::remove_cvref_t<decltype(args.x)>;
+          using y_type = std::remove_cvref_t<decltype(args.y)>;
+
+          static_assert((cms::alpakatools::is_VecArray_v<x_type> and cms::alpakatools::is_VecArray_v<y_type>),
+                        "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
+          reduce_val = transformer(acc, args.x, args.y, i, 0, batch_idx);
+        } else {
+          static_assert((cms::alpakatools::is_VecArray_v<T> && ...),
+                        "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
+          reduce_val = transformer(acc, external_args..., i, 0, batch_idx);
+        }
+
+        result += block_reducer.template apply<TAcc, TransformReducer_t>(acc, batch_idx, reduce_val, f, true);
+        i += gridDim_x * blockDim_x;
       }
-
-      result = block_reducer.template apply<TAcc, TransformReducer_t>(acc, batch_idx, result, f, true);
-
       auto &isLastBlockDone = alpaka::declareSharedVar<bool[Args::nSrc], __COUNTER__>(acc);
 
       using count_t = typename Args::count_t;
 
       count_t *count = static_cast<count_t *>(args.count);
 
-      auto d_result = args.result_d;
       auto d_partial = args.partial;
 
       if (threadIdx_x == 0 && threadIdx_y == 0) {
@@ -257,7 +282,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
         result = block_reducer.template apply<TAcc, TransformReducer_t>(acc, batch_idx, accum, f, true);
 
         if (threadIdx_x == 0 && threadIdx_y == 0) {
-          d_result[batch_idx] = result;
+          auto d_result = args.result_d;
+          d_result[batch_idx] += result;
         }
       }
     }
@@ -318,6 +344,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
       auto &reducer_resources =
           reduce::ReducerResource<TAcc, TQueue, reduce_t>::get_reduction_resources(queue, nSrc, max_reduce_blocks);
+
+      std::cout << "Initialized reducer resources with max reduce blocks " << max_reduce_blocks << std::endl;
 
       return instantiateTransformReducer<Transformer, reduce_t, Reducer, nSrc, TXBufAcc, TYBufAcc, coeff_t...>(
           reducer_resources, x, y, a...);
