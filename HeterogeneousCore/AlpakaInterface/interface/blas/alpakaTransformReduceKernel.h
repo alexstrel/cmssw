@@ -20,11 +20,16 @@ using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
 template <alpaka::concepts::Acc TAcc, typename TransformReducer>
 class TransformReduceKernel {
+  const Idx begin_offset;
+  const Idx end;
+
 public:
+  TransformReduceKernel(Idx const offset, Idx const end) : begin_offset(offset), end(end) {}
   ALPAKA_FN_ACC auto operator()(TAcc const &acc, TransformReducer const &transform_reducer) const -> void {
     // batch idx is always the slowest index
     auto const batch_idx = static_cast<Idx>(alpaka::getIdx<alpaka::Block, alpaka::Threads>(acc)[0]);
-    transform_reducer.apply(acc, batch_idx);
+
+    transform_reducer.apply(acc, batch_idx, begin_offset, end);
   }
 };
 
@@ -38,7 +43,12 @@ template <typename TQueue,
           typename TXBufAcc,
           typename TYBufAcc,
           typename... coeff_t>
-auto transform_reduce(TQueue &queue, const std::vector<TXBufAcc> &x, std::vector<TYBufAcc> &y, coeff_t const &...a) {
+auto transform_reduce(TQueue &queue,
+                      Idx const begin,
+                      Idx const end,
+                      const std::vector<TXBufAcc> &x,
+                      std::vector<TYBufAcc> &y,
+                      coeff_t const &...a) {
   using transformer_t = Transformer;
   using reducer_t = Reducer;
 
@@ -49,21 +59,11 @@ auto transform_reduce(TQueue &queue, const std::vector<TXBufAcc> &x, std::vector
   static_assert(nSrc > 0, "nSrc must be positive");
   static_assert(nSrc <= 16, "nSrc exceeds the maximum allowed value 16");
 
-  auto const max_it =
-      std::ranges::max_element(y, {}, [](auto const &buffer) { return alpaka::getExtents(buffer).prod(); });
+  auto const devAcc = alpaka::getDev(queue);
+  Idx const max_threads_per_block = static_cast<Idx>(alpaka::getAccDevProps<Acc3D>(devAcc).m_blockThreadCountMax);
 
-  Idx const N = alpaka::getExtents(*max_it).prod();
-
-  const std::uint32_t wExtend = alpaka::getPreferredWarpSize(alpaka::getDev(queue));
-
-  const Idx block_x_dim = (Idx{1024} / static_cast<Idx>(nSrc) / wExtend) * wExtend;
-
-  Idx const grid_x_dim = (N + block_x_dim - 1) / block_x_dim;
-
-  Vec3D const grid_size{1, 1, grid_x_dim};
-  Vec3D const block_size{nSrc, 1, block_x_dim};
-
-  alpaka::WorkDivMembers<Dim3D, Idx> workDiv{grid_size, block_size, Vec3D::ones()};
+  std::uint32_t const wExtend = alpaka::getPreferredWarpSize(alpaka::getDev(queue));
+  Idx const max_block_x_dim = ((max_threads_per_block / static_cast<Idx>(nSrc)) / wExtend) * wExtend;
 
   [[maybe_unused]] auto reduce_bufs = [&]() {
     if constexpr (create_resources) {
@@ -73,25 +73,44 @@ auto transform_reduce(TQueue &queue, const std::vector<TXBufAcc> &x, std::vector
     }
   }();
 
-  auto msrc_functor = multiblas::instantiateTransformReducer<Acc3D,
-                                                             TQueue,
-                                                             transformer_t,
-                                                             reduce_t,
-                                                             reducer_t,
-                                                             decltype(reduce_bufs),
-                                                             nSrc,
-                                                             TXBufAcc,
-                                                             TYBufAcc,
-                                                             coeff_t...>(queue, reduce_bufs, x, y, a...);
+  auto msrc_tr = multiblas::instantiateTransformReducer<Acc3D,
+                                                        TQueue,
+                                                        transformer_t,
+                                                        reduce_t,
+                                                        reducer_t,
+                                                        decltype(reduce_bufs),
+                                                        nSrc,
+                                                        TXBufAcc,
+                                                        TYBufAcc,
+                                                        coeff_t...>(queue, reduce_bufs, x, y, a...);
+  Idx const range = begin - end;
 
-  TransformReduceKernel<Acc3D, std::remove_cvref_t<decltype(msrc_functor)>> tr_compute_kernel;
+  assert(range > msrc_tr.get_max_range());
 
-  alpaka::exec<Acc3D>(queue, workDiv, tr_compute_kernel, msrc_functor);
+  std::cout << "Reduction buffer limit:  " << msrc_tr.get_reducer_limit() << std::endl;
+
+  Idx const block_x_dim = range < max_block_x_dim ? (range / wExtend) * wExtend : max_block_x_dim;
+
+  Idx const max_grid_x_dim = (range + block_x_dim - 1) / block_x_dim;
+
+  Idx const grid_x_dim =
+      max_grid_x_dim * nSrc <= msrc_tr.get_reducer_limit() ? max_grid_x_dim : msrc_tr.get_reducer_limit() / nSrc;
+
+  std::cout << "Launch configuration: x dim blocks " << block_x_dim << ", x dim grid  " << grid_x_dim << std::endl;
+
+  Vec3D const grid_size{1, 1, grid_x_dim};
+  Vec3D const block_size{nSrc, 1, block_x_dim};
+
+  alpaka::WorkDivMembers<Dim3D, Idx> workDiv{grid_size, block_size, Vec3D::ones()};
+
+  TransformReduceKernel<Acc3D, std::remove_cvref_t<decltype(msrc_tr)>> tr_compute_kernel(begin, end);
+
+  alpaka::exec<Acc3D>(queue, workDiv, tr_compute_kernel, msrc_tr);
 
   if constexpr (host_values) {
-    return msrc_functor.template host_reduced_values<TQueue>(queue);
+    return msrc_tr.template host_reduced_values<TQueue>(queue);
   } else {
-    return msrc_functor.template device_reduced_values<TQueue>(queue);
+    return msrc_tr.template device_reduced_values<TQueue>(queue);
   }
 }
 

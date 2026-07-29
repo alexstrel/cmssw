@@ -211,7 +211,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       auto const blockDim_z = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
       // Write the reduced sum of each warp to shared memory
       if (laneIdx == 0) {
-        auto* smem_cache = sdata.template as<atomic_t>();
+        auto smem_cache = sdata.template as<atomic_t>();
         if constexpr (n_elements == 1) {
           smem_cache[warpIdx_x + batch * w_items_x] = reduce::result<decltype(res), use_sloppy_reduction>(res);
           if constexpr (use_sloppy_reduction) {
@@ -236,7 +236,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
 
       // Reduce the results from all warps (assuming blockDim.x / warpSize warps per block)
       if (threadIdx_x < w_items_x) {
-        auto* smem_cache = sdata.template as<atomic_t>();
+        auto smem_cache = sdata.template as<atomic_t>();
         if constexpr (n_elements == 1) {
           if constexpr (use_sloppy_reduction) {
             reduce::accum(res) = smem_cache[threadIdx_x + batch * w_items_x];
@@ -266,7 +266,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       alpaka::syncBlockThreads(acc);
       //return res;
       if (all) {
-        auto* smem_cache = sdata.template as<atomic_t>();
+        auto smem_cache = sdata.template as<atomic_t>();
 
         if (threadIdx_x == 0) {
           if constexpr (n_elements == 1) {
