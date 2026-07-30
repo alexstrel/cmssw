@@ -11,25 +11,27 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
   using namespace cms::alpakatools;
 
-  template <typename reduce_t_, typename Reducer, typename Transformer, bool site_unroll_ = false>
+  template <typename reduce_t_, typename Init, typename Reducer, typename Transformer, bool site_unroll_ = false>
   class TransformReduceFunctor {
   public:
     using reduce_t = reduce_t_;
+    using init_t = Init;
     using reducer_t = Reducer;
     using transformer_t = Transformer;
 
+    init_t initializer;
     reducer_t reducer;
     transformer_t transformer;
 
     static constexpr bool site_unroll = site_unroll_;
 
-    TransformReduceFunctor(reducer_t r, transformer_t t) : reducer(r), transformer(t) {}
+    TransformReduceFunctor(init_t i, reducer_t r, transformer_t t) : initializer(i), reducer(r), transformer(t) {}
 
-    static constexpr reduce_t init() { return reduce::zero<reduce_t>(); }
+    static constexpr reduce_t init() { return init_t{}(0.); }
 
     template <typename U>
     static constexpr reduce_t init(U &in) {
-      return reduce::set<reduce_t>(in);
+      return init_t{}(in);
     }
 
     ALPAKA_FN_ACC auto get_transformer() const { return transformer; }
@@ -288,19 +290,26 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
     }
   };
 
-  template <std::size_t nSrc, typename TXBufAcc, typename TYBufAcc, typename reduce_t, typename Reducer, typename Transformer>
+  template <std::size_t nSrc,
+            typename TXBufAcc,
+            typename TYBufAcc,
+            typename reduce_t,
+            typename Init,
+            typename Reducer,
+            typename Transformer>
   auto instantiateTransformReducer(auto &reduce_bufs,
                                    std::vector<TXBufAcc> const &x,
                                    std::vector<TYBufAcc> &y,
+                                   Init init,
                                    Reducer reducer,
                                    Transformer transformer) {
     using args_t = TransformReduceArgs<TXBufAcc, TYBufAcc, decltype(reduce_bufs), nSrc>;
 
     args_t args{reduce_bufs, x, y};
 
-    using transform_reduce_t = TransformReduceFunctor<reduce_t, Reducer, Transformer, false>;
+    using transform_reduce_t = TransformReduceFunctor<reduce_t, Init, Reducer, Transformer, false>;
 
-    transform_reduce_t transform_reduce_func{reducer, transformer};
+    transform_reduce_t transform_reduce_func{init, reducer, transformer};
 
     return MultiSrcTransformReducer<transform_reduce_t, args_t>{transform_reduce_func, args};
   }
@@ -315,12 +324,14 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
             typename TXBufAcc,
             typename TYBufAcc,
             typename reduce_t,
+            typename Init,
             typename Reducer,
             typename Transformer>
   auto instantiateTransformReducer([[maybe_unused]] const TQueue &queue,
                                    [[maybe_unused]] ReducerResources &reduce_bufs,
                                    const std::vector<TXBufAcc> &x,
                                    std::vector<TYBufAcc> &y,
+                                   Init init,
                                    Reducer reducer,
                                    Transformer transformer) {
     auto const nsrc = x.size();
@@ -342,9 +353,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
       std::cout << "Initialized reducer resources with max reduce blocks " << max_reduce_blocks << std::endl;
 
       return instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, reduce_t>(
-          reducer_resources, x, y, reducer, transformer);
+          reducer_resources, x, y, init, reducer, transformer);
     } else {
-      return instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, reduce_t>(reduce_bufs, x, y, reducer, transformer);
+      return instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, reduce_t>(
+          reduce_bufs, x, y, init, reducer, transformer);
     }
   }
 
