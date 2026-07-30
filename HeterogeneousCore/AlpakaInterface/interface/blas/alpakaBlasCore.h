@@ -11,20 +11,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
   using namespace cms::alpakatools;
 
-  template <typename Transformer, typename reduce_t_, typename Reducer = reduce::plus<reduce_t_>, bool site_unroll_ = false>
+  template <typename reduce_t_, typename Reducer, typename Transformer, bool site_unroll_ = false>
   class TransformReduceFunctor {
   public:
-    using transformer_t = Transformer;
-    using reducer_t = Reducer;
-
     using reduce_t = reduce_t_;
+    using reducer_t = Reducer;
+    using transformer_t = Transformer;
 
-    transformer_t transformer;
     reducer_t reducer;
+    transformer_t transformer;
 
     static constexpr bool site_unroll = site_unroll_;
 
-    TransformReduceFunctor(transformer_t t, reducer_t r) : transformer(t), reducer(r) {}
+    TransformReduceFunctor(reducer_t r, transformer_t t) : reducer(r), transformer(t) {}
 
     static constexpr reduce_t init() { return reduce::zero<reduce_t>(); }
 
@@ -289,24 +288,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
     }
   };
 
-  template <typename Transformer,
-            typename reduce_t,
-            typename Reducer,
-            std::size_t nSrc,
-            typename TXBufAcc,
-            typename TYBufAcc,
-            typename... coeff_t>
+  template <std::size_t nSrc, typename TXBufAcc, typename TYBufAcc, typename reduce_t, typename Reducer, typename Transformer>
   auto instantiateTransformReducer(auto &reduce_bufs,
                                    std::vector<TXBufAcc> const &x,
                                    std::vector<TYBufAcc> &y,
-                                   coeff_t const &...a) {
+                                   Reducer reducer,
+                                   Transformer transformer) {
     using args_t = TransformReduceArgs<TXBufAcc, TYBufAcc, decltype(reduce_bufs), nSrc>;
 
     args_t args{reduce_bufs, x, y};
 
-    using transform_reduce_t = TransformReduceFunctor<Transformer, reduce_t, Reducer, false>;
+    using transform_reduce_t = TransformReduceFunctor<reduce_t, Reducer, Transformer, false>;
 
-    transform_reduce_t transform_reduce_func{Transformer{a...}, Reducer{}};
+    transform_reduce_t transform_reduce_func{reducer, transformer};
 
     return MultiSrcTransformReducer<transform_reduce_t, args_t>{transform_reduce_func, args};
   }
@@ -316,19 +310,19 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
   */
   template <alpaka::concepts::Acc TAcc,
             typename TQueue,
-            typename Transformer,
-            typename reduce_t,
-            typename Reducer,
             typename ReducerResources,
             unsigned long long nSrc,
             typename TXBufAcc,
             typename TYBufAcc,
-            typename... coeff_t>
+            typename reduce_t,
+            typename Reducer,
+            typename Transformer>
   auto instantiateTransformReducer([[maybe_unused]] const TQueue &queue,
                                    [[maybe_unused]] ReducerResources &reduce_bufs,
                                    const std::vector<TXBufAcc> &x,
                                    std::vector<TYBufAcc> &y,
-                                   coeff_t const &...a) {
+                                   Reducer reducer,
+                                   Transformer transformer) {
     auto const nsrc = x.size();
 
     if (nsrc != nSrc)
@@ -347,11 +341,10 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
       std::cout << "Initialized reducer resources with max reduce blocks " << max_reduce_blocks << std::endl;
 
-      return instantiateTransformReducer<Transformer, reduce_t, Reducer, nSrc, TXBufAcc, TYBufAcc, coeff_t...>(
-          reducer_resources, x, y, a...);
+      return instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, reduce_t>(
+          reducer_resources, x, y, reducer, transformer);
     } else {
-      return instantiateTransformReducer<Transformer, reduce_t, Reducer, nSrc, TXBufAcc, TYBufAcc, coeff_t...>(
-          reduce_bufs, x, y, a...);
+      return instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, reduce_t>(reduce_bufs, x, y, reducer, transformer);
     }
   }
 

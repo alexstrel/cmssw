@@ -34,21 +34,21 @@ public:
 };
 
 template <typename TQueue,
-          typename Transformer,
-          typename reduce_t,
-          typename Reducer,
           std::size_t nSrc,
           bool host_values,
           bool create_resources,
           typename TXBufAcc,
           typename TYBufAcc,
-          typename... coeff_t>
+          typename reduce_t,
+          typename Reducer,
+          typename Transformer>
 auto transform_reduce(TQueue &queue,
                       Idx const begin,
                       Idx const end,
                       const std::vector<TXBufAcc> &x,
                       std::vector<TYBufAcc> &y,
-                      coeff_t const &...a) {
+                      Reducer reducer,
+                      Transformer transformer) {
   using transformer_t = Transformer;
   using reducer_t = Reducer;
 
@@ -73,16 +73,9 @@ auto transform_reduce(TQueue &queue,
     }
   }();
 
-  auto msrc_tr = multiblas::instantiateTransformReducer<Acc3D,
-                                                        TQueue,
-                                                        transformer_t,
-                                                        reduce_t,
-                                                        reducer_t,
-                                                        decltype(reduce_bufs),
-                                                        nSrc,
-                                                        TXBufAcc,
-                                                        TYBufAcc,
-                                                        coeff_t...>(queue, reduce_bufs, x, y, a...);
+  auto msrc_tr =
+      multiblas::instantiateTransformReducer<Acc3D, TQueue, decltype(reduce_bufs), nSrc, TXBufAcc, TYBufAcc, reduce_t>(
+          queue, reduce_bufs, x, y, reducer, transformer);
   Idx const range = begin - end;
 
   assert(range > msrc_tr.get_max_range());
