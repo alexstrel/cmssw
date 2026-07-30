@@ -18,6 +18,38 @@
 using namespace cms::alpakatools;
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
+template <alpaka::concepts::Acc TAcc,
+          typename Queue,
+          std::size_t NSrc,
+          bool CopyToHost,
+          bool CreateResources,
+          bool DoSiteUnroll>
+struct TransformReducePolicy {
+  static_assert(NSrc > 0, "Number of src must be positive");
+  static_assert(NSrc <= 16, "Number of src exceeds the maximum allowed value 16");
+  static_assert(NSrc == 1 || (NSrc > 1 && std::same_as<std::remove_cvref_t<TAcc>, Acc3D>),
+                "TAcc must be 3-dimensional for NSrc > 1");
+
+  using acc_type = TAcc;
+  using queue_type = Queue;
+
+  Queue &queue;  // WARNING: dangling reference risk!
+
+  static constexpr std::size_t nSrc = NSrc;
+  static constexpr bool copy_to_host = CopyToHost;
+  static constexpr bool create_resources = CreateResources;
+};
+
+template <alpaka::concepts::Acc TAcc,
+          std::size_t NSrc,
+          bool CopyToHost,
+          bool CreateResources,
+          bool DoSiteUnroll,
+          typename Queue>
+auto make_transform_reduce_policy(Queue &queue) {
+  return TransformReducePolicy<TAcc, Queue, NSrc, CopyToHost, CreateResources, DoSiteUnroll>{queue};
+}
+
 template <alpaka::concepts::Acc TAcc, typename TransformReducer>
 class TransformReduceKernel {
   const Idx begin_offset;
@@ -33,54 +65,57 @@ public:
   }
 };
 
-template <typename TQueue,
-          std::size_t nSrc,
-          bool host_values,
-          bool create_resources,
+template <typename TPolicy,
           typename TXBufAcc,
           typename TYBufAcc,
           typename reduce_t,
+          typename Init,
           typename Reducer,
           typename Transformer>
-auto transform_reduce(TQueue &queue,
+auto transform_reduce(TPolicy &policy,
                       Idx const begin,
                       Idx const end,
                       const std::vector<TXBufAcc> &x,
                       std::vector<TYBufAcc> &y,
+                      Init init,
                       Reducer reducer,
                       Transformer transformer) {
+  using acc_t = typename TPolicy::acc_type;
+  using queue_t = typename TPolicy::queue_type;
+
   using transformer_t = Transformer;
   using reducer_t = Reducer;
+
+  constexpr std::size_t nSrc = TPolicy::nSrc;
 
   if (y.size() != nSrc || x.size() != nSrc) {
     throw std::invalid_argument("launchTransformReduce(): x and y must contain nSrc buffers");
   }
 
-  static_assert(nSrc > 0, "nSrc must be positive");
-  static_assert(nSrc <= 16, "nSrc exceeds the maximum allowed value 16");
+  auto const devAcc = alpaka::getDev(policy.queue);
+  Idx const max_threads_per_block = static_cast<Idx>(alpaka::getAccDevProps<acc_t>(devAcc).m_blockThreadCountMax);
 
-  auto const devAcc = alpaka::getDev(queue);
-  Idx const max_threads_per_block = static_cast<Idx>(alpaka::getAccDevProps<Acc3D>(devAcc).m_blockThreadCountMax);
-
-  std::uint32_t const wExtend = alpaka::getPreferredWarpSize(alpaka::getDev(queue));
+  std::uint32_t const wExtend = alpaka::getPreferredWarpSize(alpaka::getDev(policy.queue));
   Idx const max_block_x_dim = ((max_threads_per_block / static_cast<Idx>(nSrc)) / wExtend) * wExtend;
 
   [[maybe_unused]] auto reduce_bufs = [&]() {
-    if constexpr (create_resources) {
-      return cms::alpakatools::reduce::create_reduction_resources<Acc3D, TQueue, reduce_t>(queue, nSrc);
+    if constexpr (TPolicy::create_resources) {
+      return cms::alpakatools::reduce::create_reduction_resources<acc_t, queue_t, reduce_t>(policy.queue, nSrc);
     } else {
       return std::monostate{};
     }
   }();
 
   auto msrc_tr =
-      multiblas::instantiateTransformReducer<Acc3D, TQueue, decltype(reduce_bufs), nSrc, TXBufAcc, TYBufAcc, reduce_t>(
-          queue, reduce_bufs, x, y, reducer, transformer);
+      multiblas::instantiateTransformReducer<acc_t, queue_t, decltype(reduce_bufs), nSrc, TXBufAcc, TYBufAcc, reduce_t>(
+          policy.queue, reduce_bufs, x, y, init, reducer, transformer);
   Idx const range = begin - end;
 
   assert(range > msrc_tr.get_max_range());
 
   std::cout << "Reduction buffer limit:  " << msrc_tr.get_reducer_limit() << std::endl;
+
+  std::cout << "Test init:  " << init(101.01) << std::endl;
 
   Idx const block_x_dim = range < max_block_x_dim ? (range / wExtend) * wExtend : max_block_x_dim;
 
@@ -96,14 +131,14 @@ auto transform_reduce(TQueue &queue,
 
   alpaka::WorkDivMembers<Dim3D, Idx> workDiv{grid_size, block_size, Vec3D::ones()};
 
-  TransformReduceKernel<Acc3D, std::remove_cvref_t<decltype(msrc_tr)>> tr_compute_kernel(begin, end);
+  TransformReduceKernel<acc_t, std::remove_cvref_t<decltype(msrc_tr)>> tr_compute_kernel(begin, end);
 
-  alpaka::exec<Acc3D>(queue, workDiv, tr_compute_kernel, msrc_tr);
+  alpaka::exec<acc_t>(policy.queue, workDiv, tr_compute_kernel, msrc_tr);
 
-  if constexpr (host_values) {
-    return msrc_tr.template host_reduced_values<TQueue>(queue);
+  if constexpr (TPolicy::copy_to_host) {
+    return msrc_tr.template host_reduced_values<queue_t>(policy.queue);
   } else {
-    return msrc_tr.template device_reduced_values<TQueue>(queue);
+    return msrc_tr.template device_reduced_values<queue_t>(policy.queue);
   }
 }
 

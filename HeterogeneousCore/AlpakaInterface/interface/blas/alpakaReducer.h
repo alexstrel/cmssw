@@ -60,6 +60,28 @@ namespace cms::alpakatools {
       return v;
     }
 
+    template <typename T>
+    struct Set {
+      template <typename U>
+        requires std::is_arithmetic_v<T> && std::is_arithmetic_v<U>
+      ALPAKA_FN_HOST_ACC constexpr auto operator()(U const& x) const noexcept -> T {
+        return static_cast<T>(x);
+      }
+
+      template <typename U, std::int32_t N>
+        requires std::is_arithmetic_v<T> && std::is_arithmetic_v<U>
+      ALPAKA_FN_HOST_ACC constexpr auto operator()(VecArray<U, N> const& x) const noexcept -> VecArray<T, N> {
+        VecArray<T, N> result;
+
+        CMS_UNROLL_LOOP
+        for (std::int32_t i = 0; i < N; ++i) {
+          result[i] = (*this)(x[i]);
+        }
+
+        return result;
+      }
+    };
+
     template <std::floating_point T>
     using kahan_accumulator = VecArray<T, 2>;
 

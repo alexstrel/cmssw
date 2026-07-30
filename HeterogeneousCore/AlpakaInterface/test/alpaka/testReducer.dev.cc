@@ -138,14 +138,19 @@ int main() {
 
     using reducer_t = cms::alpakatools::reduce::plus<reduce_t>;
     using transformer_t = cms::alpakatools::transform::axpynorm2_batched<DataType, nSrc>;
+    using init_t = cms::alpakatools::reduce::Set<reduce_t>;
 
     constexpr bool copy_to_host = true;
+
+    auto policy = make_transform_reduce_policy<Acc3D, nSrc, copy_to_host, true, false>(computeQueue);
+
+    std::cout << "Check policy " << policy.nSrc << std::endl;
 #ifdef LOAD_REDUCE_BUF
-    auto reduced_values = transform_reduce<QueueAcc, nSrc, copy_to_host, true, Buf_t, Buf_t, reduce_t>(
-        computeQueue, 0, N, xAcc, yAcc, reducer_t{}, transformer_t{a});
+    auto reduced_values = transform_reduce<decltype(policy), Buf_t, Buf_t, reduce_t>(
+        policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
 #else  // reduce_t deduce from reducer_t..
-    auto reduced_values = transform_reduce<QueueAcc, nSrc, copy_to_host, false, Buf_t, Buf_t, reduce_t>(
-        computeQueue, 0, N, xAcc, yAcc, reducer_t{}, transformer_t{a});
+    auto reduced_values = transform_reduce<decltype(policy), Buf_t, Buf_t, reduce_t>(
+        policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
 #endif
 
     bool is_correct = true;
