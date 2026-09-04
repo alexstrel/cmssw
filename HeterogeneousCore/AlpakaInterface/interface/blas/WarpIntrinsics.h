@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <concepts>
 
-namespace cms::alpakablasintrinsics {
+namespace cms::alpakatools::blas {
   namespace warp {
 
 #ifdef __HIP_DEVICE_COMPILE__
@@ -296,5 +296,5 @@ namespace cms::alpakablasintrinsics {
     return res;
   }
 
-}  // namespace cms::alpakablasintrinsics
+}  // namespace cms::alpakatools::blas
 #endif

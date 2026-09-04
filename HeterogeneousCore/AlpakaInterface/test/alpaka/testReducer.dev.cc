@@ -19,8 +19,6 @@
 using namespace cms::alpakatools;
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
-#define LOAD_REDUCE_BUFF
-
 int main() {
   // get the list of devices on the current platform
   auto const &devices = cms::alpakatools::devices<Platform>();
@@ -145,13 +143,11 @@ int main() {
     auto policy = make_transform_reduce_policy<Acc3D, nSrc, copy_to_host, true, false>(computeQueue);
 
     std::cout << "Check policy " << policy.nSrc << std::endl;
-#ifdef LOAD_REDUCE_BUF
-    auto reduced_values = transform_reduce<decltype(policy), Buf_t, Buf_t, reduce_t>(
-        policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
-#else  // reduce_t deduce from reducer_t..
-    auto reduced_values = transform_reduce<decltype(policy), Buf_t, Buf_t, reduce_t>(
-        policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
-#endif
+
+    //auto reduced_values = transform_reduce<decltype(policy), Buf_t, Buf_t, reduce_t>(
+    //policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
+
+    auto reduced_values = transform_reduce(policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
 
     bool is_correct = true;
 
