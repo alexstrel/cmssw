@@ -6,6 +6,7 @@
 #define RecoEgamma_EgammaElectronAlgos_interface_helixBarrelPlaneCrossing_h
 
 #include <cmath>
+#include <limits>
 
 #include "RecoEgamma/EgammaElectronAlgos/interface/Plane.h"
 
@@ -74,14 +75,15 @@ namespace propagators {
     const egamma::Plane<typename Vec3d::value_type> plane(surfPosition, surfRotation);
 
     constexpr double straightLineCutoff = 1.e-7;
+    constexpr double eps = std::numeric_limits<double>::epsilon();
 
     const double abs_rho = alpaka::math::abs(acc, rho);
     const double startingDir_rho = startingPos.rho(acc);
 
     auto compute_position = [&](const double s) -> Vec3d {
       const double mag = startingDir.r(acc);
-      const double scale = mag > 0. ? s / mag : 0.;  //that is, for "zero" vector this will be identity operation
-      return egamma::math::axpy(scale, startingDir, startingPos);
+      const double scale = mag > eps ? s / mag : 0.;  //that is, for "zero" vector this will be identity operation
+      return egamma::math::axpy(acc, scale, startingDir, startingPos);
     };
 
     if (abs_rho < straightLineCutoff && abs_rho * startingDir_rho < straightLineCutoff) {
