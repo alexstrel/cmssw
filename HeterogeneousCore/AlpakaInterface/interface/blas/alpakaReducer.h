@@ -28,7 +28,7 @@ namespace cms::alpakatools {
       }
     };
 
-    using namespace cms::alpakablasintrinsics;
+    using namespace cms::alpakatools::blas;
 
     template <typename T>
       requires std::is_arithmetic_v<T>

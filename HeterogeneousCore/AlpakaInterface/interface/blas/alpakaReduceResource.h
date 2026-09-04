@@ -22,26 +22,21 @@ namespace cms::alpakatools {
     template <alpaka::concepts::Acc TAcc, typename TQueue, typename T>
     class ReducerResource {
     public:
-      using reduce_t = std::remove_cvref_t<T>;
+      using ReduceT = std::remove_cvref_t<T>;
 
-      using atomic_t = cms::alpakatools::atomic_type_t<reduce_t>;
+      using AtomicT = cms::alpakatools::atomic_type_t<ReduceT>;
 #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED_DUMMY
-      using device_atomic_t = cuda::atomic<atomic_t, cuda::thread_scope_device>;
-      using system_atomic_t = cuda::atomic<atomic_t, cuda::thread_scope_system>;
-      using count_t = cuda::atomic<int, cuda::thread_scope_device>;
+      using DeviceAtomicT = cuda::atomic<AtomicT, cuda::thread_scope_device>;
+      using SystemAtomicT = cuda::atomic<AtomicT, cuda::thread_scope_system>;
+      using CountT = cuda::atomic<int, cuda::thread_scope_device>;
 #else
-      using device_atomic_t = atomic_t;
-      using system_atomic_t = atomic_t;
-      using count_t = int;
+      using DeviceAtomicT = AtomicT;
+      using SystemAtomicT = AtomicT;
+      using CountT = int;
 #endif
 
       template <alpaka::concepts::Acc TAcc_, typename TQueue_, typename T_>
       friend decltype(auto) create_reduction_resources(TQueue_ queue, Idx nSrc);
-
-      static ReducerResource<TAcc, TQueue, T>& get_reduction_resources(TQueue queue, Idx nSrc, Idx n_blocks) {
-        static ReducerResource<TAcc, TQueue, T> instance(queue, nSrc, n_blocks);
-        return instance;
-      }
 
       auto get_host_reduce_ptr() { return result_h.data(); }
       auto get_device_reduce_ptr() { return result_d.data(); }
@@ -58,26 +53,23 @@ namespace cms::alpakatools {
       void fetch_reduce_data(TQueue queue) { alpaka::memcpy(queue, result_h, result_d); }
 
     private:
-      alpaka::Buf<alpaka::DevCpu, system_atomic_t, Dim1D, Idx> result_h;
-      alpaka::Buf<TAcc, system_atomic_t, Dim1D, Idx> result_d;
-      alpaka::Buf<TAcc, device_atomic_t, Dim1D, Idx> partial;
+      alpaka::Buf<alpaka::DevCpu, SystemAtomicT, Dim1D, Idx> result_h;
+      alpaka::Buf<TAcc, SystemAtomicT, Dim1D, Idx> result_d;
+      alpaka::Buf<TAcc, DeviceAtomicT, Dim1D, Idx> partial;
 
       /** count array that is used to track the number of completed thread blocks at a given batch index */
-      alpaka::Buf<TAcc, count_t, Dim1D, Idx> count;
+      alpaka::Buf<TAcc, CountT, Dim1D, Idx> count;
 
-      ReducerResource(TQueue queue, Idx nSrc, Idx n_blocks, const int numa_node_id = 0, bool sync = false)
+      ReducerResource(TQueue queue, Idx nSrc, Idx n_blocks, const int numa_node_id = 0)
           : result_h(
-                alpaka::allocBuf<system_atomic_t, Idx>(alpaka::getDevByIdx(alpaka::PlatformCpu{}, numa_node_id), nSrc)),
-            result_d(alpaka::allocBuf<system_atomic_t, Idx>(alpaka::getDev(queue), nSrc)),
-            partial(alpaka::allocBuf<device_atomic_t, Idx>(alpaka::getDev(queue), nSrc * n_blocks)),
-            count(alpaka::allocBuf<count_t, Idx>(alpaka::getDev(queue), nSrc)) {
+                alpaka::allocBuf<SystemAtomicT, Idx>(alpaka::getDevByIdx(alpaka::PlatformCpu{}, numa_node_id), nSrc)),
+            result_d(alpaka::allocBuf<SystemAtomicT, Idx>(alpaka::getDev(queue), nSrc)),
+            partial(alpaka::allocBuf<DeviceAtomicT, Idx>(alpaka::getDev(queue), nSrc * n_blocks)),
+            count(alpaka::allocBuf<CountT, Idx>(alpaka::getDev(queue), nSrc)) {
         alpaka::memset(queue, result_h, 0);
         alpaka::memset(queue, result_d, 0);
         alpaka::memset(queue, partial, 0);
         alpaka::memset(queue, count, 0);
-        //
-        if (sync == false)
-          alpaka::wait(queue);
       }
     };
 
