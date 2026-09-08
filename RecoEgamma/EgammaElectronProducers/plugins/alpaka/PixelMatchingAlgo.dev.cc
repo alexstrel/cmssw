@@ -21,7 +21,7 @@
 namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
   using namespace cms::alpakatools;
-
+#if 0
   template <typename TAcc, typename T>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE T
   getZVtxFromExtrapolation(TAcc const& acc, const Vec3d& primeVtxPos, const Vec3d& hitPos, const Vec3d& candPos) {
@@ -34,6 +34,22 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
     T zvtx = hitPos[2] - r1Diff * (candPos[2] - hitPos[2]) / r2Diff;
     return zvtx;
   }
+#else  //egamma::math::Phys3DVector<double>
+  template <typename TAcc, typename T>
+  ALPAKA_FN_ACC ALPAKA_FN_INLINE auto getZVtxFromExtrapolation(TAcc const& acc,
+                                                               const egamma::math::Phys3DVector<T>& primeVtxPos,
+                                                               const egamma::math::Phys3DVector<T>& hitPos,
+                                                               const egamma::math::Phys3DVector<T>& candPos) -> T {
+    auto sq = [](T x) { return x * x; };
+
+    auto calRDiff2 = [sq](const auto& p1, const auto& p2) { return sq(p2[0] - p1[0]) + sq(p2[1] - p1[1]); };
+    const T r1Diff = alpaka::math::sqrt(acc, calRDiff2(primeVtxPos, hitPos));
+    const T r2Diff = alpaka::math::sqrt(acc, calRDiff2(hitPos, candPos));
+
+    T zvtx = hitPos[2] - r1Diff * (candPos[2] - hitPos[2]) / r2Diff;
+    return zvtx;
+  }
+#endif
 
   template <typename TAcc, typename T>
   ALPAKA_FN_ACC ALPAKA_FN_INLINE T
@@ -199,7 +215,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             propagatedMom *= momentum.r(acc) / propagatedMom.r(acc);
 
-            egamma::EleRelPointPairPortable<typename Vec3d::value_type> pair(hitPosition, propagatedPos, vertex);
+            egamma::EleRelPointPairPortable pair(hitPosition, propagatedPos, vertex);
 
             const float dPhiMax = getCutValue(acc, et, 0.05f, 20.f, -0.002f);
             const float dRZMax = getCutValue(acc, et, 9999.f, 0.f, 0.f);
@@ -210,8 +226,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
                 (dRZMax >= 0 && alpaka::math::abs(acc, dRZ) > dRZMax))
               continue;
 
-            const double zVertex =
-                getZVtxFromExtrapolation<TAcc, typename Vec3d::value_type>(acc, vertex, hitPosition, positionSC);
+            const double zVertex = getZVtxFromExtrapolation(acc, vertex, hitPosition, positionSC);
             Vec3d vertexUpdated(vertex[0], vertex[1], zVertex);
 
             // --- Second hit ---
@@ -253,8 +268,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
 
             propagatedMom *= momentum2.r(acc) / propagatedMom.r(acc);
 
-            egamma::EleRelPointPairPortable<typename Vec3d::value_type> pair2(
-                hit2Position, propagatedPos, vertexUpdated);
+            egamma::EleRelPointPairPortable pair2(hit2Position, propagatedPos, vertexUpdated);
 
             const float dPhiMax2 = getCutValue(acc, et, 0.003f, 0.f, 0.f);
             const float dRZMax2 = getCutValue(acc, et, 0.05f, 30.f, -0.002f);
@@ -298,8 +312,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               if (!thirdSolExists)
                 continue;
 
-              egamma::EleRelPointPairPortable<typename Vec3d::value_type> pair3(
-                  hit3Position, propagatedPos3, vertexUpdated);
+              egamma::EleRelPointPairPortable pair3(hit3Position, propagatedPos3, vertexUpdated);
 
               const float dPhiMax3 = getCutValue(acc, et, 0.003f, 0.f, 0.f);
               const float dRZMax3 = getCutValue(acc, et, 0.05f, 30.f, -0.002f);
