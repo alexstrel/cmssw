@@ -186,8 +186,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             double s = 0;
             bool theSolExists = false;
 
-            Vec3d propagatedPos(0);
-            Vec3d propagatedMom(0);
+            Vec3d propagatedPos;
+            Vec3d propagatedMom;
 
             double rho = (c * bFieldFirst) / momentum.rho(acc);
 
@@ -242,8 +242,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
             rho = (c * bFieldHit0) / momentum2.rho(acc);
 
             theSolExists = false;
-            propagatedPos = Vec3d(0);
-            propagatedMom = Vec3d(0);
+            propagatedPos.zero();
+            propagatedMom.zero();
 
             egamma::Plane<typename Vec3d::value_type> plane2(surf2Position, surf2Rotation);
             if (eleSeed.hit1detectorID() == 1) {
@@ -288,7 +288,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE {
               Vec3d surf3Rotation(eleSeed.surf2Rot().x(), eleSeed.surf2Rot().y(), eleSeed.surf2Rot().z());
 
               bool thirdSolExists = false;
-              Vec3d propagatedPos3(0), propagatedMom3(0);
+              Vec3d propagatedPos3, propagatedMom3;
               double s3 = 0;
 
               egamma::Plane<typename Vec3d::value_type> plane3(surf3Position, surf3Rotation);

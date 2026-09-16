@@ -162,8 +162,8 @@ namespace propagators {
     double pathLength2O = 0;
     bool validPath2O = false;
 
-    Vec3d position2O(0.);
-    Vec3d directionOut2O(0.);
+    Vec3d position2O;
+    Vec3d directionOut2O;
 
     helixArbitraryPlaneCrossing2Order<TAcc, propDir>(
         acc, point, direction, curvature, plane, pathLength2O, validPath2O, position2O, directionOut2O);
@@ -231,8 +231,8 @@ namespace propagators {
       double tmpPathLength = 0.;
       bool tmpValidPath = false;
       //
-      Vec3d tmpPosition(0.);
-      Vec3d tmpDirectionOut(0.);
+      Vec3d tmpPosition;
+      Vec3d tmpDirectionOut;
 
       // Originally it passes the theSinTheta
       helixArbitraryPlaneCrossing2Order<TAcc, propagators::PropagationDirection::anyDirection>(
