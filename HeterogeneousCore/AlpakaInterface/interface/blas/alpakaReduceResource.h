@@ -3,6 +3,7 @@
 
 #include "HeterogeneousCore/AlpakaInterface/interface/config.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/memory.h"
 
 namespace cms::alpakatools {
   namespace reduce {
@@ -22,8 +23,9 @@ namespace cms::alpakatools {
     template <alpaka::concepts::Acc TAcc, typename TQueue, typename T>
     class ReducerResource {
     public:
-      using ReduceT = std::remove_cvref_t<T>;
+      using DeviceT = decltype(alpaka::getDev(std::declval<TQueue const&>()));
 
+      using ReduceT = std::remove_cvref_t<T>;
       using AtomicT = cms::alpakatools::atomic_type_t<ReduceT>;
 #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED_DUMMY
       using DeviceAtomicT = cuda::atomic<AtomicT, cuda::thread_scope_device>;
@@ -53,19 +55,17 @@ namespace cms::alpakatools {
       void fetch_reduce_data(TQueue queue) { alpaka::memcpy(queue, result_h, result_d); }
 
     private:
-      alpaka::Buf<alpaka::DevCpu, SystemAtomicT, Dim1D, Idx> result_h;
-      alpaka::Buf<TAcc, SystemAtomicT, Dim1D, Idx> result_d;
-      alpaka::Buf<TAcc, DeviceAtomicT, Dim1D, Idx> partial;
-
+      cms::alpakatools::host_buffer<SystemAtomicT[]> result_h;
+      cms::alpakatools::device_buffer<DeviceT, SystemAtomicT[]> result_d;
+      cms::alpakatools::device_buffer<DeviceT, DeviceAtomicT[]> partial;
       /** count array that is used to track the number of completed thread blocks at a given batch index */
-      alpaka::Buf<TAcc, CountT, Dim1D, Idx> count;
+      cms::alpakatools::device_buffer<DeviceT, CountT[]> count;
 
       ReducerResource(TQueue queue, Idx nSrc, Idx n_blocks, const int numa_node_id = 0)
-          : result_h(
-                alpaka::allocBuf<SystemAtomicT, Idx>(alpaka::getDevByIdx(alpaka::PlatformCpu{}, numa_node_id), nSrc)),
-            result_d(alpaka::allocBuf<SystemAtomicT, Idx>(alpaka::getDev(queue), nSrc)),
-            partial(alpaka::allocBuf<DeviceAtomicT, Idx>(alpaka::getDev(queue), nSrc * n_blocks)),
-            count(alpaka::allocBuf<CountT, Idx>(alpaka::getDev(queue), nSrc)) {
+          : result_h(cms::alpakatools::make_host_buffer<SystemAtomicT[]>(queue, nSrc * n_blocks)),
+            result_d(cms::alpakatools::make_device_buffer<DeviceAtomicT[]>(queue, nSrc * n_blocks)),
+            partial(cms::alpakatools::make_device_buffer<DeviceAtomicT[]>(queue, nSrc * n_blocks)),
+            count(cms::alpakatools::make_device_buffer<CountT[]>(queue, nSrc)) {
         alpaka::memset(queue, result_h, 0);
         alpaka::memset(queue, result_d, 0);
         alpaka::memset(queue, partial, 0);
