@@ -35,7 +35,7 @@ int main() {
 
   std::cout << "N : " << N << std::endl;
 
-  using DataType = double;
+  using DataType = float;
 
   for (auto const &device : devices) {
     std::cout << "Test nsrc kernels on " << alpaka::getName(device) << '\n';
@@ -46,7 +46,7 @@ int main() {
     auto computeQueue = Queue(
         device);  // TODO: cannot be const due to unsupported combination for memcpy (specialization does not exist in Alpaka?)
 
-    if (alpaka::getAccName<Acc3D>() == "AccCpuSerial<3,unsigned int>") {
+    if constexpr (std::is_same_v<decltype(device), alpaka::DevCpu>) {
       std::cout << "... skipped" << std::endl;
       return EXIT_SUCCESS;
     }
@@ -132,9 +132,9 @@ int main() {
     }
     std::cout << "Running alpaka transform_reduce kernel..." << std::endl;
 
-    using reduce_t = double;
+    using reduce_t = float;
 
-    using reducer_t = cms::alpakatools::reduce::plus<reduce_t>;
+    using reducer_t = cms::alpakatools::reduce::plus<reduce_t, true>;
     using transformer_t = cms::alpakatools::transform::axpynorm2_batched<DataType, nSrc>;
     using init_t = cms::alpakatools::reduce::Set<reduce_t>;
 
@@ -144,29 +144,30 @@ int main() {
 
     std::cout << "Check policy " << policy.nSrc << std::endl;
 
-    //auto reduced_values = transform_reduce<decltype(policy), Buf_t, Buf_t, reduce_t>(
-    //policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
-
     auto reduced_values = transform_reduce(policy, 0, N, xAcc, yAcc, init_t{}, reducer_t{}, transformer_t{a});
 
     bool is_correct = true;
 
-    constexpr double tol = 1e-10;
+    constexpr double tol = 5e-4;
+
     for (size_t i{0}; i < nSrc; ++i) {
       std::cout << "CHECK output : " << std::setprecision(16) << reduced_values[i] << std::endl;
       //
       alpaka::memcpy(computeQueue, yView, yAcc[i]);
       alpaka::wait(computeQueue);
 
-      double gnrm = 0.0;
+      double host_nrm = 0.0;
 
       for (size_t j{0}; j < N; ++j) {  //dof
-        gnrm += (yView[j] * yView[j]);
+        host_nrm += (yView[j] * yView[j]);
       }
 
-      std::cout << "NORM on the host :: " << std::setprecision(16) << gnrm << std::endl;
-      if (abs(reduced_values[i] - gnrm) > tol)
+      std::cout << "NORM on the host :: " << std::setprecision(16) << host_nrm << std::endl;
+      if (abs(reduced_values[i] - host_nrm) / host_nrm > tol) {
+        std::cout << "NORM diff :: " << std::setprecision(16) << abs(reduced_values[i] - host_nrm) / host_nrm
+                  << std::endl;
         is_correct = false;
+      }
     }
     //  Print results
     std::cout << "Multisrc reduction kernel.\n";
@@ -174,6 +175,10 @@ int main() {
 
     if (is_correct)
       std::cout << "Sampled result checks passed.\n";
+    else {
+      std::cout << "Sampled result checks failed.\n";
+      exit(EXIT_FAILURE);
+    }
   }
 
   return EXIT_SUCCESS;

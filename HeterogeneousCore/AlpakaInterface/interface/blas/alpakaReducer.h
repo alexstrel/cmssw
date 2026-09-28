@@ -177,12 +177,12 @@ namespace cms::alpakatools {
         // Add low-order components:
         const kahan_atomic_t lo_sum = two_sum(compensation(a), compensation(b));
 
-        compensation(hi_sum) = warp::add_rn(componsation(hi_sum), accum(lo_sum));
+        compensation(hi_sum) = warp::add_rn(compensation(hi_sum), accum(lo_sum));
 
         // Renormalize hi_sum:
         const kahan_atomic_t v = fast_two_sum(accum(hi_sum), compensation(hi_sum));
 
-        compensation(lo_sum) = warp::add_rn(componsation(lo_sum), compensation(v));
+        compensation(lo_sum) = warp::add_rn(compensation(lo_sum), compensation(v));
 
         // Renormalize lo_sum:
         const kahan_atomic_t z = fast_two_sum(accum(v), compensation(lo_sum));

@@ -22,46 +22,44 @@ namespace cms::alpakatools::blas {
     //! \tparam T The type of the args specializing add.
     //! \param x The first argument.
     //! \param y The second argument.
-    template <std::floating_point T>
-    constexpr auto add_rn(T const x, T const y) -> T {
-      T z{};
-      if constexpr (std::is_same_v<T, float>) {
+    //! Remark : the default rounding mode is RN, so use this intrinsics
+    //!          for numerically controlled algorithms (like Kahan algo)
+    constexpr auto add_rn(float const x, float const y) -> float {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-        z = __fadd_rn(x, y);
+      return __fadd_rn(x, y);
 #else
-        z = x + y;
+      return (x + y);
 #endif
-      } else if constexpr (std::is_same_v<T, double>) {
+    }
+
+    constexpr auto add_rn(double const x, double const y) -> double {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-        z = __dadd_rn(x, y);
+      return __dadd_rn(x, y);
 #else
-        z = x + y;
+      return (x + y);
 #endif
-      }
-      return z;
     }
 
     //! Computes x - y in round mode
     //! \tparam T The type of the args specializing sub.
     //! \param x The first argument.
     //! \param y The second argument.
-    template <std::floating_point T>
-    constexpr auto sub_rn(T const x, T const y) -> T {
-      T z{};
-      if constexpr (std::is_same_v<T, float>) {
+    //! Remark : the default rounding mode is RN, so use this intrinsics
+    //!          for numerically controlled algorithms (like Kahan algo)
+    constexpr auto sub_rn(float const x, float const y) -> float {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-        z = __fsub_rn(x, y);
+      return __fsub_rn(x, y);
 #else
-        z = x - y;
+      return (x - y);
 #endif
-      } else if constexpr (std::is_same_v<T, double>) {
+    }
+
+    constexpr auto sub_rn(double const x, double const y) -> double {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-        z = __dsub_rn(x, y);
+      return __dsub_rn(x, y);
 #else
-        z = x - y;
+      return (x - y);
 #endif
-      }
-      return z;
     }
 
     /**
@@ -102,13 +100,11 @@ namespace cms::alpakatools::blas {
  */
     template <alpaka::concepts::Acc TAcc, typename TMask = decltype(alpaka::warp::activemask(std::declval<TAcc&>()))>
     ALPAKA_FN_ACC ALPAKA_FN_INLINE auto ballot_mask(TAcc const& acc, TMask const mask, int pred) -> TMask {
-      TMask res{0};
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-      res = __ballot_sync(mask, pred);
+      return __ballot_sync(mask, pred);
 #else
-      res = pred == 0 ? 0 : mask;
+      return pred == 0 ? static_mask<TMask>(0) : mask;
 #endif
-      return res;
     }
     /**
  * @brief Masked warp shuffle from a source lane.
@@ -260,10 +256,8 @@ namespace cms::alpakatools::blas {
   ALPAKA_FN_ACC ALPAKA_FN_INLINE auto brev(TAcc const& acc, TMask const mask) -> TMask {
     TMask res{0};
 #if defined(__CUDA_ARCH__)
-    // Alpaka CUDA backend
     res = __brev(mask);
 #elif defined(__HIP_DEVICE_COMPILE__)
-    // Alpaka HIP backend
     res = __brevll(mask);
 #else
     res = mask;
@@ -285,10 +279,8 @@ namespace cms::alpakatools::blas {
   ALPAKA_FN_ACC ALPAKA_FN_INLINE auto clz(TAcc const& acc, MaskType const mask) -> uint32_t {
     uint32_t res{0};
 #if defined(__CUDA_ARCH__)
-    // Alpaka CUDA backend
     res = __clz(mask);
 #elif defined(__HIP_DEVICE_COMPILE__)
-    // Alpaka HIP backend
     res = __clzll(mask);
 #else
     res = mask == 0 ? 1 : 0;
