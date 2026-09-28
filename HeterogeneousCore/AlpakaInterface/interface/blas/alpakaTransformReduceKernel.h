@@ -30,8 +30,8 @@ struct TransformReducePolicy {
   static_assert(NSrc == 1 || (NSrc > 1 && std::same_as<std::remove_cvref_t<TAcc>, Acc3D>),
                 "TAcc must be 3-dimensional for NSrc > 1");
 
-  using acc_type = TAcc;
-  using queue_type = Queue;
+  using AccT = TAcc;
+  using QueueT = Queue;
 
   Queue &queue;  // WARNING: dangling reference risk!
 
@@ -54,13 +54,13 @@ template <typename TPolicy, typename TXBufAcc, typename TYBufAcc, typename Init,
 auto transform_reduce(TPolicy &policy,
                       Idx const begin,
                       Idx const end,
-                      const std::vector<TXBufAcc> &x,
-                      std::vector<TYBufAcc> &y,
+                      const std::vector<TXBufAcc> &in,
+                      std::vector<TYBufAcc> &out,
                       Init init,
                       Reducer reducer,
                       Transformer transformer) {
-  using AccT = typename TPolicy::acc_type;
-  using QueueT = typename TPolicy::queue_type;
+  using AccT = typename TPolicy::AccT;
+  using QueueT = typename TPolicy::QueueT;
 
   using TransformerT = Transformer;
   using ReducerT = Reducer;
@@ -68,7 +68,7 @@ auto transform_reduce(TPolicy &policy,
 
   constexpr std::size_t nSrc = TPolicy::nSrc;
 
-  if (y.size() != nSrc || x.size() != nSrc) {
+  if (out.size() != nSrc || in.size() != nSrc) {
     throw std::invalid_argument("launchTransformReduce(): x and y must contain nSrc buffers");
   }
 
@@ -80,8 +80,8 @@ auto transform_reduce(TPolicy &policy,
 
   auto reduce_bufs = cms::alpakatools::reduce::create_reduction_resources<AccT, QueueT, ReduceT>(policy.queue, nSrc);
 
-  auto msrc_tr = multiblas::instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, ReduceT>(
-      reduce_bufs, x, y, init, reducer, transformer);
+  auto msrc_tr = cms::alpakatools::multiblas::instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, ReduceT>(
+      reduce_bufs, in, out, init, reducer, transformer);
 
   Idx const range = begin - end;
 

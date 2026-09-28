@@ -7,9 +7,10 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaBlockReduction.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaReduceResource.h"
 
-namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
+//namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
+namespace cms::alpakatools::multiblas {
 
-  using namespace cms::alpakatools;
+  using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
   template <typename ReduceT_, typename Init, typename Reducer, typename Transformer, bool site_unroll_ = false>
   class TransformReduceFunctor {
@@ -302,6 +303,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas {
 
     return MultiSrcTransformReducer<TransformReduceT, ArgsT>{transform_reduce_func, args};
   }
-}  // namespace ALPAKA_ACCELERATOR_NAMESPACE::multiblas
+}  // namespace cms::alpakatools::multiblas
 
 #endif
