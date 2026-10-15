@@ -53,6 +53,8 @@ namespace extfloat {
     return ExtendedFloat<T>{s, t};
   }
 
+  enum class UpdateKind { UpdateLowComponent, UpdateHighComponent, InvalidUpdate };
+
   template <std::floating_point T>
   class ExtendedFloat {
   public:
@@ -86,12 +88,27 @@ namespace extfloat {
     }
 
     constexpr T const HighComponent() const { return reg[0]; }
-    constexpr void UpdateHighComponent(T const val) { reg[0] = val; }
-
     constexpr T const LowComponent() const { return reg[1]; }
-    constexpr T UpdateLowComponent(T const val) { reg[1] = val; }
 
-    constexpr T const Aggregate() const { return (reg[0] + reg[1]); }
+    template <UpdateKind which_update = UpdateKind::InvalidUpdate>
+    constexpr void Accum(T const v) {
+      if constexpr (which_update == UpdateKind::UpdateLowComponent) {
+        reg[1] = warp::add_rn(reg[1], v);
+      } else if constexpr (which_update == UpdateKind::UpdateHighComponent) {
+        reg[0] = warp::add_rn(reg[0], v);
+      } else {
+        //nop
+      }
+    }
+
+    template <bool extended_sum = false>
+    constexpr auto Aggregate() const {
+      if constexpr (extended_sum) {
+        return fast_two_sum(reg[0], reg[1]);
+      } else {
+        return warp::add_rn(reg[0], reg[1]);
+      }
+    }
 
   private:
     T reg[2]{};
@@ -124,31 +141,32 @@ namespace extfloat {
 
   template <std::floating_point T>
   constexpr ExtendedFloat<T> operator+(ExtendedFloat<T> const& x, ExtendedFloat<T> const& y) {
+    constexpr bool use_fast_two_sum = true;
+
     auto hi_sum = two_sum(x.HighComponent(), y.HighComponent());
 
-    auto lo_sum = two_sum(x.LowComponent(), y.LowComponent());
+    auto const lo_sum = two_sum(x.LowComponent(), y.LowComponent());
 
-    hi_sum.UpdateLowComponent(warp::add_rn(hi_sum.LowComponent(), lo_sum.HighComponent()));
+    hi_sum.template Accum << UpdateKind::UpdateLowComponent > (lo_sum.HighComponent());
 
-    auto v = fast_two_sum(hi_sum.HighComponent(), hi_sum.LowComponent());
+    auto v = hi_sum.template Aggregate<use_fast_two_sum>();
 
-    lo_sum.UpdateLowComponent(warp::add_rn(lo_sum.LowComponent(), v.LowComponent()));
+    v.template Accum << UpdateKind::UpdateLowComponent > (lo_sum.LowComponent());
 
-    auto const res = fast_two_sum(v.HighComponent(), lo_sum.LowComponent());
-
-    return res;
+    return v.template Aggregate<use_fast_two_sum>();
   }
 
   template <std::floating_point T>
   constexpr ExtendedFloat<T> operator*(ExtendedFloat<T> const& x, ExtendedFloat<T> const& y) {
+    constexpr bool use_fast_two_sum = true;
     auto hi_prod = two_prod(x.HighComponent(), y.HighComponent());
 
     T const p = warp::mul_rn(x.HighComponent(), y.LowComponent());
     T const c = warp::fma_rn(x.LowComponent(), y.HighComponent(), p);
 
-    auto const res = fast_two_sum(hi_prod.HighComponent(), warp::add_rn(c, hi_prod.LowComponent()));
+    hi_prod.template Accum << UpdateKind::UpdateLowComponent > (c);
 
-    return res;
+    return hi_prod.template Aggregate<use_fast_two_sum>();
   }
 
   template <std::floating_point T>

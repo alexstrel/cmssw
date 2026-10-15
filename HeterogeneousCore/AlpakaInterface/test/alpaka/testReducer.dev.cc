@@ -131,14 +131,12 @@ int main() {
     }
     std::cout << "Running alpaka transform_reduce kernel..." << std::endl;
 
-    using Reduce_t = float;
+    //using Reduce_t = float;
+    using Reduce_t = extfloat::ExtendedFloat<float>;
 
     using reducer_t = cms::alpakatools::reduce::plus<Reduce_t>;
     using transformer_t = cms::alpakatools::transform::axpynorm2_batched<Reduce_t, DataType, nSrc>;
     using init_t = cms::alpakatools::reduce::Set<Reduce_t>;
-
-    using ExtReduce_t = extfloat::ExtendedFloat<Reduce_t>;
-    using ext_init_t = cms::alpakatools::reduce::Set<ExtReduce_t>;
 
     constexpr bool copy_to_host = true;
 

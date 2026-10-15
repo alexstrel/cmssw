@@ -66,6 +66,16 @@ auto transform_reduce(TPolicy &policy,
   using ReducerT = Reducer;
   using ReduceT = typename Reducer::reduce_t;
 
+  //using ReduceBaseT = std::conditional_t<extfloat::is_extended_float<ReduceT>::value, extfloat::floating_value_t<T>, atomic_type_t<ReduceT>>;
+
+  using ReduceBaseT = typename decltype([] {
+    if constexpr (extfloat::is_extended_float<ReduceT>::value) {
+      return std::type_identity<extfloat::floating_value_t<ReduceT>>{};
+    } else {
+      return std::type_identity<atomic_type_t<ReduceT>>{};
+    }
+  }())::type;
+
   constexpr std::size_t nSrc = TPolicy::nSrc;
 
   if (out.size() != nSrc || in.size() != nSrc) {
@@ -81,8 +91,8 @@ auto transform_reduce(TPolicy &policy,
   constexpr bool use_augmented_reduction = ReducerT::use_augmented_reduction;
 
   auto reduce_bufs =
-      cms::alpakatools::reduce::create_reduction_resources<AccT, QueueT, ReduceT, use_augmented_reduction>(policy.queue,
-                                                                                                           nSrc);
+      cms::alpakatools::reduce::create_reduction_resources<AccT, QueueT, ReduceBaseT, use_augmented_reduction>(
+          policy.queue, nSrc);
 
   auto msrc_tr = cms::alpakatools::multiblas::instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, ReduceT>(
       reduce_bufs, in, out, init, reducer, transformer);
@@ -92,8 +102,6 @@ auto transform_reduce(TPolicy &policy,
   assert(range > msrc_tr.GetMaxRange());
 
   std::cout << "Reduction buffer limit:  " << msrc_tr.GetReducerLimit() << std::endl;
-
-  std::cout << "Test init:  " << init(101.01) << std::endl;
 
   Idx const block_x_dim = range < max_block_x_dim ? (range / wExtend) * wExtend : max_block_x_dim;
 

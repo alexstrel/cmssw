@@ -83,7 +83,7 @@ namespace cms::alpakatools {
       template <typename U>
         requires extfloat::ExtendedFloatType<T> && std::is_floating_point_v<U>
       ALPAKA_FN_HOST_ACC constexpr auto operator()(U const& x) const noexcept -> T {
-        return extfloat::ExtendedFloat<T>(x);
+        return T{x};
       }
 
       template <typename U, std::int32_t N>
