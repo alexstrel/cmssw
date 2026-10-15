@@ -78,16 +78,20 @@ auto transform_reduce(TPolicy &policy,
   std::uint32_t const wExtend = alpaka::getPreferredWarpSize(alpaka::getDev(policy.queue));
   Idx const max_block_x_dim = ((max_threads_per_block / static_cast<Idx>(nSrc)) / wExtend) * wExtend;
 
-  auto reduce_bufs = cms::alpakatools::reduce::create_reduction_resources<AccT, QueueT, ReduceT>(policy.queue, nSrc);
+  constexpr bool use_augmented_reduction = ReducerT::use_augmented_reduction;
+
+  auto reduce_bufs =
+      cms::alpakatools::reduce::create_reduction_resources<AccT, QueueT, ReduceT, use_augmented_reduction>(policy.queue,
+                                                                                                           nSrc);
 
   auto msrc_tr = cms::alpakatools::multiblas::instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, ReduceT>(
       reduce_bufs, in, out, init, reducer, transformer);
 
   Idx const range = begin - end;
 
-  assert(range > msrc_tr.get_max_range());
+  assert(range > msrc_tr.GetMaxRange());
 
-  std::cout << "Reduction buffer limit:  " << msrc_tr.get_reducer_limit() << std::endl;
+  std::cout << "Reduction buffer limit:  " << msrc_tr.GetReducerLimit() << std::endl;
 
   std::cout << "Test init:  " << init(101.01) << std::endl;
 
@@ -96,7 +100,7 @@ auto transform_reduce(TPolicy &policy,
   Idx const max_grid_x_dim = (range + block_x_dim - 1) / block_x_dim;
 
   Idx const grid_x_dim =
-      max_grid_x_dim * nSrc <= msrc_tr.get_reducer_limit() ? max_grid_x_dim : msrc_tr.get_reducer_limit() / nSrc;
+      max_grid_x_dim * nSrc <= msrc_tr.GetReducerLimit() ? max_grid_x_dim : msrc_tr.GetReducerLimit() / nSrc;
 
   std::cout << "Launch configuration: x dim blocks " << block_x_dim << ", x dim grid  " << grid_x_dim << std::endl;
 
@@ -108,9 +112,9 @@ auto transform_reduce(TPolicy &policy,
   alpaka::exec<AccT>(policy.queue, workDiv, msrc_tr, begin, end);
 
   if constexpr (TPolicy::copy_to_host) {
-    return msrc_tr.template host_reduced_values<QueueT>(policy.queue);
+    return msrc_tr.template HostReducedValues<QueueT>(policy.queue);
   } else {
-    return msrc_tr.template device_reduced_values<QueueT>(policy.queue);
+    return msrc_tr.template DeviceReducedValues<QueueT>(policy.queue);
   }
 }
 
