@@ -28,10 +28,10 @@ namespace cms::alpakatools::multiblas {
 
     TransformReduceFunctor(InitT i, ReducerT r, TransformerT t) : initializer(i), reducer(r), transformer(t) {}
 
-    static constexpr ReduceT Init() { return InitT{}(0); }
+    static constexpr ReduceT Init() { return InitT{}(0.); }
 
     template <typename U>
-    static constexpr ReduceT Init(U &in) {
+    static constexpr ReduceT Init(U const &in) {
       return InitT{}(in);
     }
 
@@ -49,7 +49,7 @@ namespace cms::alpakatools::multiblas {
   public:
     static constexpr unsigned long long nSrc = nSrc_;
 
-    using ReduceT = std::remove_cvref_t<reducer_params_t>::ReduceT;
+    using DataT = std::remove_cvref_t<reducer_params_t>::DataT;
     using CountT = std::remove_cvref_t<reducer_params_t>::CountT;
 
     using SystemAtomicT = std::remove_cvref_t<reducer_params_t>::SystemAtomicT;
@@ -79,7 +79,7 @@ namespace cms::alpakatools::multiblas {
       return alpaka::getExtents(*max_it).prod();
     }
 
-    ReduceT *result_h;
+    DataT *result_h;
     SystemAtomicT *result_d;
     DeviceAtomicT *partial;
 
@@ -172,9 +172,9 @@ namespace cms::alpakatools::multiblas {
     }
 
     auto HostReducedValues() const {
-      using HostReduceT = typename TransformReducerT::ReduceT;
+      using DataT = typename Args::DataT;
 
-      std::vector<HostReduceT> values(Args::nSrc);
+      std::vector<DataT> values(Args::nSrc);
 
       for (Idx i = 0; i < Args::nSrc; i++) {
         values[i] = args.result_h[i];
@@ -185,11 +185,11 @@ namespace cms::alpakatools::multiblas {
 
     template <typename TQueue>
     auto HostReducedValues(TQueue const &queue) const {
-      using HostReduceT = typename TransformReducerT::ReduceT;
+      using DataT = typename Args::DataT;
 
       Fetch(queue);
 
-      std::vector<HostReduceT> values(Args::nSrc);
+      std::vector<DataT> values(Args::nSrc);
 
       alpaka::wait(queue);
 
@@ -309,8 +309,7 @@ namespace cms::alpakatools::multiblas {
 
         if (threadIdx_x == 0 && threadIdx_y == 0) {
           auto d_result = args.result_d;
-          auto const x = d_result[batch_idx];
-          d_result[batch_idx] = reducer(x, reduce::ReducerResult(out));
+          d_result[batch_idx] = reduce::ReducerResult(out);
         }
       }
     }

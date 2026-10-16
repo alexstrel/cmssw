@@ -68,7 +68,7 @@ namespace extfloat {
     constexpr ExtendedFloat(const S hi, const S lo) : reg{static_cast<T>(hi), static_cast<T>(lo)} {}
 
     template <std::floating_point S>
-    constexpr ExtendedFloat(const S hi) : reg{static_cast<T>(hi), static_cast<T>(0)} {}
+    constexpr ExtendedFloat(const S hi) : reg{static_cast<T>(hi), static_cast<T>(0.)} {}
 
     constexpr ExtendedFloat& operator=(ExtendedFloat const&) = default;
     constexpr ExtendedFloat& operator=(ExtendedFloat&&) = default;
@@ -83,7 +83,7 @@ namespace extfloat {
     template <std::floating_point U>
     constexpr ExtendedFloat& operator=(U val) {
       reg[0] = static_cast<T>(val);
-      reg[1] = T{0};
+      reg[1] = T{0.};
       return *this;
     }
 
@@ -147,11 +147,11 @@ namespace extfloat {
 
     auto const lo_sum = two_sum(x.LowComponent(), y.LowComponent());
 
-    hi_sum.template Accum << UpdateKind::UpdateLowComponent > (lo_sum.HighComponent());
+    hi_sum.template Accum<UpdateKind::UpdateLowComponent>(lo_sum.HighComponent());
 
     auto v = hi_sum.template Aggregate<use_fast_two_sum>();
 
-    v.template Accum << UpdateKind::UpdateLowComponent > (lo_sum.LowComponent());
+    v.template Accum<UpdateKind::UpdateLowComponent>(lo_sum.LowComponent());
 
     return v.template Aggregate<use_fast_two_sum>();
   }
@@ -164,7 +164,7 @@ namespace extfloat {
     T const p = warp::mul_rn(x.HighComponent(), y.LowComponent());
     T const c = warp::fma_rn(x.LowComponent(), y.HighComponent(), p);
 
-    hi_prod.template Accum << UpdateKind::UpdateLowComponent > (c);
+    hi_prod.template Accum<UpdateKind::UpdateLowComponent>(c);
 
     return hi_prod.template Aggregate<use_fast_two_sum>();
   }
@@ -477,7 +477,7 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpSparseReduce(TAcc const& acc,
   constexpr std::uint32_t w_extent = getWarpSize<TAcc>();
 
   if constexpr (std::is_same_v<alpaka::Dev<TAcc>, alpaka::DevCpu>)
-    return mask == 0 ? 0 : in;
+    return mask == 0 ? reduce_t{0.} : in;
 
   // Non-active lanes must skip the reduction:
   if (isWorkLane<TAcc>(mask, lane_idx) == false) {
@@ -513,7 +513,7 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpSparseReduce(TAcc const& acc,
 
   if constexpr (all) {
     const auto low_lane_idx = getPhysicalLaneIdx(acc, mask, 0);
-    res = warp::shfl_mask(acc, mask, res, low_lane_idx, w_extent);
+
     base_float_tp const res_hi = alpaka::warp::shfl_down(acc, res.HighComponent(), low_lane_idx, w_extent);
     base_float_tp const res_lo = alpaka::warp::shfl_down(acc, res.LowComponent(), low_lane_idx, w_extent);
 

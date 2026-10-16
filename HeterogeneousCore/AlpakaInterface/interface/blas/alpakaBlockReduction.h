@@ -127,16 +127,24 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
         return res;
       }
 
-      constexpr bool use_augmented_reduction = use_augmented_reduction_v<typename TransformReducerT::ReducerT>;
-
-      using accum_t = std::conditional_t<use_augmented_reduction,
-                                         extfloat::floating_value_t<ReduceT>,
-                                         cms::alpakatools::atomic_type_t<ReduceT>>;
+      using accum_t = typename decltype([] {
+        if constexpr (extfloat::ExtendedFloatType<ReduceT>) {
+          return std::type_identity<extfloat::floating_value_t<ReduceT>>{};
+        } else {
+          return std::type_identity<atomic_type_t<ReduceT>>{};
+        }
+      }())::type;
 
       unsigned int const w_items_x =
           alpaka::math::min(acc, static_cast<int>(blockDim_x / w_extent), static_cast<int>(max_w_items));
 
-      constexpr std::size_t n_elements = extfloat::is_extended_float<ReduceT>::value ? 2 : n_atomic_elements<ReduceT>();
+      constexpr std::size_t n_elements = [] {
+        if constexpr (extfloat::ExtendedFloatType<ReduceT>) {
+          return std::size_t{2};
+        } else {
+          return n_atomic_elements<ReduceT>();
+        }
+      }();
 
       constexpr std::size_t n = max_w_items * n_elements;
       constexpr std::size_t buffer_alignment = 64;
@@ -152,7 +160,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
         if constexpr (std::is_floating_point_v<decltype(res)> || extfloat::is_extended_float<decltype(res)>::value) {
           smem_cache[warpIdx_x + batch * w_items_x] = reduce::HighComponent(res);
           if constexpr (extfloat::is_extended_float<decltype(res)>::value) {
-            const std::size_t offset = w_items_x * blockDim_z;
             smem_cache[warpIdx_x + batch * w_items_x + w_items_x * blockDim_z] = reduce::LowComponent(res);
           }
         } else {
@@ -174,7 +181,6 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
           res = smem_cache[threadIdx_x + batch * w_items_x];
         } else if constexpr (extfloat::is_extended_float<decltype(res)>::value) {
           accum_t h = smem_cache[threadIdx_x + batch * w_items_x];
-          const std::size_t offset = w_items_x * blockDim_z;
           accum_t l = smem_cache[threadIdx_x + batch * w_items_x + w_items_x * blockDim_z];
           res = ReduceT{h, l};
         } else {

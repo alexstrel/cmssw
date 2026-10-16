@@ -25,8 +25,8 @@ namespace cms::alpakatools {
     public:
       using DeviceT = decltype(alpaka::getDev(std::declval<TQueue const&>()));
 
-      using ReduceT = std::remove_cvref_t<T>;
-      using AtomicT = cms::alpakatools::atomic_type_t<ReduceT>;
+      using DataT = std::remove_cvref_t<T>;
+      using AtomicT = cms::alpakatools::atomic_type_t<DataT>;
 #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED_DUMMY
       using DeviceAtomicT = cuda::atomic<AtomicT, cuda::thread_scope_device>;
       using SystemAtomicT = cuda::atomic<AtomicT, cuda::thread_scope_system>;

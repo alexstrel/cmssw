@@ -39,7 +39,7 @@ namespace cms::alpakatools {
     template <typename T>
       requires extfloat::ExtendedFloatType<T>
     constexpr T zero() {
-      return extfloat::ExtendedFloat<T>(static_cast<T>(0));
+      return extfloat::ExtendedFloat<T>(static_cast<T>(0.));
     }
 
     template <typename T, std::int32_t N>
@@ -86,6 +86,12 @@ namespace cms::alpakatools {
         return T{x};
       }
 
+      template <typename U>
+        requires extfloat::ExtendedFloatType<T> && std::same_as<std::remove_cvref_t<U>, T>
+      ALPAKA_FN_HOST_ACC constexpr auto operator()(U const& x) const noexcept -> T {
+        return x;
+      }
+
       template <typename U, std::int32_t N>
         requires std::is_arithmetic_v<T> && std::is_arithmetic_v<U>
       ALPAKA_FN_HOST_ACC constexpr auto operator()(VecArray<U, N> const& x) const noexcept -> VecArray<T, N> {
@@ -101,32 +107,32 @@ namespace cms::alpakatools {
     };
 
     template <std::floating_point T>
-    constexpr T HighComponent(T const& x) noexcept {
+    constexpr auto HighComponent(T const& x) noexcept {
       return x;
     }
 
     template <extfloat::ExtendedFloatType T>
-    constexpr T HighComponent(T const& x) noexcept {
+    constexpr auto HighComponent(T const& x) noexcept {
       return x.HighComponent();
     }
 
     template <std::floating_point T>
-    constexpr T LowComponent(T const& x) noexcept {
+    constexpr auto LowComponent(T const& x) noexcept {
       return static_cast<T>(0);
     }
 
     template <extfloat::ExtendedFloatType T>
-    constexpr T LowComponent(T const& x) noexcept {
+    constexpr auto LowComponent(T const& x) noexcept {
       return x.LowComponent();
     }
 
     template <std::floating_point T>
-    constexpr T ReducerResult(T const& x) noexcept {
+    constexpr auto ReducerResult(T const& x) noexcept {
       return x;
     }
 
     template <extfloat::ExtendedFloatType T>
-    constexpr T ReducerResult(T const& x) noexcept {
+    constexpr auto ReducerResult(T const& x) noexcept {
       return x.Aggregate();
     }
 
