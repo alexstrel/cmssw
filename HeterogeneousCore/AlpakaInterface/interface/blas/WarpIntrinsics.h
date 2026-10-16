@@ -18,6 +18,53 @@ namespace cms::alpakatools::blas {
 #endif
 
     // Thread local intrinsics:
+    //! Computes x * y in round mode
+    //! \tparam T The type of the args specializing add.
+    //! \param x The first argument.
+    //! \param y The second argument.
+    //! Remark : the default rounding mode is RN, so use this intrinsics
+    //!          for numerically controlled algorithms (like Kahan algo)
+    constexpr auto mul_rn(float const x, float const y) -> float {
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+      return __fmul_rn(x, y);
+#else
+      return (x * y);
+#endif
+    }
+
+    constexpr auto mul_rn(double const x, double const y) -> double {
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+      return __dmul_rn(x, y);
+#else
+      return (x * y);
+#endif
+    }
+
+    // Thread local intrinsics:
+    //! Computes x * y + z in round mode
+    //! \tparam T The type of the args specializing add.
+    //! \param x The first argument.
+    //! \param y The second argument.
+    //! \param z The third argument.
+    //! Remark : the default rounding mode is RN, so use this intrinsics
+    //!          for numerically controlled algorithms (like Kahan algo)
+    constexpr auto fma_rn(float const x, float const y, float const z) -> float {
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+      return __fmaf_ieee_rn(x, y, z);
+#else
+      return std::fma(x, y, z);
+#endif
+    }
+
+    constexpr auto fma_rn(double const x, double const y, double const z) -> double {
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+      return __fma_rn(x, y, z);
+#else
+      return std::fma(x, y, z);
+#endif
+    }
+
+    // Thread local intrinsics:
     //! Computes x + y in round mode
     //! \tparam T The type of the args specializing add.
     //! \param x The first argument.

@@ -2,6 +2,7 @@
 #define HeterogeneousCore_AlpakaInterface_interface_blas_alpakaTransformer_h
 
 #include "HeterogeneousCore/AlpakaInterface/interface/VecArray.h"
+#include "HeterogeneousCore/AlpakaInterface/interface/blas/BlasHelpers.h"
 
 /**
  *  Collection of the transform kernels
@@ -151,7 +152,7 @@ namespace cms::alpakatools {
       constexpr int flops() const { return 3; }  //! flops per element
     };
 
-    template <typename data_t, int n, bool use_sloppy = false>
+    template <typename reduce_t, typename data_t, int n, bool use_sloppy = false>
     struct axpynorm2_batched {
       const data_t a;
 
@@ -177,7 +178,12 @@ namespace cms::alpakatools {
         const compute_t res = alpaka::math::fma(acc, a_, x_, y_);
         y[k][i] = static_cast<y_t>(res);
 
-        return static_cast<compute_t>(res * res);
+        //return static_cast<reduce_t>(res * res);
+        if constexpr (extfloat::is_extended_float<reduce_t>::value) {
+          return extfloat::two_prod(res, res);
+        } else {
+          return static_cast<reduce_t>(res * res);
+        }
       }
       constexpr int flops() const { return 4; }  //! flops per element
     };

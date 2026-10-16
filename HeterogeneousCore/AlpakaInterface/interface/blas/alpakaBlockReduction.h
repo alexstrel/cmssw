@@ -12,9 +12,13 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
   using namespace cms::alpakatools;
 
   template <typename Reducer>
-  concept CompensatedSum = requires {
-    { std::remove_cvref_t<Reducer>::use_compensated_sum } -> std::convertible_to<bool>;
+  concept AugmentedReducer = requires {
+    { std::remove_cvref_t<Reducer>::use_augmented_reduction } -> std::convertible_to<bool>;
   };
+
+  template <typename Reducer>
+  inline constexpr bool use_augmented_reduction_v =
+      AugmentedReducer<Reducer> ? static_cast<bool>(std::remove_cvref_t<Reducer>::use_augmented_reduction) : false;
 
   template <typename T, typename TransformReducer>
   concept AtomicReduceData =
@@ -22,80 +26,44 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       std::same_as<std::remove_cvref_t<T>,
                    cms::alpakatools::VecArray<cms::alpakatools::atomic_type_t<typename TransformReducer::ReduceT>, 2>>;
 
-  template <typename Reducer>
-  inline constexpr bool use_compensated_sum_v =
-      CompensatedSum<Reducer> ? static_cast<bool>(std::remove_cvref_t<Reducer>::use_compensated_sum) : false;
-
-  template <typename TransformReducer, typename T, bool use_sloppy_reduce_ = false>
-    requires(AtomicReduceData<T, TransformReducer> || std::floating_point<std::remove_cvref_t<T>>)
-  constexpr auto init_accum(T const& in) {
-    using ReducerT = typename TransformReducer::ReducerT;
-    using AtomicT = cms::alpakatools::atomic_type_t<T>;
-
-    constexpr bool use_sloppy_reduce = use_compensated_sum_v<ReducerT> & use_sloppy_reduce_;
-
-    if constexpr (use_sloppy_reduce) {
-      using kahan_accumulator_t = reduce::kahan_accumulator<AtomicT>;
-
-      kahan_accumulator_t r{};
-
-      if constexpr (std::is_same_v<T, kahan_accumulator_t>) {
-        r = in;
-      } else {
-        reduce::accum(r) = reduce::set<AtomicT>(in);
-        reduce::compensation(r) = reduce::zero<AtomicT>();
-      }
-
-      return r;
-    } else {
-      return reduce::set<AtomicT, T>(in);
-    }
-  }
-
   class WarpReducer {
   public:
     WarpReducer() = default;
 
-    template <alpaka::concepts::Acc TAcc, typename DataT, typename TransformReducerT, bool use_sloppy_reduce_ = false>
-      requires AtomicReduceData<DataT, TransformReducerT>
+    template <alpaka::concepts::Acc TAcc, typename DataT, typename TransformReducerT>
+      requires(AtomicReduceData<typename TransformReducerT::ReduceT, TransformReducerT> ||
+               extfloat::ExtendedFloatType<typename TransformReducerT::ReduceT>)
     ALPAKA_FN_ACC auto apply(TAcc const& acc,
                              DataT const& in,
                              const TransformReducerT f,
                              unsigned int const laneIdx,
                              bool all = true) const {
       using ReducerT = typename TransformReducerT::ReducerT;
-      using AtomicT = cms::alpakatools::atomic_type_t<typename TransformReducerT::ReduceT>;
+      using ReduceT = typename TransformReducerT::ReduceT;
 
-      constexpr bool use_sloppy_reduce = use_compensated_sum_v<ReducerT> & use_sloppy_reduce_;
+      auto accum = TransformReducerT::Init(in);
 
-      using accum_t = std::conditional_t<use_sloppy_reduce, reduce::kahan_accumulator<AtomicT>, AtomicT>;
-
-      // Deduce number of the atomic elements
-      auto accum = init_accum<TransformReducerT, AtomicT, use_sloppy_reduce>(in);
-
-      ReducerT r = f.get_reducer();
+      ReducerT r = f.GetReducer();
 
       if (isFullWarp(acc)) {
-        accum = all ? warpReduce<TAcc, AtomicT, ReducerT, true>(acc, accum, r)
-                    : warpReduce<TAcc, AtomicT, ReducerT, false>(acc, accum, r);
+        accum = all ? warpReduce<TAcc, ReduceT, ReducerT, true>(acc, accum, r)
+                    : warpReduce<TAcc, ReduceT, ReducerT, false>(acc, accum, r);
       } else {
         accum =
-            all ? warpSparseReduce<TAcc, AtomicT, ReducerT, true>(acc, alpaka::warp::activemask(acc), laneIdx, accum, r)
-                : warpSparseReduce<TAcc, AtomicT, ReducerT, false>(
+            all ? warpSparseReduce<TAcc, ReduceT, ReducerT, true>(acc, alpaka::warp::activemask(acc), laneIdx, accum, r)
+                : warpSparseReduce<TAcc, ReduceT, ReducerT, false>(
                       acc, alpaka::warp::activemask(acc), laneIdx, accum, r);
       }
 
       return accum;
     }
 
-    template <alpaka::concepts::Acc TAcc, typename DataT, typename TransformReducerT, bool use_sloppy_reduce = false>
+    template <alpaka::concepts::Acc TAcc, typename DataT, typename TransformReducerT, bool use_augmented_reduction = false>
     ALPAKA_FN_ACC auto apply(
         TAcc const& acc, DataT const& in, const TransformReducerT f, unsigned int const laneIdx, bool all = true) const
-      requires VecArrayType<DataT> && (std::remove_cvref_t<DataT>::N >= 3)
+      requires VecArrayType<DataT> && (std::remove_cvref_t<DataT>::N <= 16)
     {
-      using AtomicT = cms::alpakatools::atomic_type_t<DataT>;
-
-      using accum_t = decltype(init_accum<TransformReducerT, AtomicT, use_sloppy_reduce>(in[0]));
+      using accum_t = cms::alpakatools::atomic_type_t<DataT>;
 
       constexpr std::size_t n_elems = DataT::N;
 
@@ -106,7 +74,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       } else {
         CMS_UNROLL_LOOP
         for (std::size_t i = 0; i < n_elems; i++) {
-          accum[i] = init_accum<TransformReducerT, AtomicT, use_sloppy_reduce>(in[i]);
+          accum[i] = TransformReducerT::Init(in[i]);
         }
       }
 
@@ -152,49 +120,31 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       unsigned int const warpIdx_x = threadIdx_x / w_extent;
       unsigned int const laneIdx = threadIdx_x % w_extent;
 
-      constexpr bool use_sloppy_reduction = use_compensated_sum_v<typename TransformReducerT::ReducerT>;
-
       // Perform warp reduction using shuffle operations
       auto res = warp_reducer.template apply<TAcc, ReduceT, TransformReducerT>(acc, in, f, laneIdx, all);
 
-      using AtomicT = cms::alpakatools::atomic_type_t<ReduceT>;
-
-      constexpr std::size_t n_elements = cms::alpakatools::n_atomic_elements<ReduceT>();
-
-      ReduceT out{};  //either float type or VecArray<float, N> type
-
       if (all && w_items == 1) {  // short circuit for single warp CTA
-
-        if constexpr (n_elements == 1) {  //
-          static_assert(std::same_as<ReduceT, AtomicT>);
-
-          out = reduce::result<decltype(res), use_sloppy_reduction>(res);
-
-        } else {
-          static_assert(is_VecArray_v<ReduceT>);
-
-          if constexpr (use_sloppy_reduction) {
-            cms::alpakatools::VecArray<AtomicT, n_elements> res_tmp{};
-
-            CMS_UNROLL_LOOP
-            for (std::size_t i = 0; i < n_elements; i++) {
-              res_tmp[i] = reduce::result<decltype(res[i]), true>(res[i]);
-            }
-
-            memcpy(out.data(), res_tmp.data(), sizeof(ReduceT::value_t) * n_elements);
-
-          } else {
-            memcpy(out.data(), res.data(), sizeof(ReduceT::value_t) * n_elements);
-          }
-        }
-        return out;
+        return res;
       }
 
-      using accum_t =
-          typename std::conditional<use_sloppy_reduction, reduce::kahan_accumulator<AtomicT>, AtomicT>::type;
+      using accum_t = typename decltype([] {
+        if constexpr (extfloat::ExtendedFloatType<ReduceT>) {
+          return std::type_identity<extfloat::floating_value_t<ReduceT>>{};
+        } else {
+          return std::type_identity<atomic_type_t<ReduceT>>{};
+        }
+      }())::type;
 
       unsigned int const w_items_x =
           alpaka::math::min(acc, static_cast<int>(blockDim_x / w_extent), static_cast<int>(max_w_items));
+
+      constexpr std::size_t n_elements = [] {
+        if constexpr (extfloat::ExtendedFloatType<ReduceT>) {
+          return std::size_t{2};
+        } else {
+          return n_atomic_elements<ReduceT>();
+        }
+      }();
 
       constexpr std::size_t n = max_w_items * n_elements;
       constexpr std::size_t buffer_alignment = 64;
@@ -206,23 +156,17 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       auto const blockDim_z = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
       // Write the reduced sum of each warp to shared memory
       if (laneIdx == 0) {
-        auto smem_cache = sdata.template as<AtomicT>();
-        if constexpr (n_elements == 1) {
-          smem_cache[warpIdx_x + batch * w_items_x] = reduce::result<decltype(res), use_sloppy_reduction>(res);
-          if constexpr (use_sloppy_reduction) {
-            const std::size_t offset = w_items_x * blockDim_z;
-            smem_cache[warpIdx_x + batch * w_items_x + offset] = reduce::compensation(res);
+        auto smem_cache = sdata.template as<accum_t>();
+        if constexpr (std::is_floating_point_v<decltype(res)> || extfloat::is_extended_float<decltype(res)>::value) {
+          smem_cache[warpIdx_x + batch * w_items_x] = reduce::HighComponent(res);
+          if constexpr (extfloat::is_extended_float<decltype(res)>::value) {
+            smem_cache[warpIdx_x + batch * w_items_x + w_items_x * blockDim_z] = reduce::LowComponent(res);
           }
         } else {
           const std::size_t stride = w_items_x * blockDim_z;
           CMS_UNROLL_LOOP
           for (std::size_t i = 0; i < n_elements; i++) {
-            smem_cache[warpIdx_x + batch * w_items_x + i * stride] =
-                reduce::result<decltype(res[i]), use_sloppy_reduction>(res[i]);
-            if constexpr (use_sloppy_reduction) {
-              const std::size_t offset = w_items_x * blockDim_z * n_elements;
-              smem_cache[warpIdx_x + batch * w_items_x + i * stride + offset] = reduce::compensation(res[i]);
-            }
+            smem_cache[warpIdx_x + batch * w_items_x + i * stride] = res[i];
           }
         }
       }
@@ -231,27 +175,20 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
 
       // Reduce the results from all warps (assuming blockDim.x / warpSize warps per block)
       if (threadIdx_x < w_items_x) {
-        auto smem_cache = sdata.template as<AtomicT>();
-        if constexpr (n_elements == 1) {
-          if constexpr (use_sloppy_reduction) {
-            reduce::accum(res) = smem_cache[threadIdx_x + batch * w_items_x];
-            const std::size_t offset = w_items_x * blockDim_z;
-            reduce::compensation(res) = smem_cache[threadIdx_x + batch * w_items_x + offset];
-          } else {
-            res = smem_cache[threadIdx_x + batch * w_items_x];
-          }
+        auto smem_cache = sdata.template as<accum_t>();
+
+        if constexpr (std::is_floating_point_v<decltype(res)>) {
+          res = smem_cache[threadIdx_x + batch * w_items_x];
+        } else if constexpr (extfloat::is_extended_float<decltype(res)>::value) {
+          accum_t h = smem_cache[threadIdx_x + batch * w_items_x];
+          accum_t l = smem_cache[threadIdx_x + batch * w_items_x + w_items_x * blockDim_z];
+          res = ReduceT{h, l};
         } else {
           const std::size_t stride = w_items_x * blockDim_z;
           CMS_UNROLL_LOOP
           for (std::size_t i = 0; i < n_elements; i++) {
             const std::size_t stride = w_items_x * blockDim_z;
-            if constexpr (use_sloppy_reduction) {
-              reduce::accum(res[i]) = smem_cache[threadIdx_x + batch * w_items_x + i * stride];
-              const std::size_t offset = w_items_x * blockDim_z * n_elements;
-              reduce::compensation(res[i]) = smem_cache[threadIdx_x + batch * w_items_x + i * stride + offset];
-            } else {
-              res[i] = smem_cache[threadIdx_x + batch * w_items_x + i * stride];
-            }
+            res[i] = smem_cache[threadIdx_x + batch * w_items_x + i * stride];
           }
         }
 
@@ -259,34 +196,39 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       }
 
       alpaka::syncBlockThreads(acc);
-      //return res;
+
       if (all) {
-        auto smem_cache = sdata.template as<AtomicT>();
+        auto smem_cache = sdata.template as<accum_t>();
 
         if (threadIdx_x == 0) {
-          if constexpr (n_elements == 1) {
-            smem_cache[0 + batch * w_items_x] = reduce::result<decltype(res), use_sloppy_reduction>(res);
+          if constexpr (std::is_floating_point_v<decltype(res)> || extfloat::is_extended_float<decltype(res)>::value) {
+            smem_cache[0 + batch * w_items_x] = reduce::HighComponent(res);
+            if constexpr (extfloat::is_extended_float<decltype(res)>::value) {
+              smem_cache[0 + batch * w_items_x + w_items_x * blockDim_z] = reduce::LowComponent(res);
+            }
           } else {
             CMS_UNROLL_LOOP
             for (std::size_t i = 0; i < n_elements; i++) {
-              smem_cache[0 + batch * w_items_x + i * w_items_x * blockDim_z] =
-                  reduce::result<decltype(res[i]), use_sloppy_reduction>(res[i]);
+              smem_cache[0 + batch * w_items_x + i * w_items_x * blockDim_z] = res[i];
             }
           }
         }
         alpaka::syncBlockThreads(acc);
 
-        if constexpr (n_elements == 1) {
-          out = smem_cache[0 + batch * w_items_x];
+        if constexpr (std::is_floating_point_v<decltype(res)>) {
+          res = smem_cache[0 + batch * w_items_x];
+        } else if constexpr (extfloat::is_extended_float<decltype(res)>::value) {
+          accum_t const h = smem_cache[0 + batch * w_items_x];
+          accum_t const l = smem_cache[0 + batch * w_items_x + w_items_x * blockDim_z];
+          res = ReduceT{h, l};
         } else {
           CMS_UNROLL_LOOP
           for (std::size_t i = 0; i < n_elements; i++) {
-            out[i] = smem_cache[0 + batch * w_items_x + i * w_items_x * blockDim_z];
+            res[i] = smem_cache[0 + batch * w_items_x + i * w_items_x * blockDim_z];
           }
         }
       }
-
-      return out;
+      return res;
     }
   };
 }  // namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce

@@ -12,13 +12,13 @@ namespace cms::alpakatools::multiblas {
 
   using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
-  template <typename ReduceT_, typename Init, typename Reducer, typename Transformer, bool site_unroll_ = false>
+  template <typename ReduceT_, typename Init_, typename Reducer_, typename Transformer_, bool site_unroll_ = false>
   class TransformReduceFunctor {
   public:
     using ReduceT = ReduceT_;
-    using InitT = Init;
-    using ReducerT = Reducer;
-    using TransformerT = Transformer;
+    using InitT = Init_;
+    using ReducerT = Reducer_;
+    using TransformerT = Transformer_;
 
     InitT initializer;
     ReducerT reducer;
@@ -28,16 +28,16 @@ namespace cms::alpakatools::multiblas {
 
     TransformReduceFunctor(InitT i, ReducerT r, TransformerT t) : initializer(i), reducer(r), transformer(t) {}
 
-    static constexpr ReduceT init() { return InitT{}(0.); }
+    static constexpr ReduceT Init() { return InitT{}(0.); }
 
     template <typename U>
-    static constexpr ReduceT init(U &in) {
+    static constexpr ReduceT Init(U const &in) {
       return InitT{}(in);
     }
 
-    ALPAKA_FN_ACC auto get_transformer() const { return transformer; }
+    ALPAKA_FN_ACC auto GetTransformer() const { return transformer; }
 
-    ALPAKA_FN_ACC auto get_reducer() const { return reducer; }
+    ALPAKA_FN_ACC auto GetReducer() const { return reducer; }
   };
 
   template <typename XBufT,
@@ -49,12 +49,12 @@ namespace cms::alpakatools::multiblas {
   public:
     static constexpr unsigned long long nSrc = nSrc_;
 
-    using ReduceT = std::remove_cvref_t<reducer_params_t>::ReduceT;
+    using DataT = std::remove_cvref_t<reducer_params_t>::DataT;
     using CountT = std::remove_cvref_t<reducer_params_t>::CountT;
 
     using SystemAtomicT = std::remove_cvref_t<reducer_params_t>::SystemAtomicT;
     using DeviceAtomicT = std::remove_cvref_t<reducer_params_t>::DeviceAtomicT;
-    //
+
     using Tx = typename alpaka::trait::ElemType<XBufT>::type;
     using Ty = typename alpaka::trait::ElemType<YBufT>::type;
 
@@ -79,7 +79,7 @@ namespace cms::alpakatools::multiblas {
       return alpaka::getExtents(*max_it).prod();
     }
 
-    ReduceT *result_h;
+    DataT *result_h;
     SystemAtomicT *result_d;
     DeviceAtomicT *partial;
 
@@ -119,6 +119,36 @@ namespace cms::alpakatools::multiblas {
     auto get_reducer_limit() const { return reducer_params.get_partial_upper_limit(); }
 
     auto get_max_range() const { return max_range; }
+
+    template <extfloat::ExtendedFloatType T>
+    ALPAKA_FN_ACC void StorePartial(T const val, const std::uint32_t idx, const std::uint32_t stride = 0) const {
+      static_assert(std::is_convertible_v<extfloat::floating_value_t<T>, DeviceAtomicT>);
+      partial[idx] = static_cast<DeviceAtomicT>(reduce::HighComponent(val));
+      partial[idx + stride] = static_cast<DeviceAtomicT>(reduce::LowComponent(val));
+    }
+
+    template <typename T>
+      requires std::is_convertible_v<T, DeviceAtomicT>
+    ALPAKA_FN_ACC void StorePartial(T const val, const std::uint32_t idx, const std::uint32_t stride = 0) const {
+      partial[idx] = static_cast<DeviceAtomicT>(val);
+    }
+
+    template <extfloat::ExtendedFloatType T>
+    ALPAKA_FN_ACC T LoadPartial(const std::uint32_t idx, const std::uint32_t stride = 0) const {
+      using BaseFloat = typename extfloat::floating_value_t<T>;
+
+      BaseFloat const val_hi = reduce::HighComponent(partial[idx]);
+      BaseFloat const val_lo = reduce::LowComponent(partial[idx + stride]);
+
+      return T(val_hi, val_lo);
+    }
+
+    template <typename T>
+      requires std::is_convertible_v<T, DeviceAtomicT>
+    ALPAKA_FN_ACC T LoadPartial(const std::uint32_t idx, const std::uint32_t stride = 0) const {
+      T const val = static_cast<T>(partial[idx]);
+      return val;
+    }
   };
 
   template <typename TransformReducerT, typename Args>
@@ -132,19 +162,19 @@ namespace cms::alpakatools::multiblas {
 
     MultiSrcTransformReducer(TransformReducerT f, const Args &args) : args(args), f(f) {}
 
-    auto get_reducer_limit() const { return args.get_reducer_limit(); }
+    auto GetReducerLimit() const { return args.get_reducer_limit(); }
 
-    auto get_max_range() const { return args.get_max_range(); }
+    auto GetMaxRange() const { return args.get_max_range(); }
 
     template <typename TQueue>
-    auto fetch(TQueue const &queue) const {
+    auto Fetch(TQueue const &queue) const {
       args.template fetch_data<TQueue>(queue);
     }
 
-    auto host_reduced_values() const {
-      using HostReduceT = typename TransformReducerT::ReduceT;
+    auto HostReducedValues() const {
+      using DataT = typename Args::DataT;
 
-      std::vector<HostReduceT> values(Args::nSrc);
+      std::vector<DataT> values(Args::nSrc);
 
       for (Idx i = 0; i < Args::nSrc; i++) {
         values[i] = args.result_h[i];
@@ -154,12 +184,12 @@ namespace cms::alpakatools::multiblas {
     }
 
     template <typename TQueue>
-    auto host_reduced_values(TQueue const &queue) const {
-      using HostReduceT = typename TransformReducerT::ReduceT;
+    auto HostReducedValues(TQueue const &queue) const {
+      using DataT = typename Args::DataT;
 
-      fetch(queue);
+      Fetch(queue);
 
-      std::vector<HostReduceT> values(Args::nSrc);
+      std::vector<DataT> values(Args::nSrc);
 
       alpaka::wait(queue);
 
@@ -171,7 +201,7 @@ namespace cms::alpakatools::multiblas {
     }
 
     template <typename TQueue>
-    auto device_reduced_values(TQueue const &queue) const {
+    auto DeviceReducedValues(TQueue const &queue) const {
       using ReduceT = typename TransformReducerT::ReduceT;
 
       auto values = alpaka::allocBuf<ReduceT, Idx>(alpaka::getDev(queue), Args::nSrc);
@@ -220,33 +250,37 @@ namespace cms::alpakatools::multiblas {
       auto const gridDim_x = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[lDim];
       auto const [blockDim_y, blockDim_x] = block_2d(acc);
 
-      TransformerT transformer = f.get_transformer();
-
-      ReduceT result = TransformReducerT::init();
+      TransformerT transformer = f.GetTransformer();
 
       auto i(static_cast<std::uint32_t>(threadIdx_x + blockIdx_x * blockDim_x) + begin);
 
+      using Xtype = std::remove_cvref_t<decltype(args.x)>;
+      using Ytype = std::remove_cvref_t<decltype(args.y)>;
+
+      static_assert((cms::alpakatools::is_VecArray_v<Xtype> and cms::alpakatools::is_VecArray_v<Ytype>),
+                    "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
+
+      ReducerT reducer = f.GetReducer();
+
+      auto out = TransformReducerT::Init();
+
       while (i < end) {
-        using Xtype = std::remove_cvref_t<decltype(args.x)>;
-        using Ytype = std::remove_cvref_t<decltype(args.y)>;
+        auto reduce_val = transformer(acc, args.x, args.y, i, 0, batch_idx);
 
-        static_assert((cms::alpakatools::is_VecArray_v<Xtype> and cms::alpakatools::is_VecArray_v<Ytype>),
-                      "All arguments must be of type cms::alpakatools::VecArray<T, N>.");
-        ReduceT reduce_val = transformer(acc, args.x, args.y, i, 0, batch_idx);
-
-        result += block_reducer.template apply<TAcc, TransformReducerT>(acc, batch_idx, reduce_val, f, true);
+        out = reducer(out, block_reducer.template apply<TAcc, TransformReducerT>(acc, batch_idx, reduce_val, f, true));
         i += gridDim_x * blockDim_x;
       }
+
       auto &isLastBlockDone = alpaka::declareSharedVar<bool[Args::nSrc], __COUNTER__>(acc);
 
       using CountT = typename Args::CountT;
 
       CountT *count = static_cast<CountT *>(args.count);
 
-      auto d_partial = args.partial;
-
       if (threadIdx_x == 0 && threadIdx_y == 0) {
-        d_partial[blockIdx_x + gridDim_x * batch_idx] = result;
+        auto const blockDim_z = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
+
+        args.StorePartial(out, blockIdx_x + gridDim_x * batch_idx, gridDim_x * blockDim_z);
 
         alpaka::mem_fence(acc, alpaka::memory_scope::Device{});
         unsigned int value =
@@ -260,21 +294,22 @@ namespace cms::alpakatools::multiblas {
       if (isLastBlockDone[batch_idx]) {
         auto s = threadIdx_y * blockDim_x + threadIdx_x;
 
-        auto accum = TransformReducerT::init();
+        auto accum = TransformReducerT::Init();
 
-        ReducerT reducer = f.get_reducer();
+        auto const blockDim_z = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
 
         while (s < gridDim_x) {
-          accum = reducer(accum, d_partial[batch_idx * gridDim_x + s]);
+          accum = reducer(
+              accum, args.template LoadPartial<decltype(accum)>(batch_idx * gridDim_x + s, gridDim_x * blockDim_z));
 
           s += blockDim_x * blockDim_y;
         }
 
-        result = block_reducer.template apply<TAcc, TransformReducerT>(acc, batch_idx, accum, f, true);
+        out = block_reducer.template apply<TAcc, TransformReducerT>(acc, batch_idx, accum, f, true);
 
         if (threadIdx_x == 0 && threadIdx_y == 0) {
           auto d_result = args.result_d;
-          d_result[batch_idx] += result;
+          d_result[batch_idx] = reduce::ReducerResult(out);
         }
       }
     }
@@ -293,13 +328,13 @@ namespace cms::alpakatools::multiblas {
                                    Init init,
                                    Reducer reducer,
                                    Transformer transformer) {
-    using ArgsT = TransformReduceArgs<TXBufAcc, TYBufAcc, decltype(reduce_bufs), nSrc>;
-
-    ArgsT args{reduce_bufs, x, y};
-
     using TransformReduceT = TransformReduceFunctor<ReduceT, Init, Reducer, Transformer, false>;
 
+    using ArgsT = TransformReduceArgs<TXBufAcc, TYBufAcc, decltype(reduce_bufs), nSrc>;
+
     TransformReduceT transform_reduce_func{init, reducer, transformer};
+
+    ArgsT args{reduce_bufs, x, y};
 
     return MultiSrcTransformReducer<TransformReduceT, ArgsT>{transform_reduce_func, args};
   }
