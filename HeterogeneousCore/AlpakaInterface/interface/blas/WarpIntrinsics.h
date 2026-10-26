@@ -49,8 +49,10 @@ namespace cms::alpakatools::blas {
     //! Remark : the default rounding mode is RN, so use this intrinsics
     //!          for numerically controlled algorithms (like Kahan algo)
     constexpr auto fma_rn(float const x, float const y, float const z) -> float {
-#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+#if defined(__CUDA_ARCH__)
       return __fmaf_ieee_rn(x, y, z);
+#elif defined(__HIP_DEVICE_COMPILE__)
+      return __fmaf_rn(x, y, z);
 #else
       return std::fma(x, y, z);
 #endif

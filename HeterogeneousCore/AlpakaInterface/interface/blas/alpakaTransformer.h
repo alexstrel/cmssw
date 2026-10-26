@@ -178,9 +178,9 @@ namespace cms::alpakatools {
         const compute_t res = alpaka::math::fma(acc, a_, x_, y_);
         y[k][i] = static_cast<y_t>(res);
 
-        //return static_cast<reduce_t>(res * res);
         if constexpr (extfloat::is_extended_float<reduce_t>::value) {
-          return extfloat::two_prod(res, res);
+          using reduce_float_t = extfloat::floating_value_t<reduce_t>;
+          return extfloat::two_prod<reduce_float_t>(res, res);
         } else {
           return static_cast<reduce_t>(res * res);
         }

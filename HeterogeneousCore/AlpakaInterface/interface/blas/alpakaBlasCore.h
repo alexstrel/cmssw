@@ -40,14 +40,10 @@ namespace cms::alpakatools::multiblas {
     ALPAKA_FN_ACC auto GetReducer() const { return reducer; }
   };
 
-  template <typename XBufT,
-            typename YBufT,
-            typename reducer_params_t,
-            unsigned long long nSrc_ = 1,
-            bool host_reduction = true>
+  template <typename XBufT, typename YBufT, typename reducer_params_t, std::uint32_t nSrc_ = 1, bool host_reduction = true>
   class TransformReduceArgs {
   public:
-    static constexpr unsigned long long nSrc = nSrc_;
+    static constexpr std::uint32_t nSrc = nSrc_;
 
     using DataT = std::remove_cvref_t<reducer_params_t>::DataT;
     using CountT = std::remove_cvref_t<reducer_params_t>::CountT;
@@ -79,6 +75,8 @@ namespace cms::alpakatools::multiblas {
       return alpaka::getExtents(*max_it).prod();
     }
 
+    const Idx partial_stride;
+
     DataT *result_h;
     SystemAtomicT *result_d;
     DeviceAtomicT *partial;
@@ -93,7 +91,8 @@ namespace cms::alpakatools::multiblas {
     const Idx max_range;
 
     TransformReduceArgs(reducer_params_t &params, const std::vector<XBufT> &x_, std::vector<YBufT> &y_)
-        : result_h(host_reduction ? params.get_host_reduce_ptr() : nullptr),
+        : partial_stride(params.get_partial_stride()),
+          result_h(host_reduction ? params.get_host_reduce_ptr() : nullptr),
           result_d(params.get_device_reduce_ptr()),
           partial(params.get_partial_ptr()),
           x(init_vec_array<XBufT>(x_)),
@@ -121,31 +120,31 @@ namespace cms::alpakatools::multiblas {
     auto get_max_range() const { return max_range; }
 
     template <extfloat::ExtendedFloatType T>
-    ALPAKA_FN_ACC void StorePartial(T const val, const std::uint32_t idx, const std::uint32_t stride = 0) const {
+    ALPAKA_FN_ACC void StorePartial(T const val, const std::uint32_t idx) const {
       static_assert(std::is_convertible_v<extfloat::floating_value_t<T>, DeviceAtomicT>);
       partial[idx] = static_cast<DeviceAtomicT>(reduce::HighComponent(val));
-      partial[idx + stride] = static_cast<DeviceAtomicT>(reduce::LowComponent(val));
+      partial[idx + partial_stride] = static_cast<DeviceAtomicT>(reduce::LowComponent(val));
     }
 
     template <typename T>
       requires std::is_convertible_v<T, DeviceAtomicT>
-    ALPAKA_FN_ACC void StorePartial(T const val, const std::uint32_t idx, const std::uint32_t stride = 0) const {
+    ALPAKA_FN_ACC void StorePartial(T const val, const std::uint32_t idx) const {
       partial[idx] = static_cast<DeviceAtomicT>(val);
     }
 
     template <extfloat::ExtendedFloatType T>
-    ALPAKA_FN_ACC T LoadPartial(const std::uint32_t idx, const std::uint32_t stride = 0) const {
+    ALPAKA_FN_ACC T LoadPartial(const std::uint32_t idx) const {
       using BaseFloat = typename extfloat::floating_value_t<T>;
 
       BaseFloat const val_hi = reduce::HighComponent(partial[idx]);
-      BaseFloat const val_lo = reduce::LowComponent(partial[idx + stride]);
+      BaseFloat const val_lo = reduce::LowComponent(partial[idx + partial_stride]);
 
       return T(val_hi, val_lo);
     }
 
     template <typename T>
       requires std::is_convertible_v<T, DeviceAtomicT>
-    ALPAKA_FN_ACC T LoadPartial(const std::uint32_t idx, const std::uint32_t stride = 0) const {
+    ALPAKA_FN_ACC T LoadPartial(const std::uint32_t idx) const {
       T const val = static_cast<T>(partial[idx]);
       return val;
     }
@@ -158,7 +157,7 @@ namespace cms::alpakatools::multiblas {
 
     TransformReducerT f;
 
-    multireduce::BlockReducer block_reducer;
+    multireduce::BlockReducer<Args::nSrc> block_reducer;
 
     MultiSrcTransformReducer(TransformReducerT f, const Args &args) : args(args), f(f) {}
 
@@ -247,6 +246,8 @@ namespace cms::alpakatools::multiblas {
       auto const blockIdx_x = alpaka::getIdx<alpaka::Grid, alpaka::Blocks>(acc)[lDim];
       auto const [threadIdx_y, threadIdx_x] = threads_2d(acc);
 
+      bool const is_master_thread = (threadIdx_x == 0 && threadIdx_y == 0);
+
       auto const gridDim_x = alpaka::getWorkDiv<alpaka::Grid, alpaka::Blocks>(acc)[lDim];
       auto const [blockDim_y, blockDim_x] = block_2d(acc);
 
@@ -271,16 +272,22 @@ namespace cms::alpakatools::multiblas {
         i += gridDim_x * blockDim_x;
       }
 
+      if (gridDim_x == 1) {
+        if (is_master_thread) {
+          auto d_result = args.result_d;
+          d_result[batch_idx] = reduce::ReducerResult(out);
+        }
+        return;
+      }
+
       auto &isLastBlockDone = alpaka::declareSharedVar<bool[Args::nSrc], __COUNTER__>(acc);
 
       using CountT = typename Args::CountT;
 
       CountT *count = static_cast<CountT *>(args.count);
 
-      if (threadIdx_x == 0 && threadIdx_y == 0) {
-        auto const blockDim_z = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
-
-        args.StorePartial(out, blockIdx_x + gridDim_x * batch_idx, gridDim_x * blockDim_z);
+      if (is_master_thread) {
+        args.StorePartial(out, blockIdx_x + gridDim_x * batch_idx);
 
         alpaka::mem_fence(acc, alpaka::memory_scope::Device{});
         unsigned int value =
@@ -296,18 +303,15 @@ namespace cms::alpakatools::multiblas {
 
         auto accum = TransformReducerT::Init();
 
-        auto const blockDim_z = alpaka::getWorkDiv<alpaka::Block, alpaka::Threads>(acc)[0];
-
         while (s < gridDim_x) {
-          accum = reducer(
-              accum, args.template LoadPartial<decltype(accum)>(batch_idx * gridDim_x + s, gridDim_x * blockDim_z));
+          accum = reducer(accum, args.template LoadPartial<decltype(accum)>(batch_idx * gridDim_x + s));
 
           s += blockDim_x * blockDim_y;
         }
 
         out = block_reducer.template apply<TAcc, TransformReducerT>(acc, batch_idx, accum, f, true);
 
-        if (threadIdx_x == 0 && threadIdx_y == 0) {
+        if (is_master_thread) {
           auto d_result = args.result_d;
           d_result[batch_idx] = reduce::ReducerResult(out);
         }
