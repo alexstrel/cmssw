@@ -502,8 +502,8 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpSparseReduce(TAcc const& acc,
     const std::uint32_t src_lane_idx =
         (logical_src_lane_idx < nActiveLanes) ? getPhysicalLaneIdx<TAcc>(acc, mask, logical_src_lane_idx) : lane_idx;
 
-    base_float_tp const neigh_res_hi = alpaka::warp::shfl_down(acc, res.HighComponent(), src_lane_idx, w_extent);
-    base_float_tp const neigh_res_lo = alpaka::warp::shfl_down(acc, res.LowComponent(), src_lane_idx, w_extent);
+    base_float_tp const neigh_res_hi = warp::shfl_mask(acc, mask, res.HighComponent(), src_lane_idx, w_extent);
+    base_float_tp const neigh_res_lo = warp::shfl_mask(acc, mask, res.LowComponent(), src_lane_idx, w_extent);
 
     reduce_t neigh_res{neigh_res_hi, neigh_res_lo};
 
@@ -514,8 +514,8 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpSparseReduce(TAcc const& acc,
   if constexpr (all) {
     const auto low_lane_idx = getPhysicalLaneIdx(acc, mask, 0);
 
-    base_float_tp const res_hi = alpaka::warp::shfl_down(acc, res.HighComponent(), low_lane_idx, w_extent);
-    base_float_tp const res_lo = alpaka::warp::shfl_down(acc, res.LowComponent(), low_lane_idx, w_extent);
+    base_float_tp const res_hi = warp::shfl_mask(acc, mask, res.HighComponent(), low_lane_idx, w_extent);
+    base_float_tp const res_lo = warp::shfl_mask(acc, mask, res.LowComponent(), low_lane_idx, w_extent);
 
     return reduce_t{res_hi, res_lo};
   }

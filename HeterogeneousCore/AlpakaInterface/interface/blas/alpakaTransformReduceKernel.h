@@ -97,9 +97,9 @@ auto transform_reduce(TPolicy &policy,
   auto msrc_tr = cms::alpakatools::multiblas::instantiateTransformReducer<nSrc, TXBufAcc, TYBufAcc, ReduceT>(
       reduce_bufs, in, out, init, reducer, transformer);
 
-  Idx const range = begin - end;
+  Idx const range = end - begin;
 
-  assert(range > msrc_tr.GetMaxRange());
+  assert(range <= msrc_tr.GetMaxRange());
 
   std::cout << "Reduction buffer limit:  " << msrc_tr.GetReducerLimit() << std::endl;
 
