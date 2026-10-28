@@ -12,10 +12,10 @@ namespace cms::alpakatools {
     class ReducerResource;
 
     template <alpaka::concepts::Acc TAcc, typename TQueue, typename T, bool use_augmented_reduction>
-    decltype(auto) create_reduction_resources(TQueue queue, Idx nSrc) {
+    decltype(auto) create_reduction_resources(TQueue queue, Idx const nSrc) {
       auto const devAcc = alpaka::getDev(queue);
 
-      auto max_reduce_blocks = 2 * alpaka::getAccDevProps<TAcc>(devAcc).m_multiProcessorCount;
+      auto const max_reduce_blocks = 2 * alpaka::getAccDevProps<TAcc>(devAcc).m_multiProcessorCount;
 
       return ReducerResource<TAcc, TQueue, T, use_augmented_reduction>(queue, nSrc, max_reduce_blocks);
     }
@@ -38,7 +38,7 @@ namespace cms::alpakatools {
 #endif
 
       template <alpaka::concepts::Acc TAcc_, typename TQueue_, typename T_, bool use_augmented_reduction_>
-      friend decltype(auto) create_reduction_resources(TQueue_ queue, Idx nSrc);
+      friend decltype(auto) create_reduction_resources(TQueue_ queue, Idx const nSrc);
 
       auto get_host_reduce_ptr() { return result_h.data(); }
       auto get_device_reduce_ptr() { return result_d.data(); }
@@ -52,7 +52,9 @@ namespace cms::alpakatools {
 
       auto get_count_ptr() { return count.data(); }
 
-      auto get_partial_upper_limit() { return alpaka::getExtents(partial).prod(); }
+      auto get_partial_upper_limit() {
+        return use_augmented_reduction ? alpaka::getExtents(partial).prod() / 2 : alpaka::getExtents(partial).prod();
+      }
 
       void fetch_reduce_data(TQueue queue) { alpaka::memcpy(queue, result_h, result_d); }
 

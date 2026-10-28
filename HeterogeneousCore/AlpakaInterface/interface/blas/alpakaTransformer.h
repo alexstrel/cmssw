@@ -188,6 +188,42 @@ namespace cms::alpakatools {
       constexpr int flops() const { return 4; }  //! flops per element
     };
 
+    template <typename reduce_t, typename data_t, int n, bool use_sloppy = false>
+    struct axpysum_batched {
+      const data_t a;
+
+      axpysum_batched(const data_t &a) : a(a) {}
+
+      template <alpaka::concepts::Acc TAcc, typename Tx, typename Ty>
+        requires VecArrayType<cms::alpakatools::VecArray<Tx *, n>> && VecArrayType<cms::alpakatools::VecArray<Ty *, n>>
+      ALPAKA_FN_ACC auto operator()(TAcc const &acc,
+                                    cms::alpakatools::VecArray<Tx *, n> const &x,
+                                    cms::alpakatools::VecArray<Ty *, n> const &y,
+                                    int i,
+                                    int j,
+                                    int k) {
+        using x_t = std::remove_cvref_t<Tx>;
+        using y_t = std::remove_cvref_t<Ty>;
+
+        using compute_t = std::conditional_t<use_sloppy, sloppy_precision_t<x_t, y_t, data_t>, y_t>;
+
+        const compute_t x_ = static_cast<compute_t>(x[k][i]);
+        const compute_t y_ = static_cast<compute_t>(y[k][i]);
+        const compute_t a_ = static_cast<compute_t>(a);
+
+        const compute_t res = alpaka::math::fma(acc, a_, x_, y_);
+        y[k][i] = static_cast<y_t>(res);
+
+        if constexpr (extfloat::is_extended_float<reduce_t>::value) {
+          using reduce_float_t = extfloat::floating_value_t<reduce_t>;
+          return reduce_t(res, static_cast<reduce_float_t>(0));
+        } else {
+          return static_cast<reduce_t>(res);
+        }
+      }
+      constexpr int flops() const { return 4; }  //! flops per element
+    };
+
   }  // namespace transform
 }  // namespace cms::alpakatools
 

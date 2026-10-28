@@ -46,8 +46,8 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       ReducerT r = f.GetReducer();
 
       if (isFullWarp(acc)) {
-        accum = all ? warpReduce<TAcc, ReduceT, ReducerT, true>(acc, accum, r)
-                    : warpReduce<TAcc, ReduceT, ReducerT, false>(acc, accum, r);
+        accum = all ? warpReduce<TAcc, ReduceT, ReducerT, true>(acc, accum, laneIdx, r)
+                    : warpReduce<TAcc, ReduceT, ReducerT, false>(acc, accum, laneIdx, r);
       } else {
         accum =
             all ? warpSparseReduce<TAcc, ReduceT, ReducerT, true>(acc, alpaka::warp::activemask(acc), laneIdx, accum, r)
@@ -60,7 +60,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
 
     template <alpaka::concepts::Acc TAcc, typename DataT, typename TransformReducerT, bool use_augmented_reduction = false>
     ALPAKA_FN_ACC auto apply(
-        TAcc const& acc, DataT const& in, const TransformReducerT f, unsigned int const laneIdx, bool all = true) const
+        TAcc const& acc, DataT const& in, const TransformReducerT f, unsigned int const laneIdx, bool all = false) const
       requires VecArrayType<DataT> && (std::remove_cvref_t<DataT>::N <= 16)
     {
       using accum_t = cms::alpakatools::atomic_type_t<DataT>;
@@ -100,7 +100,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
                                     int const batch,
                                     typename TransformReducerT::ReduceT const& in,
                                     const TransformReducerT f,
-                                    bool all = true) const -> typename TransformReducerT::ReduceT {
+                                    bool all = false) const -> typename TransformReducerT::ReduceT {
       using ReduceT = typename TransformReducerT::ReduceT;
 
       constexpr int w_extent = getWarpSize<TAcc>();
@@ -126,7 +126,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
       // Perform warp reduction using shuffle operations
       auto res = warp_reducer.template apply<TAcc, ReduceT, TransformReducerT>(acc, in, f, laneIdx, false);
 
-      if (all && w_items == 1) {  // short circuit for single warp CTA
+      if (w_items == 1) {  // short circuit for single warp CTA
         return res;
       }
 
@@ -240,6 +240,7 @@ namespace ALPAKA_ACCELERATOR_NAMESPACE::multireduce {
           }
         }
       }
+
       return res;
     }
   };
