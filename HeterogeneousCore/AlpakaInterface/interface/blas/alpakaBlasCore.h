@@ -122,6 +122,7 @@ namespace cms::alpakatools::multiblas {
     template <extfloat::ExtendedFloatType T>
     ALPAKA_FN_ACC void StorePartial(T const val, const std::uint32_t idx) const {
       static_assert(std::is_convertible_v<extfloat::floating_value_t<T>, DeviceAtomicT>);
+
       partial[idx] = static_cast<DeviceAtomicT>(reduce::HighComponent(val));
       partial[idx + partial_stride] = static_cast<DeviceAtomicT>(reduce::LowComponent(val));
     }
@@ -136,8 +137,8 @@ namespace cms::alpakatools::multiblas {
     ALPAKA_FN_ACC T LoadPartial(const std::uint32_t idx) const {
       using BaseFloat = typename extfloat::floating_value_t<T>;
 
-      BaseFloat const val_hi = reduce::HighComponent(partial[idx]);
-      BaseFloat const val_lo = reduce::LowComponent(partial[idx + partial_stride]);
+      BaseFloat const val_hi = static_cast<DeviceAtomicT>(partial[idx]);
+      BaseFloat const val_lo = static_cast<DeviceAtomicT>(partial[idx + partial_stride]);
 
       return T(val_hi, val_lo);
     }
@@ -269,6 +270,7 @@ namespace cms::alpakatools::multiblas {
         auto reduce_val = transformer(acc, args.x, args.y, i, 0, batch_idx);
 
         out = reducer(out, block_reducer.template apply<TAcc, TransformReducerT>(acc, batch_idx, reduce_val, f, true));
+
         i += gridDim_x * blockDim_x;
       }
 
@@ -304,7 +306,9 @@ namespace cms::alpakatools::multiblas {
         auto accum = TransformReducerT::Init();
 
         while (s < gridDim_x) {
-          accum = reducer(accum, args.template LoadPartial<decltype(accum)>(batch_idx * gridDim_x + s));
+          auto const val = args.template LoadPartial<decltype(accum)>(batch_idx * gridDim_x + s);
+
+          accum = reducer(accum, val);
 
           s += blockDim_x * blockDim_y;
         }

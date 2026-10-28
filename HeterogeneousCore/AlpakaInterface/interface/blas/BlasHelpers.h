@@ -312,7 +312,10 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto getPhysicalLaneIdx(TAcc const& acc,
 
 template <alpaka::concepts::Acc TAcc, typename reduce_t, typename reducer_t, bool all = true>
   requires std::is_arithmetic_v<reduce_t>
-ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc, reduce_t const in, const reducer_t f) -> reduce_t {
+ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc,
+                                               reduce_t const in,
+                                               std::uint32_t const lane_idx,
+                                               const reducer_t f) -> reduce_t {
   constexpr unsigned int w_extent = getWarpSize<TAcc>();
 
   reduce_t result = in;
@@ -322,7 +325,9 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc, reduce_t const i
 
   CMS_UNROLL_LOOP
   for (unsigned int offset = w_extent / 2; offset > 0; offset /= 2) {
-    result = f(result, alpaka::warp::shfl_down(acc, result, offset, w_extent));
+    auto const val = alpaka::warp::shfl_down(acc, result, offset, w_extent);
+
+    result = f(result, val);
   }
 
   if constexpr (all)
@@ -337,7 +342,10 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc, reduce_t const i
 
 template <alpaka::concepts::Acc TAcc, typename reduce_t, typename reducer_t, bool all = true>
   requires(extfloat::is_extended_float<std::remove_cvref_t<reduce_t>>::value)
-ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc, reduce_t const& in, const reducer_t f) -> reduce_t {
+ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc,
+                                               reduce_t const& in,
+                                               std::uint32_t const lane_idx,
+                                               const reducer_t f) -> reduce_t {
   using base_float_tp = extfloat::floating_value_t<reduce_t>;
 
   constexpr unsigned int w_extent = getWarpSize<TAcc>();
@@ -347,17 +355,25 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc, reduce_t const& 
   if constexpr (std::is_same_v<alpaka::Dev<TAcc>, alpaka::DevCpu>)
     return result;
 
+  using warp_mask_t = decltype(alpaka::warp::activemask(acc));
+
+  warp_mask_t work_mask = alpaka::warp::activemask(acc);
+
   CMS_UNROLL_LOOP
   for (unsigned int offset = w_extent / 2; offset > 0; offset /= 2) {
-    base_float_tp hi = alpaka::warp::shfl_down(acc, result.HighComponent(), offset, w_extent);
-    base_float_tp lo = alpaka::warp::shfl_down(acc, result.LowComponent(), offset, w_extent);
+    base_float_tp hi = warp::shfl_down_mask(acc, work_mask, result.HighComponent(), offset, w_extent);
+    base_float_tp lo = warp::shfl_down_mask(acc, work_mask, result.LowComponent(), offset, w_extent);
+
+    work_mask = work_mask >> offset;
+    if (isWorkLane<TAcc>(work_mask, lane_idx) == false)
+      break;
 
     result = f(result, reduce_t{hi, lo});
   }
 
   if constexpr (all) {
-    base_float_tp hi = alpaka::warp::shfl_down(acc, result.HighComponent(), 0, w_extent);
-    base_float_tp lo = alpaka::warp::shfl_down(acc, result.LowComponent(), 0, w_extent);
+    base_float_tp hi = alpaka::warp::shfl(acc, result.HighComponent(), 0, w_extent);
+    base_float_tp lo = alpaka::warp::shfl(acc, result.LowComponent(), 0, w_extent);
 
     return reduce_t{hi, lo};
   }
@@ -372,6 +388,7 @@ template <alpaka::concepts::Acc TAcc, typename reduce_t, int N, typename reducer
   requires(VecArrayReducer<reducer_t, reduce_t, N> && std::is_arithmetic_v<reduce_t>)
 ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc,
                                                cms::alpakatools::VecArray<reduce_t, N> const& in,
+                                               std::uint32_t const lane_idx,
                                                const reducer_t f) -> cms::alpakatools::VecArray<reduce_t, N> {
   constexpr unsigned int w_extent = getWarpSize<TAcc>();
 
@@ -380,13 +397,22 @@ ALPAKA_FN_ACC ALPAKA_FN_INLINE auto warpReduce(TAcc const& acc,
   if constexpr (std::is_same_v<alpaka::Dev<TAcc>, alpaka::DevCpu>)
     return result;
 
+  using warp_mask_t = decltype(alpaka::warp::activemask(acc));
+
+  warp_mask_t work_mask = alpaka::warp::activemask(acc);
+
   CMS_UNROLL_LOOP
   for (unsigned int offset = w_extent / 2; offset > 0; offset /= 2) {
     cms::alpakatools::VecArray<reduce_t, N> tmp{};
     CMS_UNROLL_LOOP
     for (int i = 0; i < N; i++) {
-      tmp[i] = alpaka::warp::shfl_down(acc, result[i], offset, w_extent);
+      tmp[i] = warp::shfl_down_mask(acc, work_mask, result[i], offset, w_extent);
     }
+
+    work_mask = work_mask >> offset;
+    if (isWorkLane<TAcc>(work_mask, lane_idx) == false)
+      break;
+
     result = f(result, tmp);
   }
 

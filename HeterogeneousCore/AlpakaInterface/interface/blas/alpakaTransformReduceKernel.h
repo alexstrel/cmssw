@@ -90,6 +90,9 @@ auto transform_reduce(TPolicy &policy,
 
   constexpr bool use_augmented_reduction = ReducerT::use_augmented_reduction;
 
+  if (use_augmented_reduction)
+    printf("USING augmented reduction method.\n");
+
   auto reduce_bufs =
       cms::alpakatools::reduce::create_reduction_resources<AccT, QueueT, ReduceBaseT, use_augmented_reduction>(
           policy.queue, nSrc);
@@ -99,11 +102,19 @@ auto transform_reduce(TPolicy &policy,
 
   Idx const range = end - begin;
 
+  std::cout << "Range:  " << range << " : begin " << begin << " :: end " << end << ", max range "
+            << msrc_tr.GetMaxRange() << std::endl;
+
   assert(range <= msrc_tr.GetMaxRange());
 
   std::cout << "Reduction buffer limit:  " << msrc_tr.GetReducerLimit() << std::endl;
 
-  Idx const block_x_dim = range < max_block_x_dim ? (range / wExtend) * wExtend : max_block_x_dim;
+  constexpr std::uint32_t N = 4;
+
+  Idx const block_x_dim = range < max_block_x_dim ? (range / wExtend) * wExtend : max_block_x_dim / N;
+
+  std::cout << "Range:  " << range << " : max_block_x_dim " << max_block_x_dim << " :: block_x_dim " << block_x_dim
+            << std::endl;
 
   Idx const max_grid_x_dim = (range + block_x_dim - 1) / block_x_dim;
 

@@ -16,6 +16,9 @@
 #include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaTransformer.h"
 #include "HeterogeneousCore/AlpakaInterface/interface/blas/alpakaTransformReduceKernel.h"
 
+//#define USE_EXT_FLOAT
+#define CHECK_ROUNDING_ERRORS
+
 using namespace cms::alpakatools;
 using namespace ALPAKA_ACCELERATOR_NAMESPACE;
 
@@ -29,7 +32,7 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
-  static const Idx N = 16777216;  //4325376;  //6, 16
+  static const Idx N = 3 * 524288;  //1572864
 
   static constexpr Idx nSrc = 2;
 
@@ -64,9 +67,11 @@ int main() {
     using HostViewType = decltype(alpaka::createView(
         std::declval<decltype(devHost)>(), std::declval<DataType *>(), std::declval<Vec1D const &>()));
     // Input vector allocation and copy to device buffer
-    //
+#ifndef CHECK_ROUNDING_ERRORS
     const DataType a = static_cast<DataType>(2);
-
+#else
+    const DataType a = static_cast<DataType>(0);
+#endif
     std::vector<DataType> xv(extent.prod(), 0);
     //
     std::vector<DataType> yv(extent.prod(), 0);
@@ -86,15 +91,16 @@ int main() {
     yAcc.reserve(nSrc);
 
     // Initialize random number generator
-    //std::random_device rd;
-    //std::mt19937 gen(rd());
     constexpr std::uint32_t seed = 12345;
     std::mt19937 gen(seed);
 
     // Define a normal (Gaussian) distribution with mean 0 and standard deviation 1
     std::normal_distribution<double> distr(0.0, 1.0);
-
+#ifndef CHECK_ROUNDING_ERRORS
     constexpr bool use_random_nums = true;
+#else
+    constexpr bool use_random_nums = false;
+#endif
 
     for (Idx i = 0; i < nSrc; i++) {
       // populate the vector with random numbers
@@ -102,12 +108,21 @@ int main() {
         std::generate(xv.begin(), xv.end(), [&]() { return distr(gen); });
         std::generate(yv.begin(), yv.end(), [&]() { return distr(gen); });
       } else {  // use int sequence (and shuffle)
-
+#ifndef CHECK_ROUNDING_ERRORS
         std::iota(xv.begin(), xv.end(), 1.0f);
         std::iota(yv.begin(), yv.end(), 2.0f);
 
         std::shuffle(xv.begin(), xv.end(), gen);
         std::shuffle(yv.begin(), yv.end(), gen);
+#else
+        constexpr std::array triple_vals{1.0e8f, 1.0f, -1.0e8f};
+
+        std::fill(xv.begin(), xv.end(), 0);
+
+        std::ranges::transform(std::views::iota(std::size_t{0}, yv.size()), yv.begin(), [&](auto i) {
+          return triple_vals[i % triple_vals.size()];
+        });
+#endif
       }
 
       xAcc.push_back(alpaka::allocBuf<DataType, Idx>(devAcc, extent));
@@ -123,19 +138,29 @@ int main() {
 
       for (size_t j{0}; j < N; ++j) {
         yView[j] = a * xView[j] + yView[j];
+#ifndef CHECK_ROUNDING_ERRORS
         auto const t = yView[j] * yView[j];
+#else
+        auto const t = yView[j];
+#endif
         gres = gres + t;
       }
 
       std::cout << "Result on the host :: (nSrc " << i << " ) " << std::setprecision(16) << gres << std::endl;
     }
     std::cout << "Running alpaka transform_reduce kernel..." << std::endl;
-
-    //using Reduce_t = float;
+#ifndef USE_EXT_FLOAT
+    using Reduce_t = float;
+#else
     using Reduce_t = extfloat::ExtendedFloat<float>;
+#endif
 
     using reducer_t = cms::alpakatools::reduce::plus<Reduce_t>;
+#ifndef CHECK_ROUNDING_ERRORS
     using transformer_t = cms::alpakatools::transform::axpynorm2_batched<Reduce_t, DataType, nSrc>;
+#else
+    using transformer_t = cms::alpakatools::transform::axpysum_batched<Reduce_t, DataType, nSrc>;
+#endif
     using init_t = cms::alpakatools::reduce::Set<Reduce_t>;
 
     constexpr bool copy_to_host = true;
@@ -159,7 +184,11 @@ int main() {
       double host_nrm = 0.0;
 
       for (size_t j{0}; j < N; ++j) {  //dof
+#ifndef CHECK_ROUNDING_ERRORS
         host_nrm += (yView[j] * yView[j]);
+#else
+        host_nrm += yView[j];
+#endif
       }
 
       std::cout << "NORM on the host :: " << std::setprecision(16) << host_nrm << std::endl;
